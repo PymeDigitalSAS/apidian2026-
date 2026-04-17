@@ -11,15 +11,7 @@
     <!-- Logo en la parte superior -->
     <tr>
         <td style="text-align: center;">
-            @if(!empty($imgLogo))
-                <table cellpadding="0" cellspacing="0" style="width:170px; height:80px; margin:0 auto 5px auto; border-collapse:collapse;">
-                    <tr>
-                        <td style="width:170px; height:80px; overflow:hidden; vertical-align:middle; text-align:center; padding:0;">
-                            <img style="display:inline-block; max-width:170px; max-height:80px; width:auto; height:auto;" src="{{$imgLogo}}" alt="logo">
-                        </td>
-                    </tr>
-                </table>
-            @endif
+            <img style="max-width: 170px; height: auto; margin-bottom: 5px;" src="{{$imgLogo}}" alt="logo">
         </td>
     </tr>
 
@@ -339,6 +331,13 @@
                                     <p style="font-style: italic; font-size: 90%">{{$item['notes']}}</p>
                                 @else
                                     {{$item['description']}}
+                                @endif
+                                @if(!empty($item['lot_code']) || !empty($item['date_of_due']))
+                                    <p style="font-style: italic; font-size: 60%">
+                                        @if(!empty($item['lot_code']))<strong>Lote:</strong> {{$item['lot_code']}}@endif
+                                        @if(!empty($item['lot_code']) && !empty($item['date_of_due'])) | @endif
+                                        @if(!empty($item['date_of_due']))<strong>Vence:</strong> {{$item['date_of_due']}}@endif
+                                    </p>
                                 @endif
                         @if($showPurchaseOrderColumn)
                             <td>
