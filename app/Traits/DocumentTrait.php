@@ -1581,7 +1581,7 @@ trait DocumentTrait
             $i++;
             $document_filename = "anx-{$i}-{$filename}.{$document['extension']}";
             if (base64_decode($document['document'], true)) {
-                Storage::put("public/{$company->identification_number}/{$document_filename}", base64_decode($document['document']));
+                StorageService::put("public/{$company->identification_number}/{$document_filename}", base64_decode($document['document']));
             }
         }
     }
