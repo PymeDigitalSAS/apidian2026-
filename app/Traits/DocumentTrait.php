@@ -800,6 +800,11 @@ trait DocumentTrait
 
             $imageQr    =  "data:image/png;base64, ".$qrBase64;
             $template_pdf = $company->graphic_representation_template ?? 1;
+            // Si es nómina y el template no es 2 ni 8, forzar el template 2
+            if (!in_array($template_pdf, [2, 8])) {
+                $template_pdf = 2;
+            }
+            $temp_template_pdf = $template_pdf;
             $temp_template_pdf = $template_pdf;
 
             $pdf = $this->initMPdf('payroll', $temp_template_pdf);

@@ -235,6 +235,13 @@
                             @if(isset($item['notes']))
                                 <br><span style="font-style: italic;">{{ $item['notes'] }}</span>
                             @endif
+                            @if(!empty($item['lot_code']) || !empty($item['date_of_due']))
+                                <br><span style="font-size: 7px; font-style: italic;">
+                                    @if(!empty($item['lot_code']))<strong>Lote:</strong> {{ $item['lot_code'] }}@endif
+                                    @if(!empty($item['lot_code']) && !empty($item['date_of_due'])) | @endif
+                                    @if(!empty($item['date_of_due']))<strong>Vence:</strong> {{ $item['date_of_due'] }}@endif
+                                </span>
+                            @endif
                         </td>
                         <td class="desc-9 text-right">
                             @php

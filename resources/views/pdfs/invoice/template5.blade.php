@@ -299,6 +299,13 @@
                             @else
                                 {{$item['description']}}
                             @endif
+                            @if(!empty($item['lot_code']) || !empty($item['date_of_due']))
+                                <p style="font-size: 6px; margin: 0; font-style: italic;">
+                                    @if(!empty($item['lot_code']))<strong>Lote:</strong> {{$item['lot_code']}}@endif
+                                    @if(!empty($item['lot_code']) && !empty($item['date_of_due'])) | @endif
+                                    @if(!empty($item['date_of_due']))<strong>Vence:</strong> {{$item['date_of_due']}}@endif
+                                </p>
+                            @endif
                         </td>
                         @if($showPurchaseOrderColumn)
                             <td>
