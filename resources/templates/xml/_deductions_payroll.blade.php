@@ -14,7 +14,7 @@
                 DeduccionSP="{{preg_replace("/[\r\n|\n|\r]+/", "", $deductions->fondosp_deduction_SP)}}"
             @endif
             @if(isset($deductions->fondossp_sub_type_law_deductions_id))
-                PorcentajeSub="{{preg_replace("/[\r\n|\n|\r]+/", "", $deductions->fondossp_sub_type_law_deductions->percentage)}}"
+                PorcentajeSub="{{number_format((float)$deductions->fondossp_sub_type_law_deductions->percentage, 2, '.', '')}}"
                 DeduccionSub="{{preg_replace("/[\r\n|\n|\r]+/", "", $deductions->fondosp_deduction_sub)}}"
             @endif
         ></FondoSP>

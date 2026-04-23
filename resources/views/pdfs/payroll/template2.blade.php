@@ -229,7 +229,7 @@
                 <?php $ItemNro = $ItemNro + 1; ?>
                     <tr>
                         <td>{{$ItemNro}}</td>
-                        <td>PAGO DE {{$HENDF['quantity']}} HORA(S) EXTRA(S) NOCTURNA(S) DOMINICAL Y FESTIVO DESDE - {{$HENDF['start_date']}} HASTA {{$HENDF['end_date']}}</td>
+                        <td>PAGO DE {{$HENDF['quantity']}} HORA(S) EXTRA(S) NOCTURNA(S) DOMINICAL Y FESTIVO DESDE - {{$HENDF['start_time']}} HASTA {{$HENDF['end_time']}}</td>
                         <td class="text-right">{{number_format($HENDF['payment'], 2)}}</td>
                         <td></td>
                     </tr>
