@@ -412,12 +412,23 @@ th {
     border-collapse: collapse;
     vertical-align: top;
 }
-.table tr:nth-child(odd) td{
-   /* background-color: rgb(248, 249, 250);*/
-}
 .table th {
     font-weight: bold;
 }
+.table td .invoice-item-description {
+    display: block;
+    font-size: 11px !important;
+    line-height: 1.35;
+}
+
+.table td .invoice-item-note,
+.table td .invoice-item-note strong {
+    margin-top: 2px;
+    font-size: 6px !important;
+    font-style: italic;
+    line-height: 1.2;
+}
+
 .text-word {
     text-align: justify;
     text-justify: inter-word;
