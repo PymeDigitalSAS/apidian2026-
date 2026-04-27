@@ -56,6 +56,8 @@ class ConfigurationRequest extends FormRequest
             'type_organization_id' => 'required|exists:type_organizations,id',
             'type_regime_id' => 'required|exists:type_regimes,id',
             'type_liability_id' => 'required|exists:type_liabilities,id',
+            'type_liability_ids' => 'nullable|array|min:1',
+            'type_liability_ids.*' => 'integer|exists:type_liabilities,id',
             'business_name' => 'required|string',
             'municipality_id' => 'required|exists:municipalities,id',
             'merchant_registration' => 'required|string',
