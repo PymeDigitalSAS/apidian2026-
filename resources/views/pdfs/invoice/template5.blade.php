@@ -275,7 +275,9 @@
                         <td class="text-right">
                             {{$item['code']}}
                         </td>
-                        <td>{{$item['description']}}</td>
+                        <td>
+                            <span class="invoice-item-description" style="display: block; font-size: 10px; line-height: 1.3;">{{$item['description']}}</span>
+                        </td>
                         <td class="text-right"></td>
                         <td class="text-right"></td>
                         <td class="text-right">{{number_format($item['price_amount'], 2)}}</td>
@@ -294,17 +296,10 @@
                         <td>{{$item['code']}}</td>
                         <td>
                             @if(isset($item['notes']))
-                                {{$item['description']}}
-                                <p style="font-style: italic; font-size: 6px"><strong> {{$item['notes']}}</strong></p>
+                                <span class="invoice-item-description" style="display: block; font-size: 10px; line-height: 1.3;">{{$item['description']}}</span>
+                                <p class="invoice-item-note" style="margin-top: 2px; font-size: 7px; font-style: italic; line-height: 1.2;"><strong style="font-size: 7px;"> {{$item['notes']}}</strong></p>
                             @else
-                                {{$item['description']}}
-                            @endif
-                            @if(!empty($item['lot_code']) || !empty($item['date_of_due']))
-                                <p style="font-size: 6px; margin: 0; font-style: italic;">
-                                    @if(!empty($item['lot_code']))<strong>Lote:</strong> {{$item['lot_code']}}@endif
-                                    @if(!empty($item['lot_code']) && !empty($item['date_of_due'])) | @endif
-                                    @if(!empty($item['date_of_due']))<strong>Vence:</strong> {{$item['date_of_due']}}@endif
-                                </p>
+                                <span class="invoice-item-description" style="display: block; font-size: 10px; line-height: 1.3;">{{$item['description']}}</span>
                             @endif
                         </td>
                         @if($showPurchaseOrderColumn)
