@@ -77,7 +77,7 @@
                         <td style="padding: 0; width: 50%;">Teléfono:</td>
                         <td style="padding: 0;">{{$customer->company->phone}}</td>
                     </tr>
-                    @if(is_array($paymentForm))
+                    @if(!empty($paymentForm) && count($paymentForm) > 0)
                     <br>
                     <tr>
                         <td style="padding: 0; width: 50%;">Medios de Pago:</td>

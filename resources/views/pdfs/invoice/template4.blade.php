@@ -63,7 +63,7 @@
             </td>
             <td class="vertical-align-top" style="width: 40%; padding-left: 1rem">
                 <table>
-                    @if(is_array($paymentForm))
+                    @if(!empty($paymentForm) && count($paymentForm) > 0)
                     <tr>
                         <td>Forma de Pago:</td>
                         <td>{{$paymentForm[0]->name}}</td>
