@@ -1,4 +1,4 @@
-<?php
+?php
 
 namespace App\Http\Requests\Api;
 
@@ -160,6 +160,8 @@ class InvoiceTransportRequest extends FormRequest
             'customer.type_regime_id' => 'nullable|exists:type_regimes,id',
             'customer.tax_id' => 'nullable|exists:taxes,id',
             'customer.type_liability_id' => 'nullable|exists:type_liabilities,id',
+            'customer.type_liability_ids' => 'nullable|array|min:1',
+            'customer.type_liability_ids.*' => 'integer|exists:type_liabilities,id',
             'customer.name' => 'required|string',
             'customer.phone' => 'nullable|string|max:20',
 //            'customer.phone' => 'required_unless:customer.identification_number,222222222222|string|max:20',

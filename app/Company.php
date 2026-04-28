@@ -43,6 +43,10 @@ class Company extends Model
      *
      * @var array
      */
+    protected $casts = [
+        'type_liability_ids' => 'array',
+    ];
+
     protected $fillable = [
         'user_id',
         'identification_number',
@@ -61,6 +65,7 @@ class Company extends Model
         'type_organization_id',
         'type_regime_id',
         'type_liability_id',
+        'type_liability_ids',
         'municipality_id',
         'merchant_registration',
         'address',
@@ -296,6 +301,19 @@ class Company extends Model
                 'name' => 'No aplica – Otros',
                 'code' => 'R-99-PN',
             ]);
+    }
+
+    public function getTypeLiabilityCodesAttribute()
+    {
+        $additionalIds = $this->type_liability_ids;
+        if (!empty($additionalIds)) {
+            $primaryId = $this->type_liability_id;
+            $allIds = $primaryId
+                ? array_unique(array_merge([$primaryId], $additionalIds))
+                : array_unique($additionalIds);
+            return TypeLiability::whereIn('id', $allIds)->pluck('code')->implode(';');
+        }
+        return null;
     }
 
     /**
