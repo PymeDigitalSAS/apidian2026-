@@ -39,7 +39,7 @@
                             </tr>
                             <tr>
                                 <td>Obligación:</td>
-                                <td>{{$customer->company->type_liability->name}}</td>
+                                <td>{{$customer->company->type_liability_names ?? $customer->company->type_liability->name}}</td>
                             </tr>
                             <tr>
                                 <td>Dirección:</td>

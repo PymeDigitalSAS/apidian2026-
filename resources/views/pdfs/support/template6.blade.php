@@ -37,7 +37,7 @@
                     </tr>
                     <tr>
                         <td style="padding: 0; width: 40%;">Obligación:</td>
-                        <td style="padding: 0;">{{$customer->company->type_liability->name}}</td>
+                        <td style="padding: 0;">{{$customer->company->type_liability_names ?? $customer->company->type_liability->name}}</td>
                     </tr>
                     <tr>
                         <td style="padding: 0; width: 40%;">Email:</td>

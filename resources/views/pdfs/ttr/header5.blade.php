@@ -35,6 +35,7 @@
                     <p style="color: black; font-weight: bold; font-size: 12px; margin-bottom: 2px; padding: 0px 0px 0px 0px;">NIT: {{$company->identification_number}}-{{$company->dv}}</p>
                     <p style="color: black; font-size: 10px; margin-bottom: 2px; padding: 0px 0px 0px 0px;">{{$company->type_regime->name}}</p>
                 @endif
+                <p style="color: black; font-size: 10px; margin-bottom: 2px; padding: 0px 0px 0px 0px;">{{$company->type_liability_names ?? $company->type_liability->name}}</p>
                 <p style="color: black; font-size: 11px; margin-bottom: 2px; padding: 0px 0px 0px 0px;">
                     @if(isset($request->tarifaica) && $request->tarifaica != '100')
                         TARIFA ICA: {{$request->tarifaica}}‰
