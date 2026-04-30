@@ -58,6 +58,7 @@ class InvoiceController extends Controller
         $customerAll = collect($request->customer);
         if(isset($customerAll['municipality_id_fact']))
             $customerAll['municipality_id'] = Municipality::where('codefacturador', $customerAll['municipality_id_fact'])->first();
+        $customerAll = $this->resolveCustomerLocation($customerAll);
         $customer = new User($customerAll->toArray());
 
         // Customer company
@@ -321,6 +322,7 @@ class InvoiceController extends Controller
         $customerAll = collect($request->customer);
         if(isset($customerAll['municipality_id_fact']))
             $customerAll['municipality_id'] = Municipality::where('codefacturador', $customerAll['municipality_id_fact'])->first();
+        $customerAll = $this->resolveCustomerLocation($customerAll);
         $customer = new User($customerAll->toArray());
 
         // Customer company
@@ -881,6 +883,7 @@ class InvoiceController extends Controller
         $customerAll = collect($request->customer);
         if(isset($customerAll['municipality_id_fact']))
             $customerAll['municipality_id'] = Municipality::where('codefacturador', $customerAll['municipality_id_fact'])->first();
+        $customerAll = $this->resolveCustomerLocation($customerAll);
         $customer = new User($customerAll->toArray());
 
         // Customer company
