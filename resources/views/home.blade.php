@@ -267,6 +267,16 @@
                             <i class="fas fa-image mr-2"></i>Logo de la Empresa
                         </a>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="company-token-tab" data-toggle="tab" href="#company-token" role="tab" aria-controls="company-token" aria-selected="false">
+                            <i class="fas fa-key mr-2"></i>API Token
+                        </a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="company-certificate-tab" data-toggle="tab" href="#company-certificate" role="tab" aria-controls="company-certificate" aria-selected="false">
+                            <i class="fas fa-shield-alt mr-2"></i>Certificado
+                        </a>
+                    </li>
                 </ul>
 
                 <!-- Tab panes -->
@@ -379,6 +389,52 @@
                             </div>
                         </form>
                     </div>
+                    <!-- Tab de API Token -->
+                    <div class="tab-pane fade" id="company-token" role="tabpanel" aria-labelledby="company-token-tab">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="company-token-input">Token de la Empresa</label>
+                                    <div class="input-group">
+                                        <input type="text" id="company-token-input" class="form-control" readonly placeholder="Sin token disponible">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-outline-secondary" type="button" id="copyTokenBtn" title="Copiar token">
+                                                <i class="far fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <small class="form-text text-muted">Este token es usado para llamadas a la API.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab de Certificado -->
+                    <div class="tab-pane fade" id="company-certificate" role="tabpanel" aria-labelledby="company-certificate-tab">
+                        <div class="row mt-3">
+                            <div class="col-12" id="cert-current-info">
+                                <!-- Información del certificado actual cargada por JS -->
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="cert-password-input">Contraseña del certificado</label>
+                                    <input type="password" id="cert-password-input" class="form-control" placeholder="Ingresa la contraseña">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Archivo de certificado (.pfx / .p12)</label>
+                                    <div class="custom-file">
+                                        <input type="file" class="custom-file-input" id="cert-file-input" accept=".pfx,.p12">
+                                        <label class="custom-file-label" for="cert-file-input">Seleccionar archivo...</label>
+                                    </div>
+                                    <small class="form-text text-muted">Formatos permitidos: .pfx, .p12</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -388,6 +444,9 @@
                 </button>
                 <button type="button" id="saveLogoBtn" class="btn btn-success" style="display: none;">
                     <i class="fas fa-image"></i> Actualizar Logo
+                </button>
+                <button type="button" id="saveCertificateBtn" class="btn btn-warning" style="display: none;">
+                    <i class="fas fa-shield-alt"></i> Actualizar Certificado
                 </button>
             </div>
         </div>
@@ -516,6 +575,16 @@ document.addEventListener("DOMContentLoaded", function () {
     filterText.addEventListener("keyup", applyFilter);
     filterType.addEventListener("change", applyFilter);
 });
+// Datos de certificado por empresa (generados server-side)
+window.companyCertificateData = {
+    @foreach($companies as $row)
+    {{ $row->id }}: {
+        name: '{{ $row->certificate ? $row->certificate->name : '' }}',
+        expiry: '{{ $row->certificate && $row->certificate->expiration_date ? \Carbon\Carbon::parse($row->certificate->expiration_date)->format('d/m/Y') : '' }}'
+    }{{ !$loop->last ? ',' : '' }}
+    @endforeach
+};
+
 $(document).ready(function () {
     let currentCompanyId = null;
     let currentApiToken = null;
@@ -524,8 +593,16 @@ $(document).ready(function () {
     $('#editCompanyModal').on('show.bs.modal', function () {
         clearFormErrors();
         clearLogoForm();
+        clearCertificateForm();
         // Asegurar que el primer tab esté activo
         $('#company-info-tab').tab('show');
+        // Cargar token en el campo correspondiente si está disponible
+        try {
+            var tokenVal = window.currentApiToken || currentApiToken || '';
+            $('#company-token-input').val(tokenVal);
+        } catch (e) {
+            // ignore
+        }
     });
 
     // Manejar cambio de tabs
@@ -535,9 +612,20 @@ $(document).ready(function () {
         if (target === '#company-info') {
             $('#saveCompanyBtn').show();
             $('#saveLogoBtn').hide();
+            $('#saveCertificateBtn').hide();
         } else if (target === '#company-logo') {
             $('#saveCompanyBtn').hide();
             $('#saveLogoBtn').show();
+            $('#saveCertificateBtn').hide();
+        } else if (target === '#company-token') {
+            $('#saveCompanyBtn').hide();
+            $('#saveLogoBtn').hide();
+            $('#saveCertificateBtn').hide();
+        } else if (target === '#company-certificate') {
+            $('#saveCompanyBtn').hide();
+            $('#saveLogoBtn').hide();
+            $('#saveCertificateBtn').show();
+            loadCertificateDisplay();
         }
     });
 
@@ -826,6 +914,49 @@ $(document).ready(function () {
         }
     });
 
+    // Copiar token al portapapeles
+    $('#copyTokenBtn').on('click', function() {
+        var token = $('#company-token-input').val();
+        if (!token) {
+            new PNotify({
+                text: 'No hay token disponible para copiar',
+                type: 'error',
+                addclass: 'notification-danger',
+                delay: 2500
+            });
+            return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(token).then(function() {
+                new PNotify({
+                    text: 'Token copiado al portapapeles',
+                    type: 'success',
+                    addclass: 'notification-success',
+                    delay: 2000
+                });
+            }).catch(function() {
+                fallbackCopy(token);
+            });
+        } else {
+            fallbackCopy(token);
+        }
+
+        function fallbackCopy(text) {
+            var $temp = $('<input>');
+            $('body').append($temp);
+            $temp.val(text).select();
+            document.execCommand('copy');
+            $temp.remove();
+            new PNotify({
+                text: 'Token copiado al portapapeles',
+                type: 'success',
+                addclass: 'notification-success',
+                delay: 2000
+            });
+        }
+    });
+
     // Solo permitir números en el campo DV
     $('#dv').on('keypress', function(e) {
         var char = String.fromCharCode(e.which);
@@ -834,6 +965,118 @@ $(document).ready(function () {
         }
     });
 
+    // Actualizar label del input de certificado
+    $('#cert-file-input').on('change', function() {
+        var file = this.files[0];
+        $(this).next('.custom-file-label').text(file ? file.name : 'Seleccionar archivo...');
+    });
+
+    // Guardar / Actualizar certificado
+    $('#saveCertificateBtn').on('click', function(e) {
+        e.preventDefault();
+
+        var file = $('#cert-file-input')[0].files[0];
+        var password = $('#cert-password-input').val().trim();
+
+        if (!file) {
+            new PNotify({
+                text: 'Por favor selecciona el archivo de certificado (.pfx o .p12)',
+                type: 'error',
+                addclass: 'notification-danger',
+                delay: 3000
+            });
+            return;
+        }
+        if (!password) {
+            new PNotify({
+                text: 'Por favor ingresa la contraseña del certificado',
+                type: 'error',
+                addclass: 'notification-danger',
+                delay: 3000
+            });
+            return;
+        }
+
+        var submitBtn = $(this);
+        var originalText = submitBtn.html();
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Actualizando...');
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var base64String = e.target.result.split(',')[1];
+
+            $.ajax({
+                url: '/api/ubl2.1/config/certificate',
+                method: 'PUT',
+                headers: {
+                    'Authorization': 'Bearer ' + (window.currentApiToken || currentApiToken),
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                data: JSON.stringify({
+                    certificate: base64String,
+                    password: password
+                }),
+                success: function(response) {
+                    new PNotify({
+                        text: response.message || 'Certificado actualizado exitosamente',
+                        type: 'success',
+                        addclass: 'notification-success',
+                        delay: 3000
+                    });
+                    clearCertificateForm();
+                    setTimeout(function() { location.reload(); }, 1500);
+                },
+                error: function(xhr) {
+                    var message = 'Error al actualizar el certificado';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        message = xhr.responseJSON.message;
+                    }
+                    new PNotify({
+                        text: message,
+                        type: 'error',
+                        addclass: 'notification-danger',
+                        delay: 5000
+                    });
+                    submitBtn.prop('disabled', false).html(originalText);
+                }
+            });
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Función para mostrar la info del certificado actual en el tab
+    function loadCertificateDisplay() {
+        var companyId = window.currentCompanyId;
+        var certData = window.companyCertificateData && window.companyCertificateData[companyId];
+
+        if (certData && certData.name) {
+            var expiryText = certData.expiry
+                ? ' &mdash; Vence: <strong>' + certData.expiry + '</strong>'
+                : '';
+            $('#cert-current-info').html(
+                '<div class="alert alert-info py-2">' +
+                '<i class="fas fa-check-circle mr-2"></i>' +
+                '<strong>Certificado cargado:</strong> ' + certData.name + expiryText +
+                '</div>'
+            );
+        } else {
+            $('#cert-current-info').html(
+                '<div class="alert alert-warning py-2">' +
+                '<i class="fas fa-exclamation-triangle mr-2"></i>' +
+                'No hay certificado cargado para esta empresa.' +
+                '</div>'
+            );
+        }
+    }
+
+    // Función para limpiar el formulario de certificado
+    function clearCertificateForm() {
+        $('#cert-password-input').val('');
+        $('#cert-file-input').val('');
+        $('#cert-file-input').next('.custom-file-label').text('Seleccionar archivo...');
+        $('#cert-current-info').html('');
+    }
 
 });
 </script>
