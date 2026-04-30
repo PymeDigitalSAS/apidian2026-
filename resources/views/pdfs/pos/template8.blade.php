@@ -38,7 +38,7 @@
                     </tr>
                     <tr>
                         <td>Liability:</td>
-                        <td>{{$customer->company->type_liability->name}}</td>
+                        <td>{{$customer->company->type_liability_names ?? $customer->company->type_liability->name}}</td>
                     </tr>
                     <tr>
                         <td>Address:</td>

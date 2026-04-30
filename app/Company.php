@@ -316,6 +316,19 @@ class Company extends Model
         return null;
     }
 
+    public function getTypeLiabilityNamesAttribute()
+    {
+        $additionalIds = $this->type_liability_ids;
+        if (!empty($additionalIds)) {
+            $primaryId = $this->type_liability_id;
+            $allIds = $primaryId
+                ? array_unique(array_merge([$primaryId], $additionalIds))
+                : array_unique($additionalIds);
+            return TypeLiability::whereIn('id', $allIds)->pluck('name')->implode(', ');
+        }
+        return null;
+    }
+
     /**
      * Get the type regime identification that owns the company.
      */
