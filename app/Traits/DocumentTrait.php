@@ -35,6 +35,8 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
 use App\Http\Controllers\Api\ConfigurationController;
 use App\Services\StorageService;
+use App\Country;
+use App\Municipality;
 use DateTime;
 use Carbon\Carbon;
 
@@ -59,6 +61,48 @@ trait DocumentTrait
         'payment_form_id' => 1,
         'payment_method_id' => 10,
     ];
+
+    protected function resolveCustomerLocation($customerAll)
+    {
+        $countryName      = isset($customerAll['country_name'])      ? trim($customerAll['country_name'])      : null;
+        $municipalityName = isset($customerAll['municipality_name']) ? trim($customerAll['municipality_name']) : null;
+        $stateName        = isset($customerAll['state_name'])        ? trim($customerAll['state_name'])        : null;
+
+        if (!$countryName && !$municipalityName) {
+            return $customerAll;
+        }
+
+        if ($countryName && empty($customerAll['country_id'])) {
+            $country = Country::where('name', 'like', "%{$countryName}%")->first();
+            if ($country) {
+                $customerAll['country_id'] = $country->id;
+            }
+        }
+
+        $isColombia = ($customerAll->get('country_id') == 46)
+                   || ($countryName && stripos($countryName, 'colombia') !== false);
+
+        if ($isColombia && $municipalityName && empty($customerAll['municipality_id'])) {
+            if ($stateName) {
+                $municipality = Municipality::join('departments', 'municipalities.department_id', '=', 'departments.id')
+                    ->select('municipalities.*')
+                    ->where('municipalities.name', 'like', "%{$municipalityName}%")
+                    ->where('departments.name',    'like', "%{$stateName}%")
+                    ->orderBy('municipalities.name')
+                    ->first();
+            } else {
+                $municipality = Municipality::where('name', 'like', "%{$municipalityName}%")
+                    ->orderBy('name')
+                    ->first();
+            }
+
+            if ($municipality) {
+                $customerAll['municipality_id'] = $municipality->id;
+            }
+        }
+
+        return $customerAll;
+    }
 
     /**
      * Get query.
