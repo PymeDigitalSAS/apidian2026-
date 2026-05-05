@@ -180,6 +180,9 @@ class HomeController extends Controller
                 abort(403, 'No tienes permiso para editar esta empresa.');
             }
 
+            $tax_id = $request->tax_id
+                ?? (($request->type_regime_id == 2) ? 15 : ($company->tax_id ?? 1));
+
             $company->update([
                 'identification_number' => $request->identification_number,
                 'dv' => $request->dv,
@@ -190,6 +193,7 @@ class HomeController extends Controller
                 'address' => $request->address,
                 'phone' => $request->phone,
                 'type_document_identification_id' => $request->type_document_identification_id,
+                'tax_id' => $tax_id,
             ]);
 
             return response()->json([

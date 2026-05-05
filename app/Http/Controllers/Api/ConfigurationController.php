@@ -211,7 +211,7 @@ class ConfigurationController extends Controller
 
             $tax_id = $request->tax_id;
             if (!$tax_id) {
-                $tax_id = ($request->type_liability_id == 117) ? 15 : 1;
+                $tax_id = ($request->type_regime_id == 2) ? 15 : 1;
             }
             if($operacion == "CREATE"){
                 $user = User::create([
@@ -303,7 +303,7 @@ class ConfigurationController extends Controller
                 }
 
                 if (!$request->tax_id) {
-                    $tax_id = ($request->type_liability_id == 117) ? 15 : ($user->company->tax_id ?? 1);
+                    $tax_id = ($request->type_regime_id == 2) ? 15 : ($user->company->tax_id ?? 1);
                 }
 
                 if(isset($request->type_plan_id) && (($request->type_plan_id != $user->company->type_plan_id) || (isset($request->renew_plan) && $request->renew_plan == TRUE)))
