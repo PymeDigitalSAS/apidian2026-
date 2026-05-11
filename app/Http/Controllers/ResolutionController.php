@@ -37,53 +37,25 @@ class ResolutionController extends Controller
         $expectsJson = $request->ajax() || $request->wantsJson() || $request->expectsJson();
 
         try {
-            $typeDocument = TypeDocument::find($request->type_document_id);
-
-            $simpleCodes = ['91', '92', '93', '94'];
-            $isSimpleType = $typeDocument && in_array($typeDocument->code, $simpleCodes);
-
             $rules = [
-                'resolution' => 'required|string|max:255',
                 'type_document_id' => 'required|exists:type_documents,id',
-                'prefix' => 'required|string|max:4',
-                'from' => 'required|integer|min:1',
-                'to' => 'required|integer|min:1|gte:from',
+                'prefix' => 'required|string|max:10',
+                'resolution' => 'required|string|max:255',
+                'from' => 'nullable|integer|min:0',
+                'to' => 'nullable|integer|min:0',
+                'resolution_date' => 'nullable|date',
+                'technical_key' => 'nullable|string|max:255',
+                'date_from' => 'nullable|date',
+                'date_to' => 'nullable|date',
             ];
 
             $messages = [
-                'resolution.required' => 'El número de resolución es obligatorio.',
-                'resolution_date.required' => 'La fecha de resolución es obligatoria.',
-                'resolution_date.date' => 'La fecha de resolución debe ser una fecha válida.',
                 'type_document_id.required' => 'El tipo de documento es obligatorio.',
                 'type_document_id.exists' => 'El tipo de documento seleccionado no es válido.',
                 'prefix.required' => 'El prefijo es obligatorio.',
-                'prefix.string' => 'El prefijo debe ser una cadena de texto.',
-                'prefix.max' => 'El prefijo no puede tener más de 4 caracteres.',
-                'from.required' => 'El rango inicial es obligatorio.',
-                'from.integer' => 'El rango inicial debe ser un número entero.',
-                'from.min' => 'El rango inicial debe ser mayor a 0.',
-                'to.required' => 'El rango final es obligatorio.',
-                'to.integer' => 'El rango final debe ser un número entero.',
-                'to.gte' => 'El rango final debe ser mayor o igual al rango inicial.',
+                'prefix.max' => 'El prefijo no puede tener más de 10 caracteres.',
+                'resolution.required' => 'El número de resolución es obligatorio.',
             ];
-
-            if (!$isSimpleType) {
-                $rules = array_merge($rules, [
-                    'resolution_date' => 'required|date',
-                    'technical_key' => 'required|string|max:255',
-                    'date_from' => 'required|date',
-                    'date_to' => 'required|date|after_or_equal:date_from',
-                ]);
-
-                $messages = array_merge($messages, [
-                    'technical_key.required' => 'La clave técnica es obligatoria.',
-                    'date_from.required' => 'La fecha de inicio de vigencia es obligatoria.',
-                    'date_from.date' => 'La fecha de inicio de vigencia debe ser una fecha válida.',
-                    'date_to.required' => 'La fecha de fin de vigencia es obligatoria.',
-                    'date_to.date' => 'La fecha de fin de vigencia debe ser una fecha válida.',
-                    'date_to.after_or_equal' => 'La fecha de fin debe ser posterior o igual a la fecha de inicio.',
-                ]);
-            }
 
             $request->validate($rules, $messages);
 
@@ -98,24 +70,21 @@ class ResolutionController extends Controller
 
             DB::beginTransaction();
 
+            // El ambiente se toma siempre del actual de la empresa
+            // (mismo comportamiento que el endpoint API en facturas).
             $resolutionData = [
                 'company_id' => $company->id,
                 'type_document_id' => $request->type_document_id,
                 'prefix' => $request->prefix,
+                'resolution' => $request->resolution,
                 'from' => $request->from,
                 'to' => $request->to,
+                'resolution_date' => $request->resolution_date,
+                'technical_key' => $request->technical_key,
+                'date_from' => $request->date_from,
+                'date_to' => $request->date_to,
                 'type_environment_id' => $company->type_environment_id,
-                'resolution' => $request->resolution,
             ];
-
-            if (!$isSimpleType) {
-                $resolutionData = array_merge($resolutionData, [
-                    'resolution_date' => $request->resolution_date,
-                    'technical_key' => $request->technical_key,
-                    'date_from' => $request->date_from,
-                    'date_to' => $request->date_to,
-                ]);
-            }
 
             $resolution = Resolution::create($resolutionData);
 
@@ -177,48 +146,22 @@ class ResolutionController extends Controller
                 ], 404);
             }
 
-            $typeDocument = TypeDocument::find($request->type_document_id);
-            $simpleCodes = ['91', '92', '93', '94'];
-            $isSimpleType = $typeDocument && in_array($typeDocument->code, $simpleCodes);
-
             $rules = [
                 'type_document_id' => 'required|exists:type_documents,id',
-                'from' => 'required|integer|min:1',
-                'to' => 'required|integer|min:1|gte:from',
                 'resolution' => 'required|string|max:255',
+                'from' => 'nullable|integer|min:0',
+                'to' => 'nullable|integer|min:0',
+                'resolution_date' => 'nullable|date',
+                'technical_key' => 'nullable|string|max:255',
+                'date_from' => 'nullable|date',
+                'date_to' => 'nullable|date',
             ];
 
             $messages = [
                 'type_document_id.required' => 'El tipo de documento es obligatorio.',
                 'type_document_id.exists' => 'El tipo de documento seleccionado no es válido.',
-                'from.required' => 'El rango inicial es obligatorio.',
-                'from.integer' => 'El rango inicial debe ser un número entero.',
-                'from.min' => 'El rango inicial debe ser mayor a 0.',
-                'to.required' => 'El rango final es obligatorio.',
-                'to.integer' => 'El rango final debe ser un número entero.',
-                'to.gte' => 'El rango final debe ser mayor o igual al rango inicial.',
                 'resolution.required' => 'El número de resolución es obligatorio.',
-                'resolution_date.required' => 'La fecha de resolución es obligatoria.',
-                'resolution_date.date' => 'La fecha de resolución debe ser una fecha válida.',
             ];
-
-            if (!$isSimpleType) {
-                $rules = array_merge($rules, [
-                    'resolution_date' => 'required|date',
-                    'technical_key' => 'required|string|max:255',
-                    'date_from' => 'required|date',
-                    'date_to' => 'required|date|after_or_equal:date_from',
-                ]);
-
-                $messages = array_merge($messages, [
-                    'technical_key.required' => 'La clave técnica es obligatoria.',
-                    'date_from.required' => 'La fecha de inicio de vigencia es obligatoria.',
-                    'date_from.date' => 'La fecha de inicio de vigencia debe ser una fecha válida.',
-                    'date_to.required' => 'La fecha de fin de vigencia es obligatoria.',
-                    'date_to.date' => 'La fecha de fin de vigencia debe ser una fecha válida.',
-                    'date_to.after_or_equal' => 'La fecha de fin debe ser posterior o igual a la fecha de inicio.',
-                ]);
-            }
 
             $request->validate($rules, $messages);
 
@@ -226,19 +169,14 @@ class ResolutionController extends Controller
 
             $updateData = [
                 'type_document_id' => $request->type_document_id,
+                'resolution' => $request->resolution,
                 'from' => $request->from,
                 'to' => $request->to,
-                'resolution' => $request->resolution,
+                'resolution_date' => $request->resolution_date,
+                'technical_key' => $request->technical_key,
+                'date_from' => $request->date_from,
+                'date_to' => $request->date_to,
             ];
-
-            if (!$isSimpleType) {
-                $updateData = array_merge($updateData, [
-                    'resolution_date' => $request->resolution_date,
-                    'technical_key' => $request->technical_key,
-                    'date_from' => $request->date_from,
-                    'date_to' => $request->date_to,
-                ]);
-            }
 
             $resolution->update($updateData);
 

@@ -1,3 +1,31 @@
+<!-- Modal Ver CUFE -->
+<div class="modal fade" id="cufeModal" tabindex="-1" role="dialog" aria-labelledby="cufeModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cufeModalLabel">CUFE del documento</h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-1">Código Único de Factura Electrónica:</p>
+                <div class="input-group">
+                    <input type="text" id="cufeValue" class="form-control form-control-sm" readonly>
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary btn-sm" type="button" id="copyCufeBtn">
+                            <i class="fas fa-copy"></i> Copiar
+                        </button>
+                    </div>
+                </div>
+                <small id="cufeCopiedMsg" class="text-success d-none">&#10003; Copiado al portapapeles</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- Modal -->
 <div class="modal fade" id="resultModal" tabindex="-1" role="dialog" aria-labelledby="resultModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">

@@ -17,7 +17,7 @@ class ProductionController extends Controller
 {
     public function index($company)
     {
-        $company = Company::where('identification_number', $company)->firstOrFail();        
+        $company = Company::where('identification_number', $company)->firstOrFail();
         // Preparar datos para cada tipo de documento
         $environmentStatuses = [
             'invoice' => $this->getEnvironmentStatus($company, 'invoice'),
@@ -26,11 +26,19 @@ class ProductionController extends Controller
             'pos' => $this->getEnvironmentStatus($company, 'pos'),
             'event' => $this->getEnvironmentStatus($company, 'event'),
         ];
-        
+
         $typeDocuments = TypeDocument::all();
-        
+
         // Cargar documentos para cada tipo
-        $invoiceData = [
+        // IDs de type_document por tipo de vista, para resoluciones (más amplios
+        // que los de documentos, para no perder resoluciones existentes).
+        $invoiceResolutionIds = [1, 2, 3, 4, 5, 12];
+        $payrollResolutionIds = [9, 10];
+        $supportResolutionIds = [11, 13];
+        // Documentos equivalentes: ids 15..26 (toda la familia de doc. equivalentes).
+        $posResolutionIds = range(15, 26);
+
+        $invoiceData = array_merge([
             'documents' => Document::where('identification_number', $company->identification_number)
                 ->whereIn('type_document_id', [1,2,3,4,5])
                 ->orderBy('id', 'DESC')
@@ -38,39 +46,39 @@ class ProductionController extends Controller
             'resolution_credit_notes' => Resolution::where('type_document_id', 4)
                 ->where('company_id', $company->id)
                 ->get()
-        ];
-        
-        $payrollData = [
+        ], $this->buildResolutionData($company, $invoiceResolutionIds));
+
+        $payrollData = array_merge([
             'documents' => DocumentPayroll::where('state_document_id', 1)
                 ->where('identification_number', $company->identification_number)
                 ->orderBy('id', 'DESC')
                 ->paginate(20, ['*'], 'payroll_page')
-        ];
-        
-        $supportData = [
+        ], $this->buildResolutionData($company, $payrollResolutionIds));
+
+        $supportData = array_merge([
             'documents' => Document::where('identification_number', $company->identification_number)
                 ->whereIn('type_document_id', [11,13])
                 ->orderBy('id', 'DESC')
                 ->paginate(20, ['*'], 'support_page')
-        ];
-        
+        ], $this->buildResolutionData($company, $supportResolutionIds));
+
         $eventData = [
             'documents' => ReceivedDocument::where('customer', $company->identification_number)
                 ->where('state_document_id', 1)
                 ->orderBy('id', 'DESC')
                 ->paginate(10, ['*'], 'event_page')
         ];
-        
-        $posData = [
+
+        $posData = array_merge([
             'documents' => Document::where('identification_number', $company->identification_number)
                 ->whereIn('type_document_id', [15,16,19,20,22,25,26])
                 ->orderBy('id', 'DESC')
                 ->paginate(20, ['*'], 'pos_page')
-        ];
+        ], $this->buildResolutionData($company, $posResolutionIds));
 
         return view('company.production.index', compact(
-            'company', 
-            'environmentStatuses', 
+            'company',
+            'environmentStatuses',
             'typeDocuments',
             'invoiceData',
             'payrollData',
@@ -78,6 +86,29 @@ class ProductionController extends Controller
             'eventData',
             'posData'
         ));
+    }
+
+    /**
+     * Carga resoluciones por ambiente (hab/prod) y los type_documents
+     * permitidos para los IDs indicados.
+     */
+    private function buildResolutionData($company, array $typeDocumentIds)
+    {
+        return [
+            'resolutionsHab' => Resolution::where('company_id', $company->id)
+                ->whereIn('type_document_id', $typeDocumentIds)
+                ->where('type_environment_id', 2)
+                ->with(['type_document', 'type_environment'])
+                ->orderBy('id', 'DESC')
+                ->get(),
+            'resolutionsProd' => Resolution::where('company_id', $company->id)
+                ->whereIn('type_document_id', $typeDocumentIds)
+                ->where('type_environment_id', 1)
+                ->with(['type_document', 'type_environment'])
+                ->orderBy('id', 'DESC')
+                ->get(),
+            'resolutionTypeDocuments' => TypeDocument::whereIn('id', $typeDocumentIds)->get(),
+        ];
     }
 
     public function documentsTabs($company, $type = 'invoice')
@@ -92,6 +123,14 @@ class ProductionController extends Controller
 
         $token_company = $company->user->api_token ?? null;
         $typeDocuments = TypeDocument::all();
+
+        // Mapeo de IDs de type_document por tipo de vista, para filtrar resoluciones.
+        $resolutionTypeIdsByView = [
+            'invoice' => [1, 2, 3, 4, 5],
+            'payroll' => [9, 10],
+            'support' => [11, 13],
+            'pos'     => [15, 16, 19, 20, 22, 25, 26],
+        ];
 
         switch ($type) {
             case 'invoice':
@@ -141,6 +180,28 @@ class ProductionController extends Controller
                 $indexView = 'company.production.invoice.index';
         }
 
+        // Cargar resoluciones por ambiente y filtradas por los type_document_ids de este tipo.
+        $resolutionsHab = collect();
+        $resolutionsProd = collect();
+        $resolutionTypeDocuments = collect();
+
+        if (isset($resolutionTypeIdsByView[$type])) {
+            $ids = $resolutionTypeIdsByView[$type];
+            $resolutionsHab = Resolution::where('company_id', $company->id)
+                ->whereIn('type_document_id', $ids)
+                ->where('type_environment_id', 2)
+                ->with(['type_document', 'type_environment'])
+                ->orderBy('id', 'DESC')
+                ->get();
+            $resolutionsProd = Resolution::where('company_id', $company->id)
+                ->whereIn('type_document_id', $ids)
+                ->where('type_environment_id', 1)
+                ->with(['type_document', 'type_environment'])
+                ->orderBy('id', 'DESC')
+                ->get();
+            $resolutionTypeDocuments = TypeDocument::whereIn('id', $ids)->get();
+        }
+
         return view('company.production.tabs', compact(
             'documents',
             'resolution_credit_notes',
@@ -151,7 +212,10 @@ class ProductionController extends Controller
             'type',
             'listView',
             'indexView',
-            'typeDocuments'
+            'typeDocuments',
+            'resolutionsHab',
+            'resolutionsProd',
+            'resolutionTypeDocuments'
         ));
     }
 

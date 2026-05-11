@@ -444,6 +444,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         Paso a Producción
                     </button>
                 </li>
+                <li class="nav-item d-flex" role="presentation">
+                    <button class="nav-link w-100 d-flex justify-content-center align-items-center px-3 py-2 fw-bold"
+                        id="invoice-resolutions-tab" data-bs-toggle="tab" data-bs-target="#invoice-resolutions" type="button" role="tab"
+                        aria-controls="invoice-resolutions" aria-selected="false">
+                        <i class="fas fa-file-invoice me-2"></i>
+                        Resoluciones
+                    </button>
+                </li>
             </ul>
             <div class="tab-content" id="invoiceSubTabsContent">
                 <div class="tab-pane fade show active" id="invoice-list" role="tabpanel" aria-labelledby="invoice-list-tab">
@@ -461,6 +469,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         'company' => $company,
                         'environmentStatus' => $environmentStatuses['invoice'],
                         'typeDocuments' => $typeDocuments
+                    ])
+                </div>
+                <div class="tab-pane fade" id="invoice-resolutions" role="tabpanel" aria-labelledby="invoice-resolutions-tab">
+                    @include('company.production._resolutions_tab', [
+                        'company' => $company,
+                        'type' => 'invoice',
+                        'resolutionsHab' => $invoiceData['resolutionsHab'] ?? collect(),
+                        'resolutionsProd' => $invoiceData['resolutionsProd'] ?? collect(),
+                        'resolutionTypeDocuments' => $invoiceData['resolutionTypeDocuments'] ?? collect(),
                     ])
                 </div>
             </div>
@@ -497,6 +514,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         Paso a Producción
                     </button>
                 </li>
+                <li class="nav-item d-flex" role="presentation">
+                    <button class="nav-link w-100 d-flex justify-content-center align-items-center px-3 py-2 fw-bold"
+                        id="payroll-resolutions-tab" data-bs-toggle="tab" data-bs-target="#payroll-resolutions" type="button" role="tab"
+                        aria-controls="payroll-resolutions" aria-selected="false">
+                        <i class="fas fa-file-invoice me-2"></i>
+                        Resoluciones
+                    </button>
+                </li>
             </ul>
             <div class="tab-content" id="payrollSubTabsContent">
                 <div class="tab-pane fade show active" id="payroll-list" role="tabpanel" aria-labelledby="payroll-list-tab">
@@ -512,6 +537,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         'company' => $company,
                         'environmentStatus' => $environmentStatuses['payroll'],
                         'typeDocuments' => $typeDocuments
+                    ])
+                </div>
+                <div class="tab-pane fade" id="payroll-resolutions" role="tabpanel" aria-labelledby="payroll-resolutions-tab">
+                    @include('company.production._resolutions_tab', [
+                        'company' => $company,
+                        'type' => 'payroll',
+                        'resolutionsHab' => $payrollData['resolutionsHab'] ?? collect(),
+                        'resolutionsProd' => $payrollData['resolutionsProd'] ?? collect(),
+                        'resolutionTypeDocuments' => $payrollData['resolutionTypeDocuments'] ?? collect(),
                     ])
                 </div>
             </div>
@@ -548,6 +582,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         Paso a Producción
                     </button>
                 </li>
+                <li class="nav-item d-flex" role="presentation">
+                    <button class="nav-link w-100 d-flex justify-content-center align-items-center px-3 py-2 fw-bold"
+                        id="support-resolutions-tab" data-bs-toggle="tab" data-bs-target="#support-resolutions" type="button" role="tab"
+                        aria-controls="support-resolutions" aria-selected="false">
+                        <i class="fas fa-file-invoice me-2"></i>
+                        Resoluciones
+                    </button>
+                </li>
             </ul>
             <div class="tab-content" id="supportSubTabsContent">
                 <div class="tab-pane fade show active" id="support-list" role="tabpanel" aria-labelledby="support-list-tab">
@@ -565,6 +607,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         'company' => $company,
                         'environmentStatus' => $environmentStatuses['support'],
                         'typeDocuments' => $typeDocuments
+                    ])
+                </div>
+                <div class="tab-pane fade" id="support-resolutions" role="tabpanel" aria-labelledby="support-resolutions-tab">
+                    @include('company.production._resolutions_tab', [
+                        'company' => $company,
+                        'type' => 'support',
+                        'resolutionsHab' => $supportData['resolutionsHab'] ?? collect(),
+                        'resolutionsProd' => $supportData['resolutionsProd'] ?? collect(),
+                        'resolutionTypeDocuments' => $supportData['resolutionTypeDocuments'] ?? collect(),
                     ])
                 </div>
             </div>
@@ -651,6 +702,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         Paso a Producción
                     </button>
                 </li>
+                <li class="nav-item d-flex" role="presentation">
+                    <button class="nav-link w-100 d-flex justify-content-center align-items-center px-3 py-2 fw-bold"
+                        id="pos-resolutions-tab" data-bs-toggle="tab" data-bs-target="#pos-resolutions" type="button" role="tab"
+                        aria-controls="pos-resolutions" aria-selected="false">
+                        <i class="fas fa-file-invoice me-2"></i>
+                        Resoluciones
+                    </button>
+                </li>
             </ul>
             <div class="tab-content" id="posSubTabsContent">
                 <div class="tab-pane fade show active" id="pos-list" role="tabpanel" aria-labelledby="pos-list-tab">
@@ -668,6 +727,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         'company' => $company,
                         'environmentStatus' => $environmentStatuses['pos'],
                         'typeDocuments' => $typeDocuments
+                    ])
+                </div>
+                <div class="tab-pane fade" id="pos-resolutions" role="tabpanel" aria-labelledby="pos-resolutions-tab">
+                    @include('company.production._resolutions_tab', [
+                        'company' => $company,
+                        'type' => 'pos',
+                        'resolutionsHab' => $posData['resolutionsHab'] ?? collect(),
+                        'resolutionsProd' => $posData['resolutionsProd'] ?? collect(),
+                        'resolutionTypeDocuments' => $posData['resolutionTypeDocuments'] ?? collect(),
                     ])
                 </div>
             </div>

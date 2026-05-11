@@ -1,6 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    // El tab "Resoluciones" aplica a todos los tipos excepto 'event' (radian).
+    $showResolutionsTab = isset($type) && $type !== 'event';
+@endphp
 <div class="container-fluid px-0 mt-2">
     <ul class="nav nav-tabs nav-justified mb-0" id="invoiceTabs" role="tablist" style="background: #fff;">
         <li class="nav-item d-flex" role="presentation">
@@ -19,6 +23,16 @@
                 Paso a Producción
             </button>
         </li>
+        @if ($showResolutionsTab)
+        <li class="nav-item d-flex" role="presentation">
+            <button class="nav-link w-100 d-flex justify-content-center align-items-center px-3 py-2 fw-bold"
+                id="resolutions-tab" data-bs-toggle="tab" data-bs-target="#resolutions" type="button" role="tab"
+                aria-controls="resolutions" aria-selected="false">
+                <i class="fas fa-file-invoice me-2"></i>
+                Resoluciones
+            </button>
+        </li>
+        @endif
     </ul>
     <div class="tab-content" id="invoiceTabsContent">
         <div class="tab-pane fade" id="list" role="tabpanel" aria-labelledby="list-tab">
@@ -37,6 +51,17 @@
                 'environmentStatus' => $environmentStatus
             ])
         </div>
+        @if ($showResolutionsTab)
+        <div class="tab-pane fade" id="resolutions" role="tabpanel" aria-labelledby="resolutions-tab">
+            @include('company.production._resolutions_tab', [
+                'company' => $company,
+                'type' => $type,
+                'resolutionsHab' => $resolutionsHab ?? collect(),
+                'resolutionsProd' => $resolutionsProd ?? collect(),
+                'resolutionTypeDocuments' => $resolutionTypeDocuments ?? collect(),
+            ])
+        </div>
+        @endif
     </div>
 </div>
 @endsection
@@ -44,7 +69,7 @@
 @push('styles')
 <style>
 .nav-tabs .nav-item {
-    width: 50%;
+    flex: 1 1 0;
     display: flex;
 }
 .nav-tabs .nav-link {

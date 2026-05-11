@@ -35,6 +35,48 @@
                         </svg>
                     </template>
                 </el-step>
+
+                <el-step title="Software">
+                    <template #icon>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="icon icon-tabler icons-tabler-outline icon-tabler-server">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M3 4m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" />
+                            <path d="M3 14m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z" />
+                            <path d="M7 8l0 .01" />
+                            <path d="M7 18l0 .01" />
+                        </svg>
+                    </template>
+                </el-step>
+
+                <el-step title="Resolución">
+                    <template #icon>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="icon icon-tabler icons-tabler-outline icon-tabler-license">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M15 21h-9a3 3 0 0 1 -3 -3v-1h10v2a2 2 0 0 0 4 0v-14a2 2 0 1 1 2 2h-2m2 -4h-11a3 3 0 0 0 -3 3v11" />
+                            <path d="M9 7l4 0" />
+                            <path d="M9 11l4 0" />
+                        </svg>
+                    </template>
+                </el-step>
+
+                <el-step title="Factura Json(opcional)">
+                    <template #icon>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="icon icon-tabler icons-tabler-outline icon-tabler-send">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M10 14l11 -11" />
+                            <path d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -8l-8 -3.5a.55 .55 0 0 1 0 -1l18 -6.5" />
+                        </svg>
+                    </template>
+                </el-step>
             </el-steps>
             <br />
             <br />
@@ -332,7 +374,220 @@
                 </div>
                 <div class="col-md-12 text-center mt-4">
                     <el-button size="medium" type="primary" :loading="loading_submit" @click="saveCertificate">
-                        Finalizar</el-button>
+                        Siguiente</el-button>
+                </div>
+            </div>
+
+            <!-- Software -->
+            <div class="row" v-show="active == 2">
+                <div class="col-md-12">
+                    <form autocomplete="off">
+                        <div class="form-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="form-group" :class="{'has-danger': errors.id}">
+                                        <label class="control-label">Identificador del Software (ID)</label>
+                                        <el-input v-model="software.id"></el-input>
+                                        <small class="form-control-feedback" v-if="errors.id" v-text="errors.id[0]"></small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group" :class="{'has-danger': errors.pin}">
+                                        <label class="control-label">PIN</label>
+                                        <el-input v-model="software.pin"></el-input>
+                                        <small class="form-control-feedback" v-if="errors.pin" v-text="errors.pin[0]"></small>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-8">
+                                    <div class="form-group" :class="{'has-danger': errors.idpayroll}">
+                                        <label class="control-label">ID Software Nómina</label>
+                                        <el-input v-model="software.idpayroll"></el-input>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="control-label">PIN Nómina</label>
+                                        <el-input v-model="software.pinpayroll"></el-input>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-8">
+                                    <div class="form-group">
+                                        <label class="control-label">ID Documento Soporte</label>
+                                        <el-input v-model="software.idsupportdocument"></el-input>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="control-label">PIN Documento Soporte</label>
+                                        <el-input v-model="software.pinsupportdocument"></el-input>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-8">
+                                    <div class="form-group">
+                                        <label class="control-label">ID Documento Equivalente</label>
+                                        <el-input v-model="software.ideqdocs"></el-input>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label class="control-label">PIN Documento Equivalente</label>
+                                        <el-input v-model="software.pineqdocs"></el-input>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-12 text-center mt-4">
+                    <el-button size="medium" type="primary" :loading="loading_submit" @click="saveSoftware">
+                        Siguiente
+                    </el-button>
+                </div>
+            </div>
+
+            <!-- Resolución -->
+            <div class="row" v-show="active == 3">
+                <div class="col-md-12">
+                    <form autocomplete="off">
+                        <div class="form-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group" :class="{'has-danger': errors.type_document_id}">
+                                        <label class="control-label">Tipo de Documento</label>
+                                        <el-select class="extend" v-model="resolution.type_document_id" filterable>
+                                            <el-option
+                                                v-for="option in resolution_type_documents"
+                                                :key="option.id"
+                                                :value="option.id"
+                                                :label="option.name">
+                                            </el-option>
+                                        </el-select>
+                                        <small class="form-control-feedback" v-if="errors.type_document_id" v-text="errors.type_document_id[0]"></small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group" :class="{'has-danger': errors.prefix}">
+                                        <label class="control-label">Prefijo</label>
+                                        <el-input v-model="resolution.prefix"></el-input>
+                                        <small class="form-control-feedback" v-if="errors.prefix" v-text="errors.prefix[0]"></small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group" :class="{'has-danger': errors.resolution}">
+                                        <label class="control-label">Número Resolución</label>
+                                        <el-input v-model="resolution.resolution"></el-input>
+                                        <small class="form-control-feedback" v-if="errors.resolution" v-text="errors.resolution[0]"></small>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group" :class="{'has-danger': errors.resolution_date}">
+                                        <label class="control-label">Fecha Resolución</label>
+                                        <el-input type="date" v-model="resolution.resolution_date"></el-input>
+                                        <small class="form-control-feedback" v-if="errors.resolution_date" v-text="errors.resolution_date[0]"></small>
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="form-group" :class="{'has-danger': errors.technical_key}">
+                                        <label class="control-label">Clave Técnica</label>
+                                        <el-input v-model="resolution.technical_key"></el-input>
+                                        <small class="form-control-feedback" v-if="errors.technical_key" v-text="errors.technical_key[0]"></small>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group" :class="{'has-danger': errors.from}">
+                                        <label class="control-label">Desde (consecutivo)</label>
+                                        <el-input type="number" v-model.number="resolution.from"></el-input>
+                                        <small class="form-control-feedback" v-if="errors.from" v-text="errors.from[0]"></small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group" :class="{'has-danger': errors.to}">
+                                        <label class="control-label">Hasta (consecutivo)</label>
+                                        <el-input type="number" v-model.number="resolution.to"></el-input>
+                                        <small class="form-control-feedback" v-if="errors.to" v-text="errors.to[0]"></small>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group" :class="{'has-danger': errors.date_from}">
+                                        <label class="control-label">Vigencia desde</label>
+                                        <el-input type="date" v-model="resolution.date_from"></el-input>
+                                        <small class="form-control-feedback" v-if="errors.date_from" v-text="errors.date_from[0]"></small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group" :class="{'has-danger': errors.date_to}">
+                                        <label class="control-label">Vigencia hasta</label>
+                                        <el-input type="date" v-model="resolution.date_to"></el-input>
+                                        <small class="form-control-feedback" v-if="errors.date_to" v-text="errors.date_to[0]"></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-12 text-center mt-4">
+                    <el-button size="medium" type="primary" :loading="loading_submit" @click="saveResolution">
+                        Siguiente
+                    </el-button>
+                </div>
+            </div>
+
+            <!-- Envío de Factura (JSON) - Paso opcional -->
+            <div class="row" v-show="active == 4">
+                <div class="col-md-12">
+                    <div class="alert alert-info">
+                        <!-- Ingrese el JSON para generar una Factura -->
+                        <strong>Ingrese el JSON para generar una Factura Electronica (Opcional)</strong>
+                        <!-- <span class="text-muted">Este paso es opcional.</span> -->
+                        <div class="mt-2">
+                            Puede consultar la
+                            <el-button size="mini" type="primary" plain @click="openDocumentation">
+                                <i class="el-icon-document"></i> documentación
+                            </el-button>
+                            y/o collection
+                            <a href="https://documenter.getpostman.com/view/1431398/2sAY4uCido#intro"
+                               target="_blank" rel="noopener noreferrer"
+                               style="text-decoration: underline;">postman</a>.
+                        </div>
+                    </div>
+                    <form autocomplete="off">
+                        <div class="form-body">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label class="control-label">JSON de la Factura</label>
+                                        <el-input
+                                            type="textarea"
+                                            :rows="18"
+                                            v-model="invoice.json"
+                                            placeholder="Pegue aquí el JSON de la factura"
+                                        ></el-input>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-12" v-if="invoice.response">
+                                    <div class="form-group">
+                                        <label class="control-label">Respuesta DIAN</label>
+                                        <el-input type="textarea" :rows="10" :value="formattedInvoiceResponse" readonly></el-input>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-12 text-center mt-4">
+                    <el-button size="medium" type="primary" :loading="loading_submit" @click="sendInvoice">
+                        Enviar Factura
+                    </el-button>
+                    <el-button size="medium" type="success" @click="closeWizard">
+                        Cerrar
+                    </el-button>
                 </div>
             </div>
         </div>
@@ -384,15 +639,43 @@
                 type_document: [],
                 type_liability: [],
                 form: {},
+                software: {},
+                resolution: {},
+                invoice: {},
                 responseCompany: {},
                 responseSoftware: {},
                 responseCertificate: {},
                 responseResolution: {},
+                responseInvoice: {},
+                resolution_type_documents: [
+                    { id: 1,  name: 'Factura electrónica de Venta' },
+                    { id: 2,  name: 'Factura electrónica de venta - exportación' },
+                    { id: 3,  name: 'Instrumento electrónico de transmisión – tipo 03' },
+                    { id: 4,  name: 'Nota Crédito' },
+                    { id: 5,  name: 'Nota Débito' },
+                    { id: 9,  name: 'Nomina Individual' },
+                    { id: 10, name: 'Nomina Individual de Ajuste' },
+                    { id: 11, name: 'Documento Soporte Electrónico' },
+                    { id: 13, name: 'Nota de Ajuste al Documento Soporte Electrónico' },
+                    { id: 25, name: 'Nota de Ajuste de tipo débito al Documento Equivalente' },
+                    { id: 26, name: 'Nota de Ajuste de tipo crédito al Documento Equivalente' },
+                ],
                 selectedRutName: null,
                 rutProgress: 0,
                 simulatedInterval: null,
                 simulatedDuration: 0,
             };
+        },
+        computed: {
+            formattedInvoiceResponse() {
+                try {
+                    return typeof this.invoice.response === 'string'
+                        ? this.invoice.response
+                        : JSON.stringify(this.invoice.response, null, 2);
+                } catch (e) {
+                    return String(this.invoice.response);
+                }
+            }
         },
         created() {
             this.getTables();
@@ -418,10 +701,131 @@
                     type_organization_id: null,
                     type_regime_id: null,
                 };
+                this.software = {
+                    id: null,
+                    pin: null,
+                    idpayroll: null,
+                    pinpayroll: null,
+                    idsupportdocument: null,
+                    pinsupportdocument: null,
+                    ideqdocs: null,
+                    pineqdocs: null,
+                };
+                this.resolution = {
+                    type_document_id: 1,
+                    prefix: null,
+                    resolution: null,
+                    resolution_date: null,
+                    technical_key: null,
+                    from: null,
+                    to: null,
+                    date_from: null,
+                    date_to: null,
+                };
+                this.invoice = {
+                    json: this.defaultInvoiceJson(),
+                    response: null,
+                };
                 this.responseCompany = {};
                 this.responseSoftware = {};
                 this.responseCertificate = {};
                 this.responseResolution = {};
+                this.responseInvoice = {};
+            },
+            defaultInvoiceJson() {
+                return `{
+  "number": 994899975,
+  "type_document_id": 1,
+  "date": "2026-05-08",
+  "time": "08:40:00",
+  "resolution_number": "18760000001",
+  "prefix": "SETP",
+  "sendmail": false,
+  "customer": {
+    "identification_number": "89008003",
+    "name": "OBANDO LONDONO ALEXANDER",
+    "email": "jeremyabel710@gmail.com"
+  },
+  "payment_form": {
+    "payment_form_id": 2,
+    "payment_method_id": 75,
+    "payment_due_date": "2026-11-30",
+    "duration_measure": "4"
+  },
+  "legal_monetary_totals": {
+    "line_extension_amount": "3000.00",
+    "tax_exclusive_amount": "3000.00",
+    "tax_inclusive_amount": "3570.00",
+    "payable_amount": "3570.00"
+  },
+  "tax_totals": [
+    {
+      "tax_id": 1,
+      "tax_amount": "570.00",
+      "percent": "19",
+      "taxable_amount": "3000.00"
+    }
+  ],
+  "invoice_lines": [
+    {
+      "unit_measure_id": 70,
+      "invoiced_quantity": "1",
+      "line_extension_amount": "1000.00",
+      "free_of_charge_indicator": false,
+      "description": "Producto de prueba 1",
+      "code": "6455",
+      "type_item_identification_id": 4,
+      "price_amount": "1000.00",
+      "base_quantity": "1",
+      "tax_totals": [
+        {
+          "tax_id": 1,
+          "tax_amount": "190.00",
+          "taxable_amount": "1000.00",
+          "percent": "19.00"
+        }
+      ]
+    },
+    {
+      "unit_measure_id": 70,
+      "invoiced_quantity": "1",
+      "line_extension_amount": "1000.00",
+      "free_of_charge_indicator": false,
+      "description": "Producto de prueba 2",
+      "code": "PRUEBA2",
+      "type_item_identification_id": 4,
+      "price_amount": "1000.00",
+      "base_quantity": "1",
+      "tax_totals": [
+        {
+          "tax_id": 1,
+          "tax_amount": "190.00",
+          "taxable_amount": "1000.00",
+          "percent": "19.00"
+        }
+      ]
+    },
+    {
+      "unit_measure_id": 70,
+      "invoiced_quantity": "1",
+      "line_extension_amount": "1000.00",
+      "free_of_charge_indicator": false,
+      "description": "Producto de prueba 3",
+      "code": "PRUEBA3",
+      "type_item_identification_id": 4,
+      "price_amount": "1000.00",
+      "base_quantity": "1",
+      "tax_totals": [
+        {
+          "tax_id": 1,
+          "tax_amount": "190.00",
+          "taxable_amount": "1000.00",
+          "percent": "19.00"
+        }
+      ]
+    }
+  ]
+}`;
             },
             validateRequiredFields() {
                 const requiredFields = [
@@ -517,7 +921,7 @@
                             if (response.data.success) {
                                 this.responseCertificate = response.data;
                                 this.$message.success(response.data.message);
-                                this.initForm()
+                                this.errors = {};
                                 this.next();
                             } else {
                                 this.$message.error(response.data.message);
@@ -549,7 +953,201 @@
                 //console.log(dato)
             },
             next() {
-                if (this.active++ > 1) this.active = 0;
+                if (this.active < 5) this.active++;
+            },
+            closeWizard() {
+                window.location.href = '/home';
+            },
+            openDocumentation() {
+                window.open('/tools', '_blank', 'noopener,noreferrer');
+            },
+            saveSoftware() {
+                this.errors = {};
+                const pairs = [
+                    ['id', 'pin'],
+                    ['idpayroll', 'pinpayroll'],
+                    ['idsupportdocument', 'pinsupportdocument'],
+                    ['ideqdocs', 'pineqdocs'],
+                ];
+                const hasAtLeastOne = pairs.some(([idKey, pinKey]) =>
+                    this.software[idKey] && String(this.software[idKey]).trim() !== '' &&
+                    this.software[pinKey] && String(this.software[pinKey]).trim() !== ''
+                );
+                if (!hasAtLeastOne) {
+                    this.$set(this.errors, 'id', ['Debe configurar al menos un software con su PIN.']);
+                    this.$set(this.errors, 'pin', ['Debe configurar al menos un software con su PIN.']);
+                    this.$message.warning('Debe configurar al menos un software con su PIN.');
+                    return;
+                }
+                this.loading_submit = true;
+                this.$http
+                    .put(`/${this.resourceapi}/software`, this.software, this.getHeaderConfig())
+                    .then(response => {
+                        if (response.data.success) {
+                            this.responseSoftware = response.data;
+                            this.$message.success(response.data.message);
+                            this.next();
+                        } else {
+                            this.$message.error(response.data.message || 'Error al guardar el software.');
+                        }
+                    })
+                    .catch(error => {
+                        if (error.response && error.response.status === 422) {
+                            this.errors = error.response.data.errors;
+                            let allErrors = Object.values(this.errors).flat().join('\n');
+                            this.$message.error(allErrors);
+                        } else if (error.response && error.response.data && error.response.data.message) {
+                            this.$message.error(error.response.data.message);
+                        } else {
+                            this.$message.error('Error inesperado al guardar el software.');
+                        }
+                    })
+                    .then(() => {
+                        this.loading_submit = false;
+                    });
+            },
+            validateResolutionFields() {
+                this.errors = {};
+                const r = this.resolution || {};
+                const setErr = (k, msg) => this.$set(this.errors, k, [msg]);
+                const isYMD = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+                const isInt = (v) => v !== null && v !== undefined && v !== '' && Number.isInteger(Number(v));
+
+                // Siempre
+                if (!r.type_document_id) setErr('type_document_id', 'El tipo de documento es obligatorio.');
+                if (r.prefix && String(r.prefix).length > 4) setErr('prefix', 'El prefijo no puede tener más de 4 caracteres.');
+                if (!isInt(r.from)) setErr('from', 'El rango inicial es obligatorio y debe ser un entero.');
+                if (!isInt(r.to)) setErr('to', 'El rango final es obligatorio y debe ser un entero.');
+                if (isInt(r.from) && isInt(r.to) && Number(r.to) <= Number(r.from)) {
+                    setErr('to', 'El rango final debe ser mayor al rango inicial.');
+                }
+
+                // Solo para Factura Electrónica (type_document_id == 1)
+                if (Number(r.type_document_id) === 1) {
+                    if (!r.resolution) setErr('resolution', 'El número de resolución es obligatorio.');
+                    if (!isYMD(r.resolution_date)) setErr('resolution_date', 'La fecha de resolución es obligatoria (YYYY-MM-DD).');
+                    if (!r.technical_key) setErr('technical_key', 'La clave técnica es obligatoria.');
+                    if (!isYMD(r.date_from)) setErr('date_from', 'La vigencia desde es obligatoria (YYYY-MM-DD).');
+                    if (!isYMD(r.date_to)) setErr('date_to', 'La vigencia hasta es obligatoria (YYYY-MM-DD).');
+                    if (isYMD(r.date_from) && isYMD(r.date_to) && r.date_to <= r.date_from) {
+                        setErr('date_to', 'La vigencia hasta debe ser posterior a la vigencia desde.');
+                    }
+                }
+
+                return Object.keys(this.errors).length === 0;
+            },
+            saveResolution() {
+                if (!this.validateResolutionFields()) {
+                    const allErrors = Object.values(this.errors).flat().join('\n');
+                    this.$message.warning(allErrors || 'Complete los campos obligatorios.');
+                    return;
+                }
+                this.loading_submit = true;
+                this.$http
+                    .put(`/${this.resourceapi}/resolution`, this.resolution, this.getHeaderConfig())
+                    .then(response => {
+                        if (response.data.success) {
+                            this.responseResolution = response.data;
+                            this.$message.success(response.data.message);
+                            // Pre-rellenar prefix y resolution_number en el JSON de factura
+                            try {
+                                const parsed = JSON.parse(this.invoice.json || '{}');
+                                if (this.resolution.prefix) parsed.prefix = this.resolution.prefix;
+                                if (this.resolution.resolution) parsed.resolution_number = this.resolution.resolution;
+                                if (this.resolution.from) parsed.number = this.resolution.from;
+                                this.invoice.json = JSON.stringify(parsed, null, 2);
+                            } catch (e) { /* ignore */ }
+                            this.next();
+                        } else {
+                            this.$message.error(response.data.message || 'Error al guardar la resolución.');
+                        }
+                    })
+                    .catch(error => {
+                        if (error.response && error.response.status === 422) {
+                            this.errors = error.response.data.errors;
+                            let allErrors = Object.values(this.errors).flat().join('\n');
+                            this.$message.error(allErrors);
+                        } else if (error.response && error.response.data && error.response.data.message) {
+                            this.$message.error(error.response.data.message);
+                        } else {
+                            this.$message.error('Error inesperado al guardar la resolución.');
+                        }
+                    })
+                    .then(() => {
+                        this.loading_submit = false;
+                    });
+            },
+            parseInvoiceJson(text) {
+                // 1) Intento estricto
+                try {
+                    return { ok: true, data: JSON.parse(text) };
+                } catch (strictErr) {
+                    // 2) Intento tolerante: corrige errores típicos al pegar
+                    //    (comentarios // y /* */, claves sin comillas,
+                    //     comillas simples, comas finales)
+                    try {
+                        let s = String(text);
+                        // Quitar comentarios de bloque /* ... */
+                        s = s.replace(/\/\*[\s\S]*?\*\//g, '');
+                        // Quitar comentarios de línea //... (preservando "://" en URLs)
+                        s = s.replace(/(^|[^:"'\\])\/\/[^\n\r]*/g, '$1');
+                        // Quitar comas finales antes de } o ]
+                        s = s.replace(/,(\s*[}\]])/g, '$1');
+                        // Encerrar entre comillas dobles las claves sin comillas
+                        s = s.replace(/([{,]\s*)([A-Za-z_$][A-Za-z0-9_$\-]*)\s*:/g, '$1"$2":');
+                        // Convertir strings con comillas simples a dobles
+                        s = s.replace(/'((?:[^'\\]|\\.)*)'/g, '"$1"');
+                        return { ok: true, data: JSON.parse(s) };
+                    } catch (e) {
+                        return { ok: false, error: strictErr.message };
+                    }
+                }
+            },
+            sendInvoice() {
+                const parsed = this.parseInvoiceJson(this.invoice.json);
+                if (!parsed.ok) {
+                    this.$message.error(
+                        'El JSON de la factura no es válido: ' + parsed.error +
+                        '. Verifica que las claves tengan comillas dobles, sin comas finales.'
+                    );
+                    return;
+                }
+                const payload = parsed.data;
+
+                this.loading_submit = true;
+                this.errors = {};
+                this.invoice.response = null;
+
+                this.$http
+                    .post(`/api/ubl2.1/invoice`, payload, this.getHeaderConfig())
+                    .then(response => {
+                        this.responseInvoice = response.data;
+                        this.invoice.response = response.data;
+                        if (response.data && response.data.message) {
+                            this.$message.success(response.data.message);
+                        } else {
+                            this.$message.success('Factura enviada.');
+                        }
+                    })
+                    .catch(error => {
+                        if (error.response && error.response.data) {
+                            this.invoice.response = error.response.data;
+                            if (error.response.status === 422 && error.response.data.errors) {
+                                this.errors = error.response.data.errors;
+                                let allErrors = Object.values(this.errors).flat().join('\n');
+                                this.$message.error(allErrors);
+                            } else if (error.response.data.message) {
+                                this.$message.error(error.response.data.message);
+                            } else {
+                                this.$message.error('Error al enviar la factura.');
+                            }
+                        } else {
+                            this.$message.error('Error inesperado al enviar la factura.');
+                        }
+                    })
+                    .then(() => {
+                        this.loading_submit = false;
+                    });
             },
             getTables() {
                 return new Promise((resolve, reject) => {

@@ -79,9 +79,14 @@
                                 <br>
                             @endif
                             @if($row->cufe)
+                                <button type="button" class="btn btn-primary btn-xs btn-ver-cufe mt-1"
+                                    data-cufe="{{ $row->cufe }}">
+                                    Ver CUFE
+                                </button>
+                                <br>
                                 <button type="button" class="btn btn-primary btn-xs makeApiRequest mt-1"
                                     data-id="{{ $row->cufe }}">
-                                    CUFE
+                                    Consultar Xml
                                 </button>
                                 <br>
                             @endif
@@ -582,6 +587,25 @@ $(document).ready(function() {
             notes: [`line_extension_sum=${invoice.legal_monetary_totals.line_extension_amount}`, `tax_exclusive=${invoice.legal_monetary_totals.tax_exclusive_amount}`, `tax_total=${taxTotal}`, `payable=${invoice.legal_monetary_totals.payable_amount}`]
         };
     }
+
+    $(document).off('click', '.btn-ver-cufe');
+    $(document).on('click', '.btn-ver-cufe', function() {
+        var cufe = $(this).data('cufe');
+        $('#cufeValue').val(cufe);
+        $('#cufeCopiedMsg').addClass('d-none');
+        $('#cufeModal').modal('show');
+    });
+
+    $('#copyCufeBtn').on('click', function() {
+        var cufe = $('#cufeValue').val();
+        navigator.clipboard.writeText(cufe).then(function() {
+            $('#cufeCopiedMsg').removeClass('d-none');
+        }).catch(function() {
+            $('#cufeValue').select();
+            document.execCommand('copy');
+            $('#cufeCopiedMsg').removeClass('d-none');
+        });
+    });
 
     $(document).off('click', '.makeApiRequest');
     $(document).on('click', '.makeApiRequest', function() {
