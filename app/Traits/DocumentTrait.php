@@ -205,10 +205,21 @@ trait DocumentTrait
         }
 
         $password = "12345";
+        $companyId = $user->company->id;
+
+        // Si existe un customer con el mismo NIT pero companies_id = NULL (registro previo a la migración),
+        // asignarle el companies_id correcto antes de hacer updateOrCreate
+        $identNumber = $sendingcustomer ? $data->identification_number : $data->company->identification_number;
+        Customer::where('identification_number', $identNumber)
+                ->whereNull('companies_id')
+                ->update(['companies_id' => $companyId]);
+
         if($sendingcustomer)
-            $customer = Customer::where('identification_number', '=', $data->identification_number)->get();
+            $customer = Customer::where('identification_number', '=', $data->identification_number)
+                                 ->where('companies_id', $companyId)->get();
         else
-            $customer = Customer::where('identification_number', '=', $data->company->identification_number)->get();
+            $customer = Customer::where('identification_number', '=', $data->company->identification_number)
+                                 ->where('companies_id', $companyId)->get();
         if(count($customer) == 0){
             $password = \Str::random(6);
             $data->password = bcrypt($password);
@@ -220,7 +231,9 @@ trait DocumentTrait
               $dv = $data->dv;
             else
               $dv = NULL;
-            $customer = Customer::updateOrCreate(['identification_number' => $data->identification_number],
+            $customer = Customer::updateOrCreate(
+                                                 ['identification_number' => $data->identification_number,
+                                                  'companies_id' => $companyId],
                                                  ['dv' => $dv,
                                                   'name' => $data->name,
                                                   'phone' => $data->phone,
@@ -233,7 +246,9 @@ trait DocumentTrait
                     Mail::to($customer->email)->send(new PasswordCustomerMail($customer, $password));
         }
         else{
-            $customer = Customer::updateOrCreate(['identification_number' => $data->company->identification_number],
+            $customer = Customer::updateOrCreate(
+                                                 ['identification_number' => $data->company->identification_number,
+                                                  'companies_id' => $companyId],
                                                  ['dv' => $data->company->dv,
                                                   'name' => $data->name,
                                                   'phone' => $data->company->phone,
