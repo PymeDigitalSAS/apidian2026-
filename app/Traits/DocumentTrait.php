@@ -208,18 +208,17 @@ trait DocumentTrait
         $companyId = $user->company->id;
 
         // Si existe un customer con el mismo NIT pero companies_id = NULL (registro previo a la migración),
-        // asignarle el companies_id correcto antes de hacer updateOrCreate
-        $identNumber = $sendingcustomer ? $data->identification_number : $data->company->identification_number;
+        // asignarle el companies_id correcto antes de hacer updateOrCreate.
+        // Forzar string: identification_number es VARCHAR y puede contener letras
+        // (pasaportes, extranjeros). Si se bindea como int, MySQL convierte la columna
+        // a DOUBLE y revienta con SQLSTATE 22007 al topar valores con letras.
+        $identNumber = (string) ($sendingcustomer ? $data->identification_number : $data->company->identification_number);
         Customer::where('identification_number', $identNumber)
                 ->whereNull('companies_id')
                 ->update(['companies_id' => $companyId]);
 
-        if($sendingcustomer)
-            $customer = Customer::where('identification_number', '=', $data->identification_number)
-                                 ->where('companies_id', $companyId)->get();
-        else
-            $customer = Customer::where('identification_number', '=', $data->company->identification_number)
-                                 ->where('companies_id', $companyId)->get();
+        $customer = Customer::where('identification_number', '=', $identNumber)
+                             ->where('companies_id', $companyId)->get();
         if(count($customer) == 0){
             $password = \Str::random(6);
             $data->password = bcrypt($password);
@@ -232,7 +231,7 @@ trait DocumentTrait
             else
               $dv = NULL;
             $customer = Customer::updateOrCreate(
-                                                 ['identification_number' => $data->identification_number,
+                                                 ['identification_number' => $identNumber,
                                                   'companies_id' => $companyId],
                                                  ['dv' => $dv,
                                                   'name' => $data->name,
@@ -241,13 +240,13 @@ trait DocumentTrait
                                                   'address' => $data->address,
                                                   'email' => $data->email
                                                  ]);
-            if($sendmail && $data->identification_number != '222222222222')
+            if($sendmail && $identNumber != '222222222222')
                 if(\Carbon\Carbon::now()->format('Y-m-d H:i') === date_format(date_create($customer->created_at), 'Y-m-d H:i'))
                     Mail::to($customer->email)->send(new PasswordCustomerMail($customer, $password));
         }
         else{
             $customer = Customer::updateOrCreate(
-                                                 ['identification_number' => $data->company->identification_number,
+                                                 ['identification_number' => $identNumber,
                                                   'companies_id' => $companyId],
                                                  ['dv' => $data->company->dv,
                                                   'name' => $data->name,
@@ -257,7 +256,7 @@ trait DocumentTrait
                                                   'email' => $data->email
                                                  ]);
 
-            if($sendmail && $data->company->identification_number != '222222222222')
+            if($sendmail && $identNumber != '222222222222')
                 if(\Carbon\Carbon::now()->format('Y-m-d H:i') === date_format(date_create($customer->created_at), 'Y-m-d H:i'))
                     Mail::to($customer->email)->send(new PasswordCustomerMail($customer, $password));
         }
