@@ -146,6 +146,23 @@
                                         </span>
                                         <span class="ml-2">Acceso a la App</span>
                                     </el-dropdown-item>
+                                    <el-dropdown-item divided></el-dropdown-item>
+                                    <el-dropdown-item class="d-flex align-items-center"
+                                        @click.native="openStorageModal({{ $row->id }}, '{{ $row->storage_mode ?? '' }}')"  onclick="openStorageModal({{ $row->id }}, '{{ $row->storage_mode ?? '' }}')">
+                                        <span class="dropdown-icon-left">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-server text-muted">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                <path d="M3 4m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z"/>
+                                                <path d="M3 12m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v2a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z"/>
+                                                <path d="M7 8l0 .01"/>
+                                                <path d="M7 16l0 .01"/>
+                                            </svg>
+                                        </span>
+                                        <span class="ml-2">Almacenamiento</span>
+                                    </el-dropdown-item>
                                 </el-dropdown-menu>
                             </el-dropdown>
                         </td>
@@ -437,6 +454,50 @@
     </div>
 </div>
 
+<!-- Modal de Almacenamiento -->
+<div class="modal fade" id="storageModal" tabindex="-1" role="dialog" aria-labelledby="storageModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="storageModalLabel">
+                    <i class="fas fa-server mr-2"></i>Almacenamiento de archivos
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group mb-0">
+                    <label for="storage_mode_modal"><strong>¿Dónde se guardan los archivos de esta empresa?</strong></label>
+                    <select id="storage_mode_modal" class="form-control mt-1">
+                        <option value="" disabled selected>-- Seleccione --</option>
+                        <option value="local">&#128447; Local (servidor)</option>
+                        <option value="s3">&#9729; Nube — AWS S3</option>
+                        <option value="dual">&#128260; Local + Nube (doble copia)</option>
+                    </select>
+                    <div class="mt-3 p-3 bg-light rounded border">
+                        <p class="mb-2 text-muted" style="font-size:0.85rem;">
+                            <strong>&#128447; Local:</strong> los archivos (XML, PDF, ZIP) se guardan directamente en el disco del servidor donde corre el sistema.
+                        </p>
+                        <p class="mb-2 text-muted" style="font-size:0.85rem;">
+                            <strong>&#9729; Nube (S3):</strong> los archivos se suben automáticamente a Amazon S3. No ocupan espacio en el servidor y son accesibles desde cualquier lugar.
+                        </p>
+                        <p class="mb-0 text-muted" style="font-size:0.85rem;">
+                            <strong>&#128260; Local + Nube:</strong> los archivos se guardan en el servidor <em>y</em> se suben a S3 al mismo tiempo. Si uno falla, el otro sirve como respaldo.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" id="saveStorageBtn" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 .btn-lg:hover {
     transform: translateY(-2px);
@@ -572,6 +633,44 @@ window.companyCertificateData = {
 $(document).ready(function () {
     let currentCompanyId = null;
     let currentApiToken = null;
+    let storageCompanyId = null;
+
+    // Abrir modal de almacenamiento
+    window.openStorageModal = window.openStorageModalFn = function(companyId, currentMode) {
+        storageCompanyId = companyId;
+        $('#storage_mode_modal').val(currentMode || '');
+        $('#storageModal').modal('show');
+    };
+
+    // Guardar modo de almacenamiento
+    $('#saveStorageBtn').on('click', function() {
+        if (!storageCompanyId) return;
+        var mode = $('#storage_mode_modal').val();
+        var btn = $(this);
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
+        $.ajax({
+            url: '/companies/' + storageCompanyId + '/storage-mode',
+            method: 'PATCH',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: { storage_mode: mode },
+            success: function(response) {
+                $('#storageModal').modal('hide');
+                new PNotify({
+                    text: response.message || 'Modo de almacenamiento actualizado exitosamente',
+                    type: 'success',
+                    addclass: 'notification-success',
+                    delay: 3000
+                });
+                setTimeout(function() { location.reload(); }, 1500);
+            },
+            error: function() {
+                alert('Error al guardar. Intenta nuevamente.');
+                btn.prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
+            }
+        });
+    });
 
     // Limpiar formulario cuando se abre el modal
     $('#editCompanyModal').on('show.bs.modal', function () {

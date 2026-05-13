@@ -132,6 +132,30 @@ class HomeController extends Controller
         return view('company.payrolls', compact('documents', 'company_idnumber'));
     }
 
+    public function updateStorageMode(Request $request, $companyId)
+    {
+        $request->validate([
+            'storage_mode' => 'nullable|in:local,s3,dual',
+        ]);
+
+        $company = Company::findOrFail($companyId);
+
+        /** @var User|null $user */
+        $user = auth()->user();
+        if ($user && !$user->isPlatformAdmin() && !$user->isCompanyOwner($company)) {
+            abort(403, 'No tienes permiso para editar esta empresa.');
+        }
+
+        $company->update([
+            'storage_mode' => $request->input('storage_mode') ?: null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Modo de almacenamiento actualizado.'
+        ]);
+    }
+
     public function update(Request $request, $companyId)
     {
         try {
@@ -145,6 +169,7 @@ class HomeController extends Controller
                 'address' => 'required|string|max:255',
                 'phone' => 'required|string|max:20',
                 'type_document_identification_id' => 'required|exists:type_document_identifications,id',
+                'storage_mode' => 'nullable|in:local,s3,dual',
             ], [
                 'identification_number.required' => 'El número de identificación es obligatorio.',
                 'identification_number.numeric' => 'El número de identificación debe ser numérico.',
@@ -194,6 +219,7 @@ class HomeController extends Controller
                 'phone' => $request->phone,
                 'type_document_identification_id' => $request->type_document_identification_id,
                 'tax_id' => $tax_id,
+                'storage_mode' => $request->input('storage_mode') ?: null,
             ]);
 
             return response()->json([

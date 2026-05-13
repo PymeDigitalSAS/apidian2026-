@@ -56,7 +56,7 @@ Route::prefix('/ubl2.1')->group(function () {
     Route::get('/trm', 'Api\TrmController@getHtmlTrm');
 });
 
-Route::middleware('auth:api')->group(function () {
+Route::middleware(['auth:api', 'storage.context'])->group(function () {
 
     Route::get('reload-pdf/{identification}/{file}/{cufe}', 'Api\DownloadController@reloadPdf');
 
@@ -349,6 +349,8 @@ Route::get('invoice/pdf/{filename}', function($fisicroute)
 
 Route::get('invoice/{identification}/{filename}', function($identification, $filename)
 {
+    $company = \App\Company::where('identification_number', $identification)->first();
+    if ($company) StorageService::setCompany($company);
     $relativePath = "public/".$identification."/".$filename;
     return StorageService::downloadAuto($relativePath);
 });
@@ -356,6 +358,8 @@ Route::get('invoice/{identification}/{filename}', function($identification, $fil
 Route::get('receivedfile/{identification}/{filename}', function($identification, $filename)
 {
     try{
+        $company = \App\Company::where('identification_number', $identification)->first();
+        if ($company) StorageService::setCompany($company);
         $relativePath = "public/".$identification."/".$filename;
         return StorageService::downloadAuto($relativePath);
     } catch (\Exception $e) {
@@ -403,6 +407,8 @@ if(env('ALLOW_PUBLIC_DOWNLOAD', TRUE)){
     Route::get('download/{identification}/{file}/{type_response?}',
         function($identification, $file, $type_response = FALSE)
         {
+            $company = \App\Company::where('identification_number', $identification)->first();
+            if ($company) StorageService::setCompany($company);
             $u = new \App\Utils;
             if(strpos($file, 'Attachment-') === false and strpos($file, 'ZipAttachm-') === false)
                 if(StorageService::existsAuto("public/{$identification}/{$file}"))
@@ -467,6 +473,8 @@ if(env('ALLOW_PUBLIC_DOWNLOAD', TRUE)){
 
 // Ruta para visualizar archivos en el navegador (XML, PDF)
 Route::get('view/{identification}/{file}', function($identification, $file) {
+    $company = \App\Company::where('identification_number', $identification)->first();
+    if ($company) StorageService::setCompany($company);
     $path = "public/{$identification}/{$file}";
     if (!StorageService::existsAuto($path)) {
         abort(404, 'Archivo no encontrado');
@@ -477,7 +485,7 @@ Route::get('view/{identification}/{file}', function($identification, $file) {
 Route::post('login', 'Api\AuthController@login');
 
 // Mobile
-Route::middleware('auth:api')->group(function () {
+Route::middleware(['auth:api', 'storage.context'])->group(function () {
     Route::get('documents', 'Api\MobileController@documents');
 
     // items

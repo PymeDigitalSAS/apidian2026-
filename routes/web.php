@@ -83,6 +83,7 @@ Route::group(['middleware' => ['auth', 'company.web.access']], function() {
     Route::get('/taxes', 'HomeController@listTaxes')->name('listtaxes');
     Route::get('/listconfigurations', 'HomeController@listConfigurations')->name('listconfigurations');
     Route::put('/companies/{company}', 'HomeController@update')->name('companies.update');
+    Route::patch('/companies/{company}/storage-mode', 'HomeController@updateStorageMode')->name('companies.storage-mode');
 
     // users for rips
     Route::get('companies/{company}/users', 'CompanyUserController@index')->name('company.users.index');

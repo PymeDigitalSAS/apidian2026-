@@ -54,12 +54,10 @@ const app = new Vue({
     el: '#main-wrapper',
     methods: {
         openEditModal(companyId, identificationNumber, dv, typeDocId, typeRegimeId, typeLiabilityId, municipalityId, merchantReg, address, phone, apiToken) {
-            // console.log('openEditModal llamado con:', {companyId, identificationNumber});
-            
             // Guardar en variables globales para uso posterior
             window.currentCompanyId = companyId;
             window.currentApiToken = apiToken;
-            
+
             // Usar setTimeout para asegurar que jQuery esté listo
             this.$nextTick(() => {
                 // Cargar datos en el formulario
@@ -72,9 +70,14 @@ const app = new Vue({
                 $('#merchant_registration').val(merchantReg);
                 $('#address').val(address);
                 $('#phone').val(phone);
-                
+
                 // Abrir modal
                 $('#editCompanyModal').modal('show');
+            });
+        },
+        openStorageModal(companyId, storageMode) {
+            this.$nextTick(() => {
+                window.openStorageModal(companyId, storageMode);
             });
         },
         openAccessModal() {
