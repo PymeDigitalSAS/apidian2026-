@@ -18,9 +18,22 @@ class AddDefaultCustomerToExistingCompanies extends Migration
     public function up()
     {
         // Primero modificar la estructura de la tabla
-        // Desactivar FK checks porque algunos clientes tienen documents_customer_foreign
-        // que referencia customers.identification_number (PRIMARY KEY)
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        // Algunos clientes tienen FK documents_customer_foreign -> customers.identification_number
+        // MySQL bloquea DROP PRIMARY KEY si existe esa FK, por eso la eliminamos antes si existe
+        $fkExists = DB::select("
+            SELECT COUNT(*) as cnt
+            FROM information_schema.TABLE_CONSTRAINTS
+            WHERE CONSTRAINT_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'documents'
+              AND CONSTRAINT_NAME = 'documents_customer_foreign'
+              AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+        ");
+
+        if ($fkExists[0]->cnt > 0) {
+            Schema::table('documents', function (Blueprint $table) {
+                $table->dropForeign('documents_customer_foreign');
+            });
+        }
 
         Schema::table('customers', function (Blueprint $table) {
             $table->dropPrimary();
@@ -30,8 +43,6 @@ class AddDefaultCustomerToExistingCompanies extends Migration
             $table->bigIncrements('id')->first();
             $table->unique(['identification_number', 'companies_id']);
         });
-
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
         // Obtener todas las companies para crear o verificar customer por defecto
         $companies = Company::with('user')->get();
