@@ -61,6 +61,7 @@ class Handler extends ExceptionHandler
     protected function renderJsonException($request, Throwable $exception)
     {
         $status = 500;
+        $sqlState = null;
 
         // Manejo específico para excepciones de Carbon
         if ($exception instanceof InvalidFormatException) {
@@ -70,8 +71,16 @@ class Handler extends ExceptionHandler
             // Obtener código de estado HTTP apropiado
             if (method_exists($exception, 'getStatusCode')) {
                 $status = $exception->getStatusCode();
-            } elseif (method_exists($exception, 'getCode') && $exception->getCode() > 0) {
-                $status = $exception->getCode();
+            } elseif ($exception instanceof \PDOException
+                || $exception instanceof \Illuminate\Database\QueryException) {
+                // PDOException::getCode() devuelve el SQLSTATE (ej. "22007"), no un código HTTP
+                $sqlState = (string) $exception->getCode();
+                $status = 500;
+            } elseif (method_exists($exception, 'getCode')) {
+                $code = (int) $exception->getCode();
+                if ($code >= 100 && $code <= 599) {
+                    $status = $code;
+                }
             }
             $message = 'Error interno del servidor';
         }
@@ -84,6 +93,10 @@ class Handler extends ExceptionHandler
             'message' => $message,
             'error' => $errorMessage,
         ];
+
+        if ($sqlState !== null) {
+            $response['sqlstate'] = $sqlState;
+        }
 
         // En desarrollo, agregar más información
         if (config('app.debug')) {
