@@ -63,5 +63,6 @@ class Kernel extends HttpKernel
         'api.token' => \App\Http\Middleware\ApiTokenConfig::class,
         'check.api.register' => \App\Http\Middleware\CheckRegisterFromApi::class,
         'company.web.access' => \App\Http\Middleware\EnsureCompanyWebAccess::class,
+        'storage.context' => \App\Http\Middleware\SetCompanyStorageContext::class,
     ];
 }

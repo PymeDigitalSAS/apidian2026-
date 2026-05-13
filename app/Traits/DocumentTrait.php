@@ -361,6 +361,7 @@ trait DocumentTrait
      */
     protected function createPDF($user, $company, $customer, $typeDocument, $resolution, $date, $time, $paymentForm, $request, $cufecude, $tipodoc = "INVOICE", $withHoldingTaxTotal = NULL, $notes = NULL, $healthfields)
     {
+        StorageService::setCompany($company);
         set_time_limit(0);
         ini_set("pcre.backtrack_limit", "5000000");
         define("DOMPDF_ENABLE_REMOTE", true);
@@ -810,6 +811,7 @@ trait DocumentTrait
      */
     protected function createPDFPayroll($user, $company, $predecessor, $period, $worker, $resolution, $payment, $payment_dates, $typeDocument, $notes = NULL, $accrued, $deductions, $request, $cufecude, $tipodoc = "PAYROLL")
     {
+        StorageService::setCompany($company);
         set_time_limit(0);
         ini_set("pcre.backtrack_limit", "5000000");
         $QRStr = '';
@@ -877,6 +879,7 @@ trait DocumentTrait
      */
     protected function createPDFEvent($user, $company, $typeDocument, $event, $sender, $documentReference, $typeDocumentReference, $issuerparty, $typerejection, $notes, $request, $cufecude)
     {
+        StorageService::setCompany($company);
         set_time_limit(0);
         ini_set("pcre.backtrack_limit", "5000000");
         $QRStr = '';
@@ -1109,6 +1112,7 @@ trait DocumentTrait
      */
     protected function zipBase64(Company $company, Resolution $resolution, Sign $sign, $GuardarEn = false, $batch = false, $ret_array = false)
     {
+        StorageService::setCompany($company);
         $dir = preg_replace("/[\r\n|\n|\r]+/", "", "zip/{$resolution->company_id}");
         $nameXML = preg_replace("/[\r\n|\n|\r]+/", "", $this->getFileName($company, $resolution));
         if ($batch) {
@@ -1184,6 +1188,7 @@ trait DocumentTrait
      */
     protected function zipBase64SendEvent(Company $company, $codeevent, $identificationnumber, $prefixnumberdoc, Sign $sign, $GuardarEn = false)
     {
+        StorageService::setCompany($company);
         $dir = preg_replace("/[\r\n|\n|\r]+/", "", "zip/{$company->id}");
         $nameXML = preg_replace("/[\r\n|\n|\r]+/", "", $this->getFileNameSendEvent($codeevent, $identificationnumber, $prefixnumberdoc));
         $nameZip = preg_replace("/[\r\n|\n|\r]+/", "", $this->getFileNameSendEvent($codeevent, $identificationnumber, $prefixnumberdoc, '.zip'));
