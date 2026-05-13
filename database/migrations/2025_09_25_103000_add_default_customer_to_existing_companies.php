@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 use App\Company;
@@ -17,6 +18,10 @@ class AddDefaultCustomerToExistingCompanies extends Migration
     public function up()
     {
         // Primero modificar la estructura de la tabla
+        // Desactivar FK checks porque algunos clientes tienen documents_customer_foreign
+        // que referencia customers.identification_number (PRIMARY KEY)
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
         Schema::table('customers', function (Blueprint $table) {
             $table->dropPrimary();
         });
@@ -25,6 +30,8 @@ class AddDefaultCustomerToExistingCompanies extends Migration
             $table->bigIncrements('id')->first();
             $table->unique(['identification_number', 'companies_id']);
         });
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
         // Obtener todas las companies para crear o verificar customer por defecto
         $companies = Company::with('user')->get();
