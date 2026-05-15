@@ -56,9 +56,7 @@
                                    title="Debe ser un enlace User/AuthToken de DIAN (catalogo-vpfe o catalogo-vpfe-hab)"
                                    required>
                             <small class="form-text text-muted">
-                                Pega el enlace <code>User/AuthToken</code> emitido por DIAN
-                                (<code>https://catalogo-vpfe.dian.gov.co/User/AuthToken?...</code> en producción o
-                                <code>https://catalogo-vpfe-hab.dian.gov.co/User/AuthToken?...</code> en habilitación).
+                                Pega el enlace <code>User/AuthToken</code> emitido por DIAN.
                             </small>
                         </div>
 
