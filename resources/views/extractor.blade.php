@@ -4,22 +4,39 @@
     $defaultFechaHasta = date('Y-m-d');
 @endphp
 @section('content')
+@php
+    $extractorConfigured = !empty($config['url']);
+@endphp
+
 <header class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h2>Extractor de facturas DIAN</h2>
     </div>
     <div class="right-wrapper text-end mt-auto pb-1">
-        <button type="button" id="btn-test-connection" class="btn btn-info text-white">
+        <button type="button" id="btn-test-connection"
+                class="btn btn-info text-white"
+                @if(!$extractorConfigured) disabled title="EXTRACTOR_URL no está configurada en .env" @endif>
             <i class="fas fa-plug mr-1"></i> Probar conexión
         </button>
     </div>
 </header>
 
-<div class="alert alert-info py-2 mb-3" style="font-size:.95rem;">
-    <i class="fas fa-info-circle mr-1"></i>
-    Consulta facturas en la <strong>DIAN</strong> por enlace de <strong>Token</strong> y descarga su
-    <strong>Excel</strong> / <strong>JSON</strong>.
-</div>
+@if(!$extractorConfigured)
+    <div class="alert alert-warning mb-3" role="alert" style="font-size:.95rem;">
+        <strong><i class="fas fa-exclamation-triangle mr-1"></i> Extractor no configurado.</strong>
+        Esta herramienta requiere que el administrador defina la variable
+        <code>EXTRACTOR_URL</code> en el archivo <code>.env</code> apuntando al servicio del extractor
+        (p.&nbsp;ej. <code>http://localhost:3001</code> o <code>https://extractor.tu-dominio.com</code>).
+        Después ejecute <code>php artisan config:clear</code> para que el cambio tome efecto.
+        Mientras no esté configurada, las acciones de prueba y extracción permanecerán deshabilitadas.
+    </div>
+@else
+    <div class="alert alert-info py-2 mb-3" style="font-size:.95rem;">
+        <i class="fas fa-info-circle mr-1"></i>
+        Consulta facturas en la <strong>DIAN</strong> por enlace de <strong>Token</strong> y descarga su
+        <strong>Excel</strong> / <strong>JSON</strong>.
+    </div>
+@endif
 
 <div id="connection-result" class="mt-2 mb-3" style="display:none;"></div>
 
@@ -79,7 +96,8 @@
                         </div>
                     </div>
 
-                    <button type="submit" id="btn-extract" class="btn btn-primary">
+                    <button type="submit" id="btn-extract" class="btn btn-primary"
+                            @if(!$extractorConfigured) disabled title="EXTRACTOR_URL no está configurada en .env" @endif>
                         <i class="fas fa-play mr-1"></i> Iniciar extracción
                     </button>
                     <span class="text-muted ml-2" style="font-size:.85rem;">

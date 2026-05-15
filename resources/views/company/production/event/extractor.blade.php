@@ -6,6 +6,7 @@
         'has_key' => !empty(config('services.extractor.api_key')),
         'timeout' => config('services.extractor.timeout', 120),
     ];
+    $extractorConfigured = !empty($extractorConfig['url']);
     $extractorApiToken = $company->user->api_token ?? null;
 
     // Ambiente del evento RADIAN — controla las URLs DIAN que usar&aacute; el extractor.
@@ -48,17 +49,31 @@
                 </span>
             </div>
             <div class="right-wrapper text-end mt-auto pb-1">
-                <button type="button" id="evt-extr-btn-test" class="btn btn-info text-white btn-sm">
+                <button type="button" id="evt-extr-btn-test"
+                        class="btn btn-info text-white btn-sm"
+                        @if(!$extractorConfigured) disabled title="EXTRACTOR_URL no está configurada en .env" @endif>
                     <i class="fas fa-plug mr-1"></i> Probar conexi&oacute;n
                 </button>
             </div>
         </header>
 
-        <div class="alert alert-info py-2 mb-3" style="font-size:.9rem;">
-            <i class="fas fa-info-circle mr-1"></i>
-            Consulta facturas <strong>recibidas</strong> en la DIAN y carga sus datos por CUFE
-            para enviar eventos RADIAN sobre ellas.
-        </div>
+        @if(!$extractorConfigured)
+            <div class="alert alert-warning mb-3" role="alert" style="font-size:.95rem;">
+                <strong><i class="fas fa-exclamation-triangle mr-1"></i> Extractor no configurado.</strong>
+                Esta herramienta a&uacute;n no est&aacute; disponible para esta instalaci&oacute;n.
+                El administrador debe definir la variable <code>EXTRACTOR_URL</code> en el archivo <code>.env</code>
+                apuntando al servicio del extractor (p.&nbsp;ej. <code>http://localhost:3001</code> o
+                <code>https://extractor.tu-dominio.com</code>) y luego correr
+                <code>php artisan config:clear</code>. Mientras no se configure, las acciones de
+                prueba y extracci&oacute;n permanecer&aacute;n deshabilitadas.
+            </div>
+        @else
+            <div class="alert alert-info py-2 mb-3" style="font-size:.9rem;">
+                <i class="fas fa-info-circle mr-1"></i>
+                Consulta facturas <strong>recibidas</strong> en la DIAN y carga sus datos por CUFE
+                para enviar eventos RADIAN sobre ellas.
+            </div>
+        @endif
 
         <div id="evt-extr-conn-result" class="mt-2 mb-3" style="display:none;"></div>
 
@@ -108,7 +123,8 @@
                                     <input type="date" id="evt-extr-fecha-hasta" name="fechaHasta" class="form-control" value="{{ $defaultFechaHasta }}" required>
                                 </div>
                             </div>
-                            <button type="submit" id="evt-btn-extract" class="btn btn-primary">
+                            <button type="submit" id="evt-btn-extract" class="btn btn-primary"
+                                    @if(!$extractorConfigured) disabled title="EXTRACTOR_URL no está configurada en .env" @endif>
                                 <i class="fas fa-play mr-1"></i> Iniciar extracci&oacute;n
                             </button>
                             <span class="text-muted ml-2" style="font-size:.85rem;">
