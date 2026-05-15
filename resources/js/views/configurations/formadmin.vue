@@ -454,43 +454,39 @@
                     <form autocomplete="off">
                         <div class="form-body">
                             <div class="row">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group" :class="{'has-danger': errors.type_document_id}">
                                         <label class="control-label">Tipo de Documento</label>
-                                        <el-select class="extend" v-model="resolution.type_document_id" filterable>
-                                            <el-option
-                                                v-for="option in resolution_type_documents"
-                                                :key="option.id"
-                                                :value="option.id"
-                                                :label="option.name">
-                                            </el-option>
+                                        <el-select class="extend" v-model="resolution.type_document_id" disabled>
+                                            <el-option :value="1" label="Factura de Venta Nacional"></el-option>
                                         </el-select>
                                         <small class="form-control-feedback" v-if="errors.type_document_id" v-text="errors.type_document_id[0]"></small>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group" :class="{'has-danger': errors.prefix}">
                                         <label class="control-label">Prefijo</label>
                                         <el-input v-model="resolution.prefix"></el-input>
                                         <small class="form-control-feedback" v-if="errors.prefix" v-text="errors.prefix[0]"></small>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
+
+                                <div class="col-md-6">
                                     <div class="form-group" :class="{'has-danger': errors.resolution}">
-                                        <label class="control-label">Número Resolución</label>
+                                        <label class="control-label">Número de Resolución</label>
                                         <el-input v-model="resolution.resolution"></el-input>
                                         <small class="form-control-feedback" v-if="errors.resolution" v-text="errors.resolution[0]"></small>
                                     </div>
                                 </div>
-
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <div class="form-group" :class="{'has-danger': errors.resolution_date}">
                                         <label class="control-label">Fecha Resolución</label>
                                         <el-input type="date" v-model="resolution.resolution_date"></el-input>
                                         <small class="form-control-feedback" v-if="errors.resolution_date" v-text="errors.resolution_date[0]"></small>
                                     </div>
                                 </div>
-                                <div class="col-md-8">
+
+                                <div class="col-md-12">
                                     <div class="form-group" :class="{'has-danger': errors.technical_key}">
                                         <label class="control-label">Clave Técnica</label>
                                         <el-input v-model="resolution.technical_key"></el-input>
@@ -500,14 +496,14 @@
 
                                 <div class="col-md-6">
                                     <div class="form-group" :class="{'has-danger': errors.from}">
-                                        <label class="control-label">Desde (consecutivo)</label>
+                                        <label class="control-label">Rango Inicial (desde)</label>
                                         <el-input type="number" v-model.number="resolution.from"></el-input>
                                         <small class="form-control-feedback" v-if="errors.from" v-text="errors.from[0]"></small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group" :class="{'has-danger': errors.to}">
-                                        <label class="control-label">Hasta (consecutivo)</label>
+                                        <label class="control-label">Rango Final (hasta)</label>
                                         <el-input type="number" v-model.number="resolution.to"></el-input>
                                         <small class="form-control-feedback" v-if="errors.to" v-text="errors.to[0]"></small>
                                     </div>
@@ -532,8 +528,11 @@
                     </form>
                 </div>
                 <div class="col-md-12 text-center mt-4">
-                    <el-button size="medium" type="primary" :loading="loading_submit" @click="saveResolution">
-                        Siguiente
+                    <el-button size="medium" type="primary" :loading="loading_submit" @click="saveResolution(false)">
+                        Siguiente (factura JSON opcional)
+                    </el-button>
+                    <el-button size="medium" type="success" :loading="loading_submit" @click="saveResolution(true)">
+                        <i class="el-icon-check"></i> Terminar
                     </el-button>
                 </div>
             </div>
@@ -1036,7 +1035,7 @@
 
                 return Object.keys(this.errors).length === 0;
             },
-            saveResolution() {
+            saveResolution(finish = false) {
                 if (!this.validateResolutionFields()) {
                     const allErrors = Object.values(this.errors).flat().join('\n');
                     this.$message.warning(allErrors || 'Complete los campos obligatorios.');
@@ -1049,6 +1048,12 @@
                         if (response.data.success) {
                             this.responseResolution = response.data;
                             this.$message.success(response.data.message);
+                            if (finish) {
+                                // Marcar todos los pasos como completados y cerrar el wizard
+                                this.active = 5;
+                                setTimeout(() => this.closeWizard(), 800);
+                                return;
+                            }
                             // Pre-rellenar prefix y resolution_number en el JSON de factura
                             try {
                                 const parsed = JSON.parse(this.invoice.json || '{}');
