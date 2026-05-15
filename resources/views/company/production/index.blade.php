@@ -652,6 +652,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         Paso a Producción
                     </button>
                 </li>
+                <li class="nav-item d-flex" role="presentation">
+                    <button class="nav-link w-100 d-flex justify-content-center align-items-center px-3 py-2 fw-bold"
+                        id="event-extractor-tab" data-bs-toggle="tab" data-bs-target="#event-extractor" type="button" role="tab"
+                        aria-controls="event-extractor" aria-selected="false">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-cloud-download"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M19 18a3.5 3.5 0 0 0 0 -7h-1a5 4.5 0 0 0 -11 -2a4.6 4.4 0 0 0 -2.1 8.4" /><path d="M12 13l0 9" /><path d="M9 19l3 3l3 -3" /></svg>
+                        Extractor
+                    </button>
+                </li>
             </ul>
             <div class="tab-content" id="eventSubTabsContent">
                 <div class="tab-pane fade show active" id="event-list" role="tabpanel" aria-labelledby="event-list-tab">
@@ -664,6 +672,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="tab-pane fade" id="event-production" role="tabpanel" aria-labelledby="event-production-tab">
                     @include('company.production.event.index', [
+                        'company' => $company,
+                        'environmentStatus' => $environmentStatuses['event']
+                    ])
+                </div>
+                <div class="tab-pane fade" id="event-extractor" role="tabpanel" aria-labelledby="event-extractor-tab">
+                    @include('company.production.event.extractor', [
                         'company' => $company,
                         'environmentStatus' => $environmentStatuses['event']
                     ])

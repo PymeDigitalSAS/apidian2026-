@@ -44,4 +44,10 @@ return [
         ],
     ],
 
+    'extractor' => [
+        'url' => env('EXTRACTOR_URL'),
+        'api_key' => env('EXTRACTOR_API_KEY'),
+        'timeout' => (int) env('EXTRACTOR_TIMEOUT', 120),
+    ],
+
 ];

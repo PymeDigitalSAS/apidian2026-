@@ -75,6 +75,15 @@ Route::get('/', 'HomeController@index')->name('home');
 Route::group(['middleware' => ['auth', 'company.web.access']], function() {
     Route::get('/home', 'HomeController@index')->name('home');
     Route::get('/tools', 'HomeController@tools')->name('tools');
+
+    // Extractor de facturas DIAN (servicio Node externo)
+    Route::get('/extractor', 'ExtractorController@index')->name('extractor.index');
+    Route::post('/extractor/test', 'ExtractorController@testConnection')->name('extractor.test');
+    Route::post('/extractor/extract', 'ExtractorController@extract')->name('extractor.extract');
+    Route::post('/extractor/extract-cert', 'ExtractorController@extractWithCertificate')->name('extractor.extract-cert');
+    Route::get('/extractor/job/{id}', 'ExtractorController@jobStatus')->name('extractor.job');
+    Route::get('/extractor/download/{path}', 'ExtractorController@download')->where('path', '.*')->name('extractor.download');
+
     Route::get('/company/{company}', 'HomeController@company')->name('company');
     Route::get('/company/{company}/document/{cufe}', 'HomeController@getXml')->name('getXml');
     Route::get('/company/{company}/events', 'HomeController@events')->name('company.events');
