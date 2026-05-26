@@ -65,6 +65,33 @@ class ConfigurationController extends Controller
             ->only('store');
     }
 
+    private function getResolutionEnvironmentId(Company $company, $type_document_id = null)
+    {
+        $type_document_id = $type_document_id !== null ? (int) $type_document_id : null;
+
+        if ($type_document_id === null) {
+            return $company->type_environment_id ?? 2;
+        }
+
+        if (in_array($type_document_id, [8, 14], true)) {
+            return $company->event_type_environment_id ?? $company->type_environment_id ?? 2;
+        }
+
+        if (in_array($type_document_id, [9, 10], true)) {
+            return $company->payroll_type_environment_id ?? $company->type_environment_id ?? 2;
+        }
+
+        if (in_array($type_document_id, [11, 13], true)) {
+            return $company->support_document_type_environment_id ?? $company->type_environment_id ?? 2;
+        }
+
+        if ($type_document_id >= 15 && $type_document_id <= 26) {
+            return $company->eqdocs_type_environment_id ?? $company->type_environment_id ?? 2;
+        }
+
+        return $company->type_environment_id ?? 2;
+    }
+
     public function table_health_type_document_identifications(){
         $health_type_document_identifications = HealthTypeDocumentIdentification::all();
         return compact('health_type_document_identifications');
@@ -87,7 +114,6 @@ class ConfigurationController extends Controller
 
     public function table_resolutions(Request $request, $identification_number = null, $type_document_id = null){
         $company = auth()->user()->company;
-        $environment_id = $company->type_environment_id;
 
         // Prioridad 1: Parámetros de URL (compatibilidad hacia atrás)
         if ($identification_number === null) {
@@ -102,15 +128,18 @@ class ConfigurationController extends Controller
             // Si no, usar la empresa del usuario autenticado
             if ($identification_number) {
                 $targetCompany = Company::where('identification_number', $identification_number)->firstOrFail();
-                $companyId = $targetCompany->id;
             } else {
-                $companyId = $company->id;
+                $targetCompany = $company;
             }
 
-            $resolutions = Resolution::where('company_id', $companyId)
-                ->where('type_environment_id', $environment_id)
-                ->filterByDocumentType($type_document_id)
-                ->get();
+            $resolutions = Resolution::where('company_id', $targetCompany->id)
+                ->filterByDocumentType($type_document_id);
+
+            if ($type_document_id !== null) {
+                $resolutions->where('type_environment_id', $this->getResolutionEnvironmentId($targetCompany, $type_document_id));
+            }
+
+            $resolutions = $resolutions->get();
 
             return compact('resolutions');
         } catch (Exception $e) {
@@ -737,13 +766,16 @@ class ConfigurationController extends Controller
         DB::beginTransaction();
 
         try {
+            $company = auth()->user()->company;
+            $environment_id = $this->getResolutionEnvironmentId($company, $request->type_document_id);
+
             if($request->delete_all_type_resolutions){
-                $resolution = auth()->user()->company->resolutions()->where('type_document_id', $request->type_document_id)->get();
+                $resolution = $company->resolutions()->where('type_document_id', $request->type_document_id)->get();
                 if(count($resolution) > 0)
                     foreach($resolution as $r)
                         $r->delete();
             }
-            $resolution = auth()->user()->company->resolutions()->updateOrCreate([
+            $resolution = $company->resolutions()->updateOrCreate([
                 'type_document_id' => $request->type_document_id,
                 'resolution' => $request->resolution,
                 'prefix' => $request->prefix,
@@ -754,7 +786,7 @@ class ConfigurationController extends Controller
                 'to' => $request->to,
                 'date_from' => $request->date_from,
                 'date_to' => $request->date_to,
-                'type_environment_id' => auth()->user()->company->type_environment_id,
+                'type_environment_id' => $environment_id,
             ]);
 
             DB::commit();
