@@ -249,7 +249,7 @@
         <th class="text-center" style="width: 18%;">Info. de Pagos</th>
     </thead>
     <tbody>
-        @foreach ($healthfields->user_info as $item)
+        @foreach ($healthfields->users_info as $item)
         <tr>
             <td style="font-size: 8px;">{{$item->provider_code}}</td>
             <td>

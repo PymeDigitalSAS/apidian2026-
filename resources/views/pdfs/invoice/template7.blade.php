@@ -159,7 +159,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($healthfields->user_info as $item)
+                @foreach ($healthfields->users_info as $item)
                 <tr>
                     <td class="desc-9 text-center">{{$item->provider_code}}</td>
                     <td class="desc-9">
