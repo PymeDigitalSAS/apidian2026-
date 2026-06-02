@@ -115,6 +115,10 @@ class MonitoringController extends Controller
                     'cpu'           => $s->cpu_percent,
                     'mem'           => $s->mem_percent,
                     'disk'          => $s->disk_percent,
+                    // Hubo captura de saturación si alguna de las columnas no es null
+                    // (se llenan solo cuando el CPU superó el umbral), o si hay
+                    // peticiones lentas correlacionadas.
+                    'captured'      => $s->top_queries !== null || $s->top_processes !== null || $slow->isNotEmpty(),
                     'top_queries'   => $s->top_queries ?? [],
                     'top_processes' => $s->top_processes ?? [],
                     'slow_requests' => $slow,

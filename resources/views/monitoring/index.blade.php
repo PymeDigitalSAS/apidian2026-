@@ -341,8 +341,7 @@
                     return;
                 }
                 body.innerHTML = peaksCache.map(function (p, i) {
-                    var has = (p.top_queries || []).length > 0 || (p.top_processes || []).length > 0;
-                    var cell = has
+                    var cell = p.captured
                         ? '<button type="button" class="btn btn-sm btn-outline-primary" data-idx="' + i + '"><i class="fas fa-search-plus"></i> Detalles</button>'
                         : '<span class="text-muted">—</span>';
                     return '<tr data-idx="' + i + '">' +
@@ -358,9 +357,8 @@
 
     function showPeak(idx) {
         var p = peaksCache[idx];
-        if (!p) return;
+        if (!p || !p.captured) return;
         var queries = p.top_queries || [], processes = p.top_processes || [], slow = p.slow_requests || [];
-        if (!queries.length && !processes.length && !slow.length) return;
 
         document.getElementById('peak-modal-time').textContent = p.at + ' · CPU ' + pct(p.cpu);
         var html = '';
