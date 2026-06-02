@@ -2,13 +2,17 @@
 
 namespace App\Services;
 
+use App\Company;
 use Illuminate\Support\Facades\DB;
+use FilesystemIterator;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use Throwable;
 
 /**
- * Recolecta métricas de recursos del servidor (CPU, memoria, disco, base de datos
- * y procesos) de forma tolerante a fallos. Está optimizado para entornos Linux
- * (VPS con Docker o Apache) y cae con elegancia en Windows para desarrollo local.
+ * Recolecta métricas de recursos del servidor (CPU, memoria y almacenamiento)
+ * de forma tolerante a fallos, y calcula el consumo de cada empresa en base de
+ * datos y en disco. Optimizado para Linux/Docker con fallback en Windows.
  *
  * Ningún recolector debe lanzar una excepción hacia afuera: si una métrica no se
  * puede leer, se devuelve null para esa métrica y el resto sigue funcionando.
@@ -16,7 +20,7 @@ use Throwable;
 class SystemMonitorService
 {
     /**
-     * Recolecta una instantánea completa de los recursos del sistema.
+     * Recolecta una instantánea de los recursos del sistema.
      *
      * @return array
      */
@@ -25,32 +29,24 @@ class SystemMonitorService
         $cpu    = $this->cpu();
         $memory = $this->memory();
         $disk   = $this->disk();
-        $db     = $this->database();
 
         return [
-            'cpu_percent'        => $cpu['percent'],
-            'load_1'             => $cpu['load_1'],
-            'load_5'             => $cpu['load_5'],
-            'load_15'            => $cpu['load_15'],
-            'cpu_cores'          => $cpu['cores'],
+            'cpu_percent'  => $cpu['percent'],
+            'load_1'       => $cpu['load_1'],
+            'load_5'       => $cpu['load_5'],
+            'load_15'      => $cpu['load_15'],
+            'cpu_cores'    => $cpu['cores'],
 
-            'mem_total'          => $memory['total'],
-            'mem_used'           => $memory['used'],
-            'mem_percent'        => $memory['percent'],
+            'mem_total'    => $memory['total'],
+            'mem_used'     => $memory['used'],
+            'mem_percent'  => $memory['percent'],
 
-            'disk_total'         => $disk['total'],
-            'disk_used'          => $disk['used'],
-            'disk_percent'       => $disk['percent'],
+            'disk_total'   => $disk['total'],
+            'disk_used'    => $disk['used'],
+            'disk_percent' => $disk['percent'],
 
-            'db_connections'     => $db['connections'],
-            'db_threads_running' => $db['threads_running'],
-            'db_slow_queries'    => $db['slow_queries'],
-
-            'top_queries'        => $this->topQueries(),
-            'top_processes'      => $this->topProcesses(),
-
-            'hostname'           => $this->safe(fn () => gethostname() ?: null),
-            'environment'        => $this->detectEnvironment(),
+            'hostname'     => $this->safe(fn () => gethostname() ?: null),
+            'environment'  => $this->detectEnvironment(),
         ];
     }
 
@@ -76,7 +72,6 @@ class SystemMonitorService
             $result['load_5']  = round((float) $load[1], 2);
             $result['load_15'] = round((float) $load[2], 2);
 
-            // Aproximación de uso de CPU a partir de la carga de 1 min / núcleos.
             if ($cores > 0) {
                 $result['percent'] = min(100.0, round(($load[0] / $cores) * 100, 1));
             }
@@ -297,36 +292,17 @@ class SystemMonitorService
     }
 
     /* --------------------------------------------------------------------- */
-    /* Base de datos                                                         */
+    /* Consultas activas (para capturar qué satura el CPU)                   */
     /* --------------------------------------------------------------------- */
 
-    protected function database(): array
-    {
-        $result = ['connections' => null, 'threads_running' => null, 'slow_queries' => null];
-
-        $status = $this->safe(function () {
-            $rows = DB::select("SHOW GLOBAL STATUS WHERE Variable_name IN ('Threads_connected','Threads_running','Slow_queries')");
-            $map = [];
-            foreach ($rows as $row) {
-                $map[strtolower($row->Variable_name)] = $row->Value;
-            }
-            return $map;
-        });
-
-        if (is_array($status)) {
-            $result['connections']     = isset($status['threads_connected']) ? (int) $status['threads_connected'] : null;
-            $result['threads_running'] = isset($status['threads_running']) ? (int) $status['threads_running'] : null;
-            $result['slow_queries']    = isset($status['slow_queries']) ? (int) $status['slow_queries'] : null;
-        }
-
-        return $result;
-    }
-
     /**
-     * Devuelve las consultas SQL activas (no en estado Sleep) ordenadas por
-     * tiempo de ejecución descendente. Esto responde "con qué consulta se satura".
+     * Devuelve las consultas SQL que se están ejecutando en este instante
+     * (no en estado Sleep), ordenadas por tiempo de ejecución descendente.
+     * Se captura cuando el CPU se satura para saber qué la está saturando.
+     *
+     * @return array
      */
-    public function topQueries(int $limit = 15): array
+    public function activeQueries(int $limit = 20): array
     {
         return $this->safe(function () use ($limit) {
             $rows = DB::select('SHOW FULL PROCESSLIST');
@@ -334,17 +310,18 @@ class SystemMonitorService
             foreach ($rows as $row) {
                 $command = $row->Command ?? '';
                 $info    = trim((string) ($row->Info ?? ''));
-                if (strcasecmp($command, 'Sleep') === 0 || $info === '') {
+                // Ignorar conexiones inactivas y la propia consulta de monitoreo.
+                if (strcasecmp($command, 'Sleep') === 0 || $info === '' ||
+                    stripos($info, 'SHOW FULL PROCESSLIST') !== false) {
                     continue;
                 }
                 $queries[] = [
                     'id'      => $row->Id ?? null,
                     'user'    => $row->User ?? null,
                     'db'      => $row->db ?? null,
-                    'command' => $command,
                     'time'    => isset($row->Time) ? (int) $row->Time : null,
                     'state'   => $row->State ?? null,
-                    'query'   => mb_substr($info, 0, 500),
+                    'query'   => mb_substr($info, 0, 1000),
                 ];
             }
             usort($queries, fn ($a, $b) => ($b['time'] ?? 0) <=> ($a['time'] ?? 0));
@@ -353,21 +330,24 @@ class SystemMonitorService
     }
 
     /**
-     * Devuelve los procesos del SO que más CPU/memoria consumen.
+     * Devuelve los procesos del SO que más CPU/memoria consumen en este instante.
+     * En Linux usa `ps`; en Windows `tasklist`. En Docker muestra los procesos del
+     * contenedor (o los del host si el contenedor tiene `pid: host`).
+     *
+     * @return array
      */
-    public function topProcesses(int $limit = 10): array
+    public function topProcesses(int $limit = 12): array
     {
         return $this->safe(function () use ($limit) {
-            if ($this->isWindows()) {
-                return $this->topProcessesWindows($limit);
-            }
-            return $this->topProcessesLinux($limit);
+            return $this->isWindows()
+                ? $this->topProcessesWindows($limit)
+                : $this->topProcessesLinux($limit);
         }) ?? [];
     }
 
     protected function topProcessesLinux(int $limit): array
     {
-        $out = $this->run('ps -eo pid,comm,%cpu,%mem --sort=-%cpu --no-headers');
+        $out = $this->run('ps -eo pid,comm,%cpu,%mem --sort=-%cpu --no-headers 2>/dev/null');
         if (!$out) {
             return [];
         }
@@ -382,10 +362,10 @@ class SystemMonitorService
                 continue;
             }
             $procs[] = [
-                'pid'     => (int) $parts[0],
-                'name'    => $parts[1],
-                'cpu'     => (float) $parts[2],
-                'mem'     => (float) $parts[3],
+                'pid'  => (int) $parts[0],
+                'name' => $parts[1],
+                'cpu'  => (float) $parts[2],
+                'mem'  => (float) $parts[3],
             ];
             if (count($procs) >= $limit) {
                 break;
@@ -396,7 +376,6 @@ class SystemMonitorService
 
     protected function topProcessesWindows(int $limit): array
     {
-        // tasklist en formato CSV: "Imagen","PID","Sesión","Núm","Uso de memoria"
         $out = $this->run('tasklist /fo csv /nh');
         if (!$out) {
             return [];
@@ -412,11 +391,147 @@ class SystemMonitorService
                 'pid'  => (int) $cols[1],
                 'name' => $cols[0],
                 'cpu'  => null,
-                'mem'  => round($memKb * 1024 / (1024 * 1024), 1), // MB
+                'mem'  => round($memKb / 1024, 1), // MB
             ];
         }
         usort($procs, fn ($a, $b) => ($b['mem'] ?? 0) <=> ($a['mem'] ?? 0));
         return array_slice($procs, 0, $limit);
+    }
+
+    /* --------------------------------------------------------------------- */
+    /* Consumo por empresa (storage)                                         */
+    /* --------------------------------------------------------------------- */
+
+    /**
+     * Calcula, por empresa, el espacio real ocupado en disco por sus archivos.
+     * Usa `du` (una sola llamada) en Linux; recorrido en PHP como respaldo.
+     *
+     * @return array{generated_at:string, storage_total:int, companies:array}
+     */
+    public function companyUsage(): array
+    {
+        $companies = $this->safe(function () {
+            return Company::with('user:id,name')
+                ->get(['id', 'user_id', 'identification_number']);
+        }) ?? collect();
+
+        // En Linux usamos `du` (una sola llamada para todas las carpetas, en C);
+        // si no está disponible (Windows o shell deshabilitado) recorremos en PHP.
+        $duSizes = $this->storageSizesViaDu();
+
+        $rows = [];
+        $storageTotal = 0;
+
+        foreach ($companies as $company) {
+            $nit = (string) $company->identification_number;
+
+            $storageBytes = $duSizes !== null
+                ? (int) ($duSizes[$nit] ?? 0)
+                : $this->companyStorageBytes($nit);
+            $storageTotal += $storageBytes;
+
+            $rows[] = [
+                'nit'           => $nit,
+                'name'          => optional($company->user)->name ?? '—',
+                'storage_bytes' => $storageBytes,
+            ];
+        }
+
+        // Orden descendente por consumo.
+        usort($rows, fn ($a, $b) => $b['storage_bytes'] <=> $a['storage_bytes']);
+
+        return [
+            'generated_at'  => now()->toDateTimeString(),
+            'storage_total' => $storageTotal,
+            'companies'     => $rows,
+        ];
+    }
+
+    /**
+     * Obtiene el peso de las carpetas de TODAS las empresas con una sola llamada
+     * a `du` (rápido, en C). Devuelve [nit => bytes], o null si `du`/shell no
+     * están disponibles (Windows o shell_exec deshabilitado) para usar el
+     * recorrido en PHP como respaldo.
+     *
+     * @return array<string,int>|null
+     */
+    protected function storageSizesViaDu(): ?array
+    {
+        if ($this->isWindows()) {
+            return null;
+        }
+
+        $sizes = null;
+        foreach (['app/public', 'app/received'] as $rel) {
+            $base = storage_path($rel);
+            if (!is_dir($base)) {
+                continue;
+            }
+
+            // du -b --max-depth=1: una sola llamada que lista el peso (en bytes)
+            // de cada subcarpeta inmediata, sin expandir un glob en la línea de
+            // comandos (seguro aunque haya miles de empresas). Salida: "bytes\truta".
+            $out = $this->run('du -b --max-depth=1 ' . escapeshellarg($base) . ' 2>/dev/null');
+            if ($out === null) {
+                // shell_exec no disponible: caer al recorrido en PHP.
+                return null;
+            }
+
+            $sizes = $sizes ?? [];
+            foreach (preg_split('/\r?\n/', trim($out)) as $line) {
+                $line = trim($line);
+                if ($line === '') {
+                    continue;
+                }
+                $parts = preg_split('/\s+/', $line, 2);
+                if (count($parts) < 2 || !is_numeric($parts[0])) {
+                    continue;
+                }
+                $path = trim($parts[1]);
+                // Saltar la línea del total del directorio padre (public/received).
+                if ($path === $base) {
+                    continue;
+                }
+                $nit = basename($path);
+                $sizes[$nit] = ($sizes[$nit] ?? 0) + (int) $parts[0];
+            }
+        }
+
+        return $sizes;
+    }
+
+    /**
+     * Bytes ocupados por los archivos de una empresa en disco (recorrido en PHP).
+     * Respaldo cuando `du` no está disponible. Los archivos se almacenan en
+     * storage/app/public/{NIT}/ y storage/app/received/{NIT}/.
+     */
+    protected function companyStorageBytes(string $nit): int
+    {
+        return (int) ($this->safe(function () use ($nit) {
+            $total = 0;
+            foreach (['app/public/' . $nit, 'app/received/' . $nit] as $rel) {
+                $dir = storage_path($rel);
+                if (is_dir($dir)) {
+                    $total += $this->dirSize($dir);
+                }
+            }
+            return $total;
+        }) ?? 0);
+    }
+
+    protected function dirSize(string $dir): int
+    {
+        $size = 0;
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::LEAVES_ONLY
+        );
+        foreach ($iterator as $file) {
+            if ($file->isFile()) {
+                $size += $file->getSize();
+            }
+        }
+        return $size;
     }
 
     /* --------------------------------------------------------------------- */

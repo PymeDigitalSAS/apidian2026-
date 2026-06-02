@@ -28,15 +28,28 @@ class MonitorSnapshot extends Command
     {
         try {
             $data = $monitor->collect();
+
+            // Si el CPU está saturado, capturar qué consultas SQL están corriendo
+            // en ese instante para saber qué lo está saturando.
+            $threshold = (float) config('monitoring.cpu_saturation', 85);
+            $saturated = $data['cpu_percent'] !== null && $data['cpu_percent'] >= $threshold;
+            if ($saturated) {
+                $data['top_queries']   = $monitor->activeQueries();
+                $data['top_processes'] = $monitor->topProcesses();
+            }
+
             $snapshot = MonitoringSnapshot::create($data);
 
             $this->info(sprintf(
-                'Snapshot #%d | CPU %s%% | RAM %s%% | Disco %s%% | Conexiones DB %s',
+                'Snapshot #%d | CPU %s%% | RAM %s%% | Disco %s%%%s',
                 $snapshot->id,
                 $this->fmt($data['cpu_percent']),
                 $this->fmt($data['mem_percent']),
                 $this->fmt($data['disk_percent']),
-                $data['db_connections'] ?? '-'
+                $saturated
+                    ? ' | SATURADO: ' . count($data['top_queries'] ?? []) . ' consultas, '
+                        . count($data['top_processes'] ?? []) . ' procesos'
+                    : ''
             ));
         } catch (Throwable $e) {
             $this->error('No se pudo guardar el snapshot: ' . $e->getMessage());
@@ -51,7 +64,7 @@ class MonitorSnapshot extends Command
     protected function prune(): void
     {
         $days = $this->option('prune-days');
-        $days = $days !== null ? (int) $days : (int) env('MONITOR_RETENTION_DAYS', 7);
+        $days = $days !== null ? (int) $days : (int) config('monitoring.retention_days', 7);
 
         if ($days <= 0) {
             return;
@@ -60,6 +73,7 @@ class MonitorSnapshot extends Command
         try {
             $cutoff  = now()->subDays($days);
             $deleted = MonitoringSnapshot::where('created_at', '<', $cutoff)->delete();
+            $deleted += \App\MonitoringSlowRequest::where('created_at', '<', $cutoff)->delete();
             if ($deleted > 0) {
                 $this->line("Registros antiguos eliminados: {$deleted}");
             }

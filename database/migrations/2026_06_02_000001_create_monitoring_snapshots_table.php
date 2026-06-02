@@ -28,18 +28,14 @@ class CreateMonitoringSnapshotsTable extends Migration
             $table->unsignedBigInteger('disk_used')->nullable();
             $table->float('disk_percent')->nullable();
 
-            // Base de datos
-            $table->unsignedInteger('db_connections')->nullable();
-            $table->unsignedInteger('db_threads_running')->nullable();
-            $table->unsignedBigInteger('db_slow_queries')->nullable();
-
-            // Detalle de qué está consumiendo
-            $table->json('top_queries')->nullable();    // consultas SQL activas
-            $table->json('top_processes')->nullable();   // procesos del SO por CPU/mem
+            // Consultas SQL y procesos del SO que estaban corriendo cuando el CPU
+            // se saturó. Solo se llenan cuando cpu_percent >= umbral de saturación.
+            $table->json('top_queries')->nullable();
+            $table->json('top_processes')->nullable();
 
             // Contexto del entorno
             $table->string('hostname', 191)->nullable();
-            $table->string('environment', 30)->nullable(); // docker / apache / cli / etc.
+            $table->string('environment', 30)->nullable();
 
             $table->timestamps();
 

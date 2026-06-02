@@ -81,6 +81,7 @@ Route::group(['middleware' => ['auth', 'company.web.access']], function() {
     Route::get('/monitoring/live', 'MonitoringController@live')->name('monitoring.live');
     Route::get('/monitoring/history', 'MonitoringController@history')->name('monitoring.history');
     Route::get('/monitoring/peaks', 'MonitoringController@peaks')->name('monitoring.peaks');
+    Route::get('/monitoring/companies', 'MonitoringController@companies')->name('monitoring.companies');
 
     // Extractor de facturas DIAN (servicio Node externo)
     Route::get('/extractor', 'ExtractorController@index')->name('extractor.index');
