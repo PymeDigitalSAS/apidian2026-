@@ -770,7 +770,10 @@ class ConfigurationController extends Controller
             $environment_id = $this->getResolutionEnvironmentId($company, $request->type_document_id);
 
             if($request->delete_all_type_resolutions){
-                $resolution = $company->resolutions()->where('type_document_id', $request->type_document_id)->get();
+                $resolution = $company->resolutions()
+                    ->where('type_document_id', $request->type_document_id)
+                    ->where('type_environment_id', $environment_id)
+                    ->get();
                 if(count($resolution) > 0)
                     foreach($resolution as $r)
                         $r->delete();
@@ -779,6 +782,7 @@ class ConfigurationController extends Controller
                 'type_document_id' => $request->type_document_id,
                 'resolution' => $request->resolution,
                 'prefix' => $request->prefix,
+                'type_environment_id' => $environment_id,
             ], [
                 'resolution_date' => $request->resolution_date,
                 'technical_key' => $request->technical_key,
@@ -786,7 +790,6 @@ class ConfigurationController extends Controller
                 'to' => $request->to,
                 'date_from' => $request->date_from,
                 'date_to' => $request->date_to,
-                'type_environment_id' => $environment_id,
             ]);
 
             DB::commit();

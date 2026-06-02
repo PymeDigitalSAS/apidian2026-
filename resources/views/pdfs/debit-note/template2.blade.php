@@ -19,11 +19,11 @@
         </div>
     </div>
     @endif
-    <table style="width: 100%;">
+    <table style="width: 100%; table-layout: fixed;">
         <tbody>
             <tr>
-                <td>
-                    <table style="width: 100%; font-size: 12px;">
+                <td style="width: 38%; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word;">
+                    <table style="width: 100%; font-size: 10px;">
                         <tbody>
                             <tr>
                                 <td>CC o NIT:</td>
@@ -39,7 +39,7 @@
                             </tr>
                             <tr>
                                 <td>Obligación:</td>
-                                <td>{{$customer->company->type_liability_names ?? $customer->company->type_liability->name}}</td>
+                                <td>{{$customer->company->type_liability->name}}</td>
                             </tr>
                             <tr>
                                 <td>Dirección:</td>
@@ -64,7 +64,7 @@
                         </tbody>
                     </table>
                 </td>
-                <td class="vertical-align-top" style="width: 40%; padding-left: 1rem">
+                <td class="vertical-align-top" style="width: 24%; padding-left: 1rem">
                     <table>
                         <tr>
                             <td>Forma de Pago:</td>
@@ -117,7 +117,7 @@
                     </table>
                 </td>
 
-                <td class="vertical-align-top" style="width: 40%; padding-left: 1rem">
+                <td class="vertical-align-top" style="width: 14%; padding-left: 1rem">
                     <table>
                         @if(isset($request['order_reference']['id_order']))
                         <tr>
@@ -144,7 +144,7 @@
                     </table>
                 </td>
 
-                <td class="vertical-align-top" style="width: 30%; text-align: right">
+                <td class="vertical-align-top" style="width: 24%; text-align: right">
                     <img style="width: 150px;" src="{{$imageQr}}">
                 </td>
             </tr>
@@ -402,24 +402,6 @@
                                     <td class="text-right">{{number_format(0, 2)}}</td>
                                 @endif
                             </tr>
-
-                            @if(isset($request->requested_monetary_totals['charge_total_amount']))
-                                @if($request->requested_monetary_totals['charge_total_amount'] > 0)
-                                    <?php $charge_number = 0; ?>
-                                    @foreach($request['allowance_charges'] as $allowance_charge)
-                                        @if(isset($allowance_charge))
-                                            @if($allowance_charge['charge_indicator'] == true)
-                                                <?php $charge_number++; ?>
-                                                <tr>
-                                                    <td>{{$allowance_charge['allowance_charge_reason'] ?? "Cargo Global Nro: ".$charge_number}}</td>
-                                                    <td class="text-right">{{number_format($allowance_charge['amount'], 2)}}</td>
-                                                </tr>
-                                            @endif
-                                        @endif
-                                    @endforeach
-                                @endif
-                            @endif
-
                             <tr>
                                 <td>Total Nota:</td>
                                 @if(isset($request->tarifaica))
