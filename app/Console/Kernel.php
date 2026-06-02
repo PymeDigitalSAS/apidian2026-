@@ -26,6 +26,13 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('backup:clean')->daily()->at('01:00');
         $schedule->command('backup:run')->daily()->at('02:00');
+
+        // Monitoreo de recursos del servidor: captura un snapshot cada minuto.
+        // El propio comando se encarga de purgar registros antiguos.
+        $schedule->command('monitor:snapshot')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
              // $schedule->command('inspire')
         //          ->hourly();
     }
