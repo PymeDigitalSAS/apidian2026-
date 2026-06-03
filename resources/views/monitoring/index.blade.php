@@ -3,7 +3,7 @@
 <header class="page-header">
     <div class="d-flex align-items-center justify-content-between flex-wrap">
         <div class="d-flex align-items-center">
-            <h2 class="h4 mb-0 me-2">Monitoreo del servidor</h2>
+            <h2 class="h4 mb-0 mr-2">Monitoreo del servidor</h2>
             <span id="env-badge" class="badge badge-secondary ml-2">{{ $current['environment'] ?? '—' }}</span>
             <span id="host-badge" class="text-muted ml-2" style="font-size:.8rem;">{{ $current['hostname'] ?? '' }}</span>
         </div>
@@ -105,6 +105,9 @@
                 </div>
                 <div class="d-flex align-items-center">
                     <input type="text" id="company-search" class="form-control form-control-sm" placeholder="Buscar NIT o empresa…" style="width:200px;">
+                    <button type="button" id="companies-refresh" class="btn btn-sm btn-outline-secondary ml-2" title="Volver a calcular el consumo (puede tardar)">
+                        <i class="fas fa-sync-alt"></i> Recalcular
+                    </button>
                 </div>
             </header>
             <div class="card-body p-0">
@@ -235,6 +238,16 @@
             return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
         });
     }
+    // Fetch que falla explícitamente ante respuestas no-OK (403/500/sesión caída),
+    // para que cada bloque pueda mostrar su propio mensaje de error en vez de
+    // quedarse colgado en "Cargando…".
+    function fetchJson(url) {
+        return fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            });
+    }
 
     /* ----------------------- Métricas en vivo ----------------------- */
     function setBar(barId, valId, value) {
@@ -248,8 +261,7 @@
     }
 
     function loadLive() {
-        fetch(routes.live, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
-            .then(function (r) { return r.json(); })
+        fetchJson(routes.live)
             .then(function (d) {
                 setBar('cpu-bar', 'cpu-val', d.cpu_percent);
                 setBar('mem-bar', 'mem-val', d.mem_percent);
@@ -273,6 +285,15 @@
     /* ----------------------- Gráfico histórico ----------------------- */
     var chart = null;
     function initChart() {
+        // Si el CDN de Chart.js no cargó, no rompemos el resto del panel: avisamos
+        // en el área del gráfico y seguimos mostrando tarjetas, empresas y picos.
+        if (typeof Chart === 'undefined') {
+            var empty = document.getElementById('history-empty');
+            empty.className = 'alert alert-warning';
+            empty.style.display = 'block';
+            empty.textContent = 'No se pudo cargar la librería del gráfico (sin conexión a internet del navegador). El resto del panel funciona normalmente.';
+            return;
+        }
         var ctx = document.getElementById('history-chart').getContext('2d');
         chart = new Chart(ctx, {
             type: 'line',
@@ -291,16 +312,25 @@
     }
 
     function loadHistory() {
+        if (!chart) return; // la librería no cargó; ya se avisó en initChart
         var hours = document.getElementById('range-select').value;
-        fetch(routes.history + '?hours=' + hours, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
-            .then(function (r) { return r.json(); })
+        var empty = document.getElementById('history-empty');
+        fetchJson(routes.history + '?hours=' + hours)
             .then(function (d) {
-                document.getElementById('history-empty').style.display = (d.points && d.points.length) ? 'none' : 'block';
-                chart.data.labels = d.points.map(function (p) { return new Date(p.t).toLocaleString(); });
-                chart.data.datasets[0].data = d.points.map(function (p) { return p.cpu; });
-                chart.data.datasets[1].data = d.points.map(function (p) { return p.mem; });
-                chart.data.datasets[2].data = d.points.map(function (p) { return p.disk; });
+                var points = d.points || [];
+                empty.className = 'alert alert-info';
+                empty.textContent = 'Aún no hay registros históricos en este rango. Se generan automáticamente cada pocos segundos mientras el monitoreo esté activo.';
+                empty.style.display = points.length ? 'none' : 'block';
+                chart.data.labels = points.map(function (p) { return new Date(p.t).toLocaleString(); });
+                chart.data.datasets[0].data = points.map(function (p) { return p.cpu; });
+                chart.data.datasets[1].data = points.map(function (p) { return p.mem; });
+                chart.data.datasets[2].data = points.map(function (p) { return p.disk; });
                 chart.update();
+            })
+            .catch(function () {
+                empty.className = 'alert alert-danger';
+                empty.textContent = 'No se pudo cargar el histórico. Reintenta en unos segundos.';
+                empty.style.display = 'block';
             });
     }
 
@@ -321,13 +351,13 @@
     // Búsqueda y paginación en el servidor: solo trae la página visible.
     var companiesPage = 1, companiesQuery = '', companiesTimer = null;
 
-    function loadCompanies(page) {
+    function loadCompanies(page, refresh) {
         companiesPage = page || 1;
         var body = document.getElementById('companies-body');
         body.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Cargando…</td></tr>';
-        var url = routes.companies + '?page=' + companiesPage + '&q=' + encodeURIComponent(companiesQuery);
-        fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
-            .then(function (r) { return r.json(); })
+        var url = routes.companies + '?page=' + companiesPage + '&q=' + encodeURIComponent(companiesQuery)
+                + (refresh ? '&refresh=1' : '');
+        fetchJson(url)
             .then(function (d) {
                 var list = d.companies || [];
                 document.getElementById('storage-total').textContent = fmtBytes(d.storage_total);
@@ -355,8 +385,7 @@
         var hours = document.getElementById('peaks-range').value;
         var body = document.getElementById('peaks-body');
         body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando…</td></tr>';
-        fetch(routes.peaks + '?hours=' + hours + '&page=' + peaksPage, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
-            .then(function (r) { return r.json(); })
+        fetchJson(routes.peaks + '?hours=' + hours + '&page=' + peaksPage)
             .then(function (d) {
                 peaksCache = d.peaks || [];
                 if (!peaksCache.length) {
@@ -377,6 +406,10 @@
                         '</tr>';
                 }).join('');
                 updatePager('peaks', d.page || 1, d.last_page || 1, d.total || 0);
+            })
+            .catch(function () {
+                body.innerHTML = '<tr><td colspan="5" class="text-center text-danger">No se pudieron cargar los eventos. Reintenta en unos segundos.</td></tr>';
+                updatePager('peaks', 1, 1, 0);
             });
     }
 
@@ -497,11 +530,17 @@
 
         document.getElementById('peak-modal-body').innerHTML = html;
         document.getElementById('peak-modal').style.display = 'block';
+        document.body.style.overflow = 'hidden'; // evita el scroll del fondo
     }
 
-    function hidePeak() { document.getElementById('peak-modal').style.display = 'none'; }
+    function hidePeak() {
+        document.getElementById('peak-modal').style.display = 'none';
+        document.body.style.overflow = '';
+    }
 
     /* ----------------------- Auto-refresh ----------------------- */
+    // El refresco en vivo recolecta métricas en el servidor (bloquea ~200ms un
+    // worker), así que lo pausamos cuando la pestaña no está visible.
     var timer = null;
     function startTimer() { stopTimer(); timer = setInterval(loadLive, 10000); }
     function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
@@ -531,12 +570,33 @@
         document.getElementById('peaks-prev').addEventListener('click', function () { loadPeaks(peaksPage - 1); });
         document.getElementById('peaks-next').addEventListener('click', function () { loadPeaks(peaksPage + 1); });
 
+        // Recalcular consumo por empresa (fuerza el refresco del caché del servidor).
+        document.getElementById('companies-refresh').addEventListener('click', function () {
+            loadCompanies(1, true);
+        });
+
         document.getElementById('peaks-body').addEventListener('click', function (e) {
             var tr = e.target.closest('tr[data-idx]');
             if (tr) showPeak(parseInt(tr.getAttribute('data-idx'), 10));
         });
         document.getElementById('peak-modal-close').addEventListener('click', hidePeak);
         document.getElementById('peak-backdrop').addEventListener('click', hidePeak);
+
+        // Cerrar el modal con la tecla Escape.
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') hidePeak();
+        });
+
+        // Pausar el auto-refresh cuando la pestaña no está visible; al volver,
+        // refrescar de inmediato y reanudar.
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                stopTimer();
+            } else {
+                loadLive();
+                startTimer();
+            }
+        });
     });
 })();
 </script>

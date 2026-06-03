@@ -62,18 +62,28 @@ class MonitoringController extends Controller
         $hours = (int) $request->query('hours', 6);
         $hours = max(1, min($hours, 720)); // entre 1 hora y 30 días
 
-        $snapshots = MonitoringSnapshot::where('created_at', '>=', now()->subHours($hours))
-            ->orderBy('created_at')
-            ->get(['id', 'cpu_percent', 'mem_percent', 'disk_percent', 'created_at']);
+       
+        $targetPoints = 360;
+        $bucket = max(10, (int) ceil($hours * 3600 / $targetPoints));
+
+        $rows = MonitoringSnapshot::where('created_at', '>=', now()->subHours($hours))
+            ->selectRaw('MIN(created_at) as t')
+            ->selectRaw('ROUND(AVG(cpu_percent), 1) as cpu')
+            ->selectRaw('ROUND(AVG(mem_percent), 1) as mem')
+            ->selectRaw('ROUND(AVG(disk_percent), 1) as disk')
+            ->groupByRaw('FLOOR(UNIX_TIMESTAMP(created_at) / ?)', [$bucket])
+            ->orderByRaw('MIN(created_at)')
+            ->get();
 
         return response()->json([
             'hours'  => $hours,
-            'points' => $snapshots->map(function (MonitoringSnapshot $s) {
+            'bucket' => $bucket,
+            'points' => $rows->map(function ($r) {
                 return [
-                    't'    => $s->created_at->toIso8601String(),
-                    'cpu'  => $s->cpu_percent,
-                    'mem'  => $s->mem_percent,
-                    'disk' => $s->disk_percent,
+                    't'    => \Illuminate\Support\Carbon::parse($r->t)->toIso8601String(),
+                    'cpu'  => $r->cpu !== null ? (float) $r->cpu : null,
+                    'mem'  => $r->mem !== null ? (float) $r->mem : null,
+                    'disk' => $r->disk !== null ? (float) $r->disk : null,
                 ];
             }),
         ]);
