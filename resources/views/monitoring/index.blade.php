@@ -129,6 +129,13 @@
                     </table>
                 </div>
             </div>
+            <div class="card-footer d-flex justify-content-between align-items-center py-2" id="companies-pager" style="display:none;">
+                <small class="text-muted" id="companies-pageinfo"></small>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="companies-prev">&lsaquo; Anterior</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ml-1" id="companies-next">Siguiente &rsaquo;</button>
+                </div>
+            </div>
         </section>
     </div>
 </div>
@@ -144,7 +151,7 @@
                     </h2>
                     <p class="card-subtitle text-muted mb-0" style="font-size:.8rem;">
                         Cuando el CPU se satura (≥{{ (int) config('monitoring.cpu_saturation', 85) }}%) se capturan las consultas y procesos que estaban corriendo.
-                        Usa el botón <strong>Detalles</strong> para ver qué saturó el sistema.
+                        Se listan <strong>todos</strong> los eventos ordenados por fecha (más reciente primero); usa <strong>Detalles</strong> para ver qué saturó el sistema.
                     </p>
                 </div>
                 <select id="peaks-range" class="form-control form-control-sm" style="width:auto;">
@@ -169,6 +176,13 @@
                             <tr><td colspan="5" class="text-center text-muted">Cargando…</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center py-2" id="peaks-pager" style="display:none;">
+                <small class="text-muted" id="peaks-pageinfo"></small>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="peaks-prev">&lsaquo; Anterior</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ml-1" id="peaks-next">Siguiente &rsaquo;</button>
                 </div>
             </div>
         </section>
@@ -290,37 +304,44 @@
             });
     }
 
-    /* ----------------------- Consumo por empresa ----------------------- */
-    var companiesCache = [];
-    function renderCompanies() {
-        var q = (document.getElementById('company-search').value || '').toLowerCase();
-        var body = document.getElementById('companies-body');
-        var list = companiesCache.filter(function (c) {
-            return !q || String(c.nit).toLowerCase().indexOf(q) !== -1 || String(c.name).toLowerCase().indexOf(q) !== -1;
-        });
-        if (!list.length) {
-            body.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Sin resultados</td></tr>';
-            return;
-        }
-        body.innerHTML = list.map(function (c) {
-            return '<tr>' +
-                '<td>' + esc(c.nit) + '</td>' +
-                '<td>' + esc(c.name) + '</td>' +
-                '<td class="text-right">' + fmtBytes(c.storage_bytes) + '</td>' +
-                '</tr>';
-        }).join('');
+    /* ----------------------- Paginación (reutilizable) ----------------------- */
+    function updatePager(prefix, page, lastPage, total) {
+        var pager = document.getElementById(prefix + '-pager');
+        if (!pager) return;
+        pager.style.display = (lastPage > 1) ? 'flex' : 'none';
+        var info = document.getElementById(prefix + '-pageinfo');
+        var prev = document.getElementById(prefix + '-prev');
+        var next = document.getElementById(prefix + '-next');
+        if (info) info.textContent = 'Página ' + page + ' de ' + lastPage + ' · ' + total + ' registros';
+        if (prev) prev.disabled = (page <= 1);
+        if (next) next.disabled = (page >= lastPage);
     }
 
-    function loadCompanies() {
+    /* ----------------------- Consumo por empresa ----------------------- */
+    // Búsqueda y paginación en el servidor: solo trae la página visible.
+    var companiesPage = 1, companiesQuery = '', companiesTimer = null;
+
+    function loadCompanies(page) {
+        companiesPage = page || 1;
         var body = document.getElementById('companies-body');
         body.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Cargando…</td></tr>';
-        fetch(routes.companies, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+        var url = routes.companies + '?page=' + companiesPage + '&q=' + encodeURIComponent(companiesQuery);
+        fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                companiesCache = d.companies || [];
+                var list = d.companies || [];
                 document.getElementById('storage-total').textContent = fmtBytes(d.storage_total);
                 document.getElementById('company-generated').textContent = d.generated_at ? '· Calculado: ' + d.generated_at : '';
-                renderCompanies();
+                body.innerHTML = list.length
+                    ? list.map(function (c) {
+                        return '<tr>' +
+                            '<td>' + esc(c.nit) + '</td>' +
+                            '<td>' + esc(c.name) + '</td>' +
+                            '<td class="text-right">' + fmtBytes(c.storage_bytes) + '</td>' +
+                            '</tr>';
+                    }).join('')
+                    : '<tr><td colspan="3" class="text-center text-muted">Sin resultados</td></tr>';
+                updatePager('companies', d.page || 1, d.last_page || 1, d.total || 0);
             })
             .catch(function () {
                 body.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error al calcular el consumo</td></tr>';
@@ -328,16 +349,19 @@
     }
 
     /* ----------------------- Momentos de mayor uso ----------------------- */
-    var peaksCache = [];
-    function loadPeaks() {
+    var peaksCache = [], peaksPage = 1;
+    function loadPeaks(page) {
+        peaksPage = page || 1;
         var hours = document.getElementById('peaks-range').value;
-        fetch(routes.peaks + '?hours=' + hours, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+        var body = document.getElementById('peaks-body');
+        body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Cargando…</td></tr>';
+        fetch(routes.peaks + '?hours=' + hours + '&page=' + peaksPage, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                var body = document.getElementById('peaks-body');
                 peaksCache = d.peaks || [];
                 if (!peaksCache.length) {
                     body.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Sin datos en el rango seleccionado</td></tr>';
+                    updatePager('peaks', 1, 1, 0);
                     return;
                 }
                 body.innerHTML = peaksCache.map(function (p, i) {
@@ -352,6 +376,7 @@
                         '<td class="text-center">' + cell + '</td>' +
                         '</tr>';
                 }).join('');
+                updatePager('peaks', d.page || 1, d.last_page || 1, d.total || 0);
             });
     }
 
@@ -412,7 +437,7 @@
             }).join('');
             html += '</tbody></table></div>';
         } else {
-            html += '<p class="text-muted">No se registraron consultas SQL activas en ese momento. Si esto se repite en cada pico, verifica que el usuario de la base de datos tenga el privilegio <code>PROCESS</code>: sin él solo se ven las conexiones propias y no las del resto del sistema.</p>';
+            html += '<p class="text-muted">No se registraron consultas SQL activas en ese momento. Si la saturación viniera de la base de datos, aquí aparecería la consulta que estaba corriendo (con su tiempo y estado).</p>';
         }
 
         html += '<h6 class="mb-2 mt-3"><i class="fas fa-list-ol mr-1"></i> Procesos que más consumían <small class="text-muted">(vista tipo htop)</small></h6>';
@@ -485,13 +510,27 @@
         initChart();
         loadLive();
         loadHistory();
-        loadCompanies();
-        loadPeaks();
+        loadCompanies(1);
+        loadPeaks(1);
         startTimer();
 
         document.getElementById('range-select').addEventListener('change', loadHistory);
-        document.getElementById('peaks-range').addEventListener('change', loadPeaks);
-        document.getElementById('company-search').addEventListener('input', renderCompanies);
+        document.getElementById('peaks-range').addEventListener('change', function () { loadPeaks(1); });
+
+        // Búsqueda de empresas: vuelve a la página 1 (con un pequeño retardo para
+        // no consultar en cada tecla).
+        document.getElementById('company-search').addEventListener('input', function (e) {
+            companiesQuery = e.target.value || '';
+            clearTimeout(companiesTimer);
+            companiesTimer = setTimeout(function () { loadCompanies(1); }, 350);
+        });
+
+        // Botones de paginación.
+        document.getElementById('companies-prev').addEventListener('click', function () { loadCompanies(companiesPage - 1); });
+        document.getElementById('companies-next').addEventListener('click', function () { loadCompanies(companiesPage + 1); });
+        document.getElementById('peaks-prev').addEventListener('click', function () { loadPeaks(peaksPage - 1); });
+        document.getElementById('peaks-next').addEventListener('click', function () { loadPeaks(peaksPage + 1); });
+
         document.getElementById('peaks-body').addEventListener('click', function (e) {
             var tr = e.target.closest('tr[data-idx]');
             if (tr) showPeak(parseInt(tr.getAttribute('data-idx'), 10));

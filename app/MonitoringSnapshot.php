@@ -4,6 +4,11 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Instantánea de recursos del servidor (CPU/RAM/disco) tomada cada minuto por
+ * el comando monitor:snapshot. Cuando el CPU supera el umbral, guarda además las
+ * consultas SQL y procesos que estaban corriendo (top_queries / top_processes).
+ */
 class MonitoringSnapshot extends Model
 {
     protected $table = 'monitoring_snapshots';

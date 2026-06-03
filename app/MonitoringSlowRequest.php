@@ -4,6 +4,11 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Petición HTTP que superó el umbral de lentitud (MONITOR_SLOW_REQUEST_MS). La
+ * registra el middleware MonitorSlowRequest junto con su consulta más lenta, y
+ * se correlaciona con los picos de CPU para saber qué ruta los provocó.
+ */
 class MonitoringSlowRequest extends Model
 {
     protected $table = 'monitoring_slow_requests';

@@ -330,18 +330,44 @@ class SystemMonitorService
         }
         usort($queries, fn ($a, $b) => ($b['time'] ?? 0) <=> ($a['time'] ?? 0));
 
-        // Si no vimos ninguna consulta y el processlist solo contiene nuestra
-        // propia conexión, es casi seguro que al usuario de BD le falta el
-        // privilegio PROCESS (sin él solo se ven las conexiones propias).
+        // Si no vimos ninguna consulta, distinguir entre "no había ninguna
+        // corriendo" (saturación ajena a la BD) y "no las podemos ver". Solo
+        // avisamos del privilegio si CONFIRMAMOS que falta, no por heurística.
         $note = null;
-        if (empty($queries) && count($rows) <= 1) {
-            $note = 'El usuario de la base de datos no parece tener el privilegio '
-                  . 'PROCESS: solo puede ver sus propias conexiones, por lo que no '
-                  . 'es posible saber qué consultas corrían en el resto del sistema. '
-                  . 'Otorga: GRANT PROCESS ON *.* TO \'<usuario>\'@\'%\';';
+        if (empty($queries) && $this->dbMissingProcessPrivilege()) {
+            $dbUser = (string) config('database.connections.' . config('database.default') . '.username');
+            $target = $dbUser !== '' ? "'{$dbUser}'@'%'" : "'<usuario>'@'%'";
+            $note = 'El usuario de la base de datos' . ($dbUser !== '' ? " ({$dbUser})" : '') . ' no tiene '
+                  . 'el privilegio global PROCESS (es de nivel servidor, *.*; tener ALL sobre la base propia '
+                  . 'no lo incluye), por lo que solo ve sus propias conexiones y no las del resto del sistema. '
+                  . "Otorga (como root): GRANT PROCESS ON *.* TO {$target}; FLUSH PRIVILEGES;";
         }
 
         return ['rows' => array_slice($queries, 0, $limit), 'error' => $note];
+    }
+
+    /**
+     * Comprueba si al usuario actual le FALTA el privilegio global PROCESS,
+     * necesario para ver en SHOW PROCESSLIST las consultas de otras conexiones.
+     * PROCESS solo existe a nivel de servidor (ON *.*); tener ALL sobre la base
+     * propia no lo incluye. Devuelve false si no se puede determinar, para no
+     * avisar en falso.
+     */
+    protected function dbMissingProcessPrivilege(): bool
+    {
+        try {
+            $grants = DB::select('SHOW GRANTS FOR CURRENT_USER()');
+        } catch (Throwable $e) {
+            return false; // no podemos verificar: mejor no afirmar nada
+        }
+        foreach ($grants as $row) {
+            $line = strtoupper(implode(' ', (array) $row));
+            if (strpos($line, 'ON *.*') !== false
+                && (strpos($line, 'ALL PRIVILEGES') !== false || preg_match('/\bPROCESS\b/', $line))) {
+                return false; // sí lo tiene (PROCESS explícito o ALL PRIVILEGES global)
+            }
+        }
+        return true; // confirmado: el grant global no incluye PROCESS
     }
 
     /**
@@ -384,11 +410,12 @@ class SystemMonitorService
         }
 
         // Nada disponible: explicar el motivo.
-        $error = !is_readable('/proc')
-            ? 'No se pudo leer /proc en este entorno.'
-            : 'No se pudieron leer los procesos del sistema. Si corre en Docker, '
-              . 'el contenedor solo ve sus propios procesos: añade pid: "host" al '
-              . 'servicio para ver los del VPS.';
+        $base  = $this->procBase();
+        $error = !is_readable($base)
+            ? "No se pudo leer {$base} en este entorno."
+            : 'No se pudieron leer los procesos del sistema. Si corre en Docker, el '
+              . 'contenedor solo ve sus propios procesos: usa pid: "host" en el servicio, '
+              . 'o monta el /proc del host (RO) y apunta MONITOR_PROC_PATH a esa ruta.';
 
         return ['rows' => [], 'error' => $error];
     }
@@ -400,7 +427,7 @@ class SystemMonitorService
      */
     protected function topProcessesFromProc(int $limit): array
     {
-        if (!is_readable('/proc')) {
+        if (!is_readable($this->procBase())) {
             return [];
         }
 
@@ -465,10 +492,22 @@ class SystemMonitorService
         return array_slice($procs, 0, $limit);
     }
 
+    /**
+     * Ruta base del /proc a leer. Por defecto el del propio entorno (/proc); si
+     * el monitoreo corre en un contenedor aislado, se puede montar el /proc del
+     * host (RO) y apuntar aquí con MONITOR_PROC_PATH (p. ej. /host/proc) para ver
+     * los procesos del VPS sin compartir el namespace de PID.
+     */
+    protected function procBase(): string
+    {
+        $path = rtrim((string) config('monitoring.proc_path', '/proc'), '/');
+        return $path !== '' ? $path : '/proc';
+    }
+
     /** Lista los PID actuales (directorios numéricos de /proc). */
     protected function scanPids(): array
     {
-        $entries = @scandir('/proc');
+        $entries = @scandir($this->procBase());
         if ($entries === false) {
             return [];
         }
@@ -484,10 +523,11 @@ class SystemMonitorService
     /** Suma total de jiffies de la línea agregada `cpu` de /proc/stat. */
     protected function readTotalJiffies(): ?int
     {
-        if (!is_readable('/proc/stat')) {
+        $file = $this->procBase() . '/stat';
+        if (!is_readable($file)) {
             return null;
         }
-        $line = strtok((string) @file_get_contents('/proc/stat'), "\n");
+        $line = strtok((string) @file_get_contents($file), "\n");
         if (!is_string($line) || !preg_match('/^cpu\s+(.*)$/', $line, $m)) {
             return null;
         }
@@ -502,7 +542,7 @@ class SystemMonitorService
      */
     protected function readProcPidStat(int $pid): ?array
     {
-        $file = "/proc/{$pid}/stat";
+        $file = $this->procBase() . "/{$pid}/stat";
         $content = @file_get_contents($file);
         if ($content === false || $content === '') {
             return null;
@@ -532,7 +572,7 @@ class SystemMonitorService
     /** Línea de comandos completa de un proceso (argumentos separados por \0). */
     protected function readProcCmdline(int $pid): string
     {
-        $raw = @file_get_contents("/proc/{$pid}/cmdline");
+        $raw = @file_get_contents($this->procBase() . "/{$pid}/cmdline");
         if ($raw === false || $raw === '') {
             return '';
         }
@@ -571,7 +611,7 @@ class SystemMonitorService
     /** Segundos de actividad del sistema, leídos de /proc/uptime. */
     protected function systemUptime(): float
     {
-        $raw = @file_get_contents('/proc/uptime');
+        $raw = @file_get_contents($this->procBase() . '/uptime');
         if ($raw === false) {
             return 0.0;
         }

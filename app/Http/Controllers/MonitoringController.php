@@ -9,6 +9,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * Panel de monitoreo del servidor (solo para el admin de la plataforma). Expone:
+ * métricas en vivo (live), histórico para el gráfico (history), picos de
+ * saturación con su detalle (peaks) y consumo de disco por empresa (companies).
+ * Los listados van paginados para no recargar la BD en cada consulta.
+ */
 class MonitoringController extends Controller
 {
     public function __construct()
@@ -74,34 +80,72 @@ class MonitoringController extends Controller
     }
 
     /**
-     * Momentos de mayor uso de CPU en el rango (para ver cuándo se satura).
-     * Incluye las consultas SQL capturadas en cada pico (si hubo saturación).
+     * Momentos de saturación de CPU en el rango (cuándo y qué lo saturó),
+     * ordenados por fecha y PAGINADOS (?page=N). Carga las peticiones lentas de
+     * toda la página en una sola consulta para no hacer N+1.
      */
     public function peaks(Request $request): JsonResponse
     {
-        $hours = (int) $request->query('hours', 24);
-        $hours = max(1, min($hours, 720));
+        $hours = max(1, min((int) $request->query('hours', 24), 720));
+        $page  = max(1, (int) $request->query('page', 1));
+        $perPage = 15;
 
-        $rows = MonitoringSnapshot::where('created_at', '>=', now()->subHours($hours))
-            ->orderByDesc('cpu_percent')
-            ->limit(10)
-            ->get([
-                'id', 'cpu_percent', 'mem_percent', 'disk_percent',
-                'load_1', 'load_5', 'load_15', 'cpu_cores',
-                'mem_used', 'mem_total', 'disk_used', 'disk_total',
-                'top_queries', 'top_processes', 'created_at',
-            ]);
+        $columns = [
+            'id', 'cpu_percent', 'mem_percent', 'disk_percent',
+            'load_1', 'load_5', 'load_15', 'cpu_cores',
+            'mem_used', 'mem_total', 'disk_used', 'disk_total',
+            'top_queries', 'top_processes', 'created_at',
+        ];
+
+        // Eventos con captura de saturación (top_queries/top_processes no nulos),
+        // del más reciente al más antiguo. Paginados para no traer todo de golpe.
+        $paginator = MonitoringSnapshot::where('created_at', '>=', now()->subHours($hours))
+            ->where(function ($q) {
+                $q->whereNotNull('top_processes')->orWhereNotNull('top_queries');
+            })
+            ->orderByDesc('created_at')
+            ->paginate($perPage, $columns, 'page', $page);
+
+        $rows     = collect($paginator->items());
+        $lastPage = $paginator->lastPage();
+        $total    = $paginator->total();
+
+        // Si no hubo ninguna saturación en el rango, mostrar igualmente los
+        // momentos de mayor CPU (una sola página) para no dejar la tabla vacía.
+        if ($total === 0) {
+            $rows = MonitoringSnapshot::where('created_at', '>=', now()->subHours($hours))
+                ->orderByDesc('cpu_percent')
+                ->limit($perPage)
+                ->get($columns)
+                ->sortByDesc('created_at')
+                ->values();
+            $lastPage = 1;
+            $total    = $rows->count();
+        }
+
+        // Una sola consulta para TODAS las peticiones lentas de la ventana de la
+        // página (evita una consulta por pico). Luego se reparten en memoria.
+        $slowAll = collect();
+        if ($rows->isNotEmpty()) {
+            $stamps = $rows->pluck('created_at');
+            $slowAll = MonitoringSlowRequest::whereBetween('created_at', [
+                $stamps->min()->copy()->subSeconds(90),
+                $stamps->max()->copy()->addSeconds(90),
+            ])->orderByDesc('duration_ms')->get();
+        }
 
         return response()->json([
-            'hours' => $hours,
-            'peaks' => $rows->map(function (MonitoringSnapshot $s) {
-                // Peticiones lentas que ocurrieron alrededor de este pico (±90s).
+            'hours'     => $hours,
+            'page'      => $page,
+            'last_page' => $lastPage,
+            'total'     => $total,
+            'peaks'     => $rows->map(function (MonitoringSnapshot $s) use ($slowAll) {
+                // Peticiones lentas alrededor de este pico (±90s), ya en memoria.
                 $from = $s->created_at->copy()->subSeconds(90);
                 $to   = $s->created_at->copy()->addSeconds(90);
-                $slow = MonitoringSlowRequest::whereBetween('created_at', [$from, $to])
-                    ->orderByDesc('duration_ms')
-                    ->limit(10)
-                    ->get()
+                $slow = $slowAll
+                    ->filter(fn (MonitoringSlowRequest $r) => $r->created_at->between($from, $to))
+                    ->take(10)
                     ->map(function (MonitoringSlowRequest $r) {
                         return [
                             'at'               => $r->created_at->toDateTimeString(),
@@ -113,7 +157,8 @@ class MonitoringController extends Controller
                             'slowest_query'    => $r->slowest_query,
                             'slowest_query_ms' => $r->slowest_query_ms,
                         ];
-                    });
+                    })
+                    ->values();
 
                 return [
                     'at'            => $s->created_at->toDateTimeString(),
@@ -128,22 +173,21 @@ class MonitoringController extends Controller
                     'mem_total'     => $s->mem_total,
                     'disk_used'     => $s->disk_used,
                     'disk_total'    => $s->disk_total,
-                    // Hubo captura de saturación si alguna de las columnas no es null
-                    // (se llenan solo cuando el CPU superó el umbral), o si hay
-                    // peticiones lentas correlacionadas.
+                    // Hay detalle que mostrar si se capturó algo o hay peticiones lentas.
                     'captured'      => $s->top_queries !== null || $s->top_processes !== null || $slow->isNotEmpty(),
                     'top_queries'   => $s->top_queries ?? [],
                     'top_processes' => $s->top_processes ?? [],
                     'slow_requests' => $slow,
                 ];
-            }),
+            })->values(),
         ]);
     }
 
     /**
-     * Consumo por empresa: espacio en base de datos y en storage por cada NIT.
-     * Se cachea porque recorrer carpetas en disco es costoso; ?refresh=1 fuerza
-     * el recálculo.
+     * Consumo de disco por empresa, PAGINADO (?page=N) y con búsqueda (?q=).
+     * El cálculo (recorrer disco) es costoso, así que se cachea 5 min; la
+     * paginación y el filtro operan sobre ese resultado en memoria, sin más
+     * consultas. ?refresh=1 fuerza el recálculo.
      */
     public function companies(Request $request, SystemMonitorService $monitor): JsonResponse
     {
@@ -155,6 +199,29 @@ class MonitoringController extends Controller
             return $monitor->companyUsage();
         });
 
-        return response()->json($data);
+        $page    = max(1, (int) $request->query('page', 1));
+        $perPage = 50;
+        $search  = trim((string) $request->query('q', ''));
+
+        $companies = $data['companies'] ?? [];
+        if ($search !== '') {
+            $companies = array_values(array_filter($companies, function ($c) use ($search) {
+                return stripos((string) $c['nit'], $search) !== false
+                    || stripos((string) $c['name'], $search) !== false;
+            }));
+        }
+
+        $total    = count($companies);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $slice    = array_slice($companies, ($page - 1) * $perPage, $perPage);
+
+        return response()->json([
+            'generated_at'  => $data['generated_at'] ?? null,
+            'storage_total' => $data['storage_total'] ?? 0, // total de TODAS las empresas
+            'companies'     => $slice,
+            'page'          => $page,
+            'last_page'     => $lastPage,
+            'total'         => $total,
+        ]);
     }
 }
