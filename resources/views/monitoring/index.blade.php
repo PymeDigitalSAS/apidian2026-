@@ -412,7 +412,7 @@
             }).join('');
             html += '</tbody></table></div>';
         } else {
-            html += '<p class="text-muted">No había consultas SQL activas en ese momento (la saturación no vino de la base de datos).</p>';
+            html += '<p class="text-muted">No se registraron consultas SQL activas en ese momento. Si esto se repite en cada pico, verifica que el usuario de la base de datos tenga el privilegio <code>PROCESS</code>: sin él solo se ven las conexiones propias y no las del resto del sistema.</p>';
         }
 
         html += '<h6 class="mb-2 mt-3"><i class="fas fa-list-ol mr-1"></i> Procesos que más consumían <small class="text-muted">(vista tipo htop)</small></h6>';
@@ -443,7 +443,7 @@
             }).join('');
             html += '</tbody></table></div>';
         } else {
-            html += '<p class="text-muted">No se capturaron procesos (no disponible en este entorno).</p>';
+            html += '<p class="text-muted">No se capturaron procesos en ese momento. Si corre en Docker y quieres ver los procesos del VPS (no solo los del contenedor), añade <code>pid: "host"</code> al servicio en docker-compose.</p>';
         }
 
         // --- Peticiones lentas alrededor de este pico ---

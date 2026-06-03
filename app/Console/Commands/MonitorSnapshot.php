@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\MonitoringSnapshot;
 use App\Services\SystemMonitorService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class MonitorSnapshot extends Command
@@ -34,8 +35,12 @@ class MonitorSnapshot extends Command
             $threshold = (float) config('monitoring.cpu_saturation', 85);
             $saturated = $data['cpu_percent'] !== null && $data['cpu_percent'] >= $threshold;
             if ($saturated) {
-                $data['top_queries']   = $monitor->activeQueries();
-                $data['top_processes'] = $monitor->topProcesses();
+                $queries   = $monitor->activeQueries();
+                $processes = $monitor->topProcesses();
+                $data['top_queries']   = $queries['rows'];
+                $data['top_processes'] = $processes['rows'];
+                $this->reportCaptureIssue('consultas SQL', $queries);
+                $this->reportCaptureIssue('procesos', $processes);
             }
 
             $snapshot = MonitoringSnapshot::create($data);
@@ -85,5 +90,21 @@ class MonitorSnapshot extends Command
     protected function fmt($value): string
     {
         return $value === null ? '-' : (string) $value;
+    }
+
+    /**
+     * Reporta (consola + log) por qué no se pudo capturar una sección durante una
+     * saturación: falta de privilegio PROCESS, sin conexión a BD, contenedor sin
+     * pid:host, etc. No interrumpe el guardado del snapshot.
+     *
+     * @param  array{rows:array, error:?string}  $result
+     */
+    protected function reportCaptureIssue(string $label, array $result): void
+    {
+        $error = $result['error'] ?? null;
+        if (empty($result['rows']) && $error) {
+            $this->warn("No se capturaron {$label}: {$error}");
+            Log::warning("[monitor:snapshot] No se capturaron {$label}: {$error}");
+        }
     }
 }

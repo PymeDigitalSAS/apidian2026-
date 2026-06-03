@@ -300,82 +300,296 @@ class SystemMonitorService
      * (no en estado Sleep), ordenadas por tiempo de ejecución descendente.
      * Se captura cuando el CPU se satura para saber qué la está saturando.
      *
-     * @return array
+     * @return array{rows:array, error:?string}
      */
     public function activeQueries(int $limit = 20): array
     {
-        return $this->safe(function () use ($limit) {
+        try {
             $rows = DB::select('SHOW FULL PROCESSLIST');
-            $queries = [];
-            foreach ($rows as $row) {
-                $command = $row->Command ?? '';
-                $info    = trim((string) ($row->Info ?? ''));
-                // Ignorar conexiones inactivas y la propia consulta de monitoreo.
-                if (strcasecmp($command, 'Sleep') === 0 || $info === '' ||
-                    stripos($info, 'SHOW FULL PROCESSLIST') !== false) {
-                    continue;
-                }
-                $queries[] = [
-                    'id'      => $row->Id ?? null,
-                    'user'    => $row->User ?? null,
-                    'db'      => $row->db ?? null,
-                    'time'    => isset($row->Time) ? (int) $row->Time : null,
-                    'state'   => $row->State ?? null,
-                    'query'   => mb_substr($info, 0, 1000),
-                ];
+        } catch (Throwable $e) {
+            return ['rows' => [], 'error' => $this->humanizeDbError($e)];
+        }
+
+        $queries = [];
+        foreach ($rows as $row) {
+            $command = $row->Command ?? '';
+            $info    = trim((string) ($row->Info ?? ''));
+            // Ignorar conexiones inactivas y la propia consulta de monitoreo.
+            if (strcasecmp($command, 'Sleep') === 0 || $info === '' ||
+                stripos($info, 'SHOW FULL PROCESSLIST') !== false) {
+                continue;
             }
-            usort($queries, fn ($a, $b) => ($b['time'] ?? 0) <=> ($a['time'] ?? 0));
-            return array_slice($queries, 0, $limit);
-        }) ?? [];
+            $queries[] = [
+                'id'      => $row->Id ?? null,
+                'user'    => $row->User ?? null,
+                'db'      => $row->db ?? null,
+                'time'    => isset($row->Time) ? (int) $row->Time : null,
+                'state'   => $row->State ?? null,
+                'query'   => mb_substr($info, 0, 1000),
+            ];
+        }
+        usort($queries, fn ($a, $b) => ($b['time'] ?? 0) <=> ($a['time'] ?? 0));
+
+        // Si no vimos ninguna consulta y el processlist solo contiene nuestra
+        // propia conexión, es casi seguro que al usuario de BD le falta el
+        // privilegio PROCESS (sin él solo se ven las conexiones propias).
+        $note = null;
+        if (empty($queries) && count($rows) <= 1) {
+            $note = 'El usuario de la base de datos no parece tener el privilegio '
+                  . 'PROCESS: solo puede ver sus propias conexiones, por lo que no '
+                  . 'es posible saber qué consultas corrían en el resto del sistema. '
+                  . 'Otorga: GRANT PROCESS ON *.* TO \'<usuario>\'@\'%\';';
+        }
+
+        return ['rows' => array_slice($queries, 0, $limit), 'error' => $note];
+    }
+
+    /**
+     * Traduce una excepción de base de datos a un mensaje entendible para el panel.
+     */
+    protected function humanizeDbError(Throwable $e): string
+    {
+        $msg = $e->getMessage();
+        if (stripos($msg, 'PROCESS privilege') !== false || stripos($msg, 'Access denied') !== false) {
+            return 'El usuario de la base de datos no tiene permisos suficientes '
+                 . '(se requiere el privilegio PROCESS para ver las consultas activas).';
+        }
+        if (stripos($msg, 'Connection refused') !== false || stripos($msg, 'getaddrinfo') !== false
+            || stripos($msg, "Can't connect") !== false || stripos($msg, 'No such host') !== false) {
+            return 'No se pudo conectar a la base de datos desde el monitoreo '
+                 . '(revisa DB_HOST/DB_PORT y que sean accesibles desde este contexto).';
+        }
+        return 'No se pudieron leer las consultas activas: ' . mb_substr($msg, 0, 200);
     }
 
     /**
      * Devuelve los procesos del SO que más CPU/memoria consumen en este instante.
-     * En Linux usa `ps`; en Windows `tasklist`. En Docker muestra los procesos del
-     * contenedor (o los del host si el contenedor tiene `pid: host`).
+     * En Linux los lee directamente de /proc (sin depender de `ps` ni de
+     * shell_exec); con `pid: host` en el contenedor son los procesos del VPS.
+     * En Windows usa `tasklist`.
      *
-     * @return array
+     * @return array{rows:array, error:?string}
      */
     public function topProcesses(int $limit = 15): array
     {
-        return $this->safe(function () use ($limit) {
-            return $this->isWindows()
-                ? $this->topProcessesWindows($limit)
-                : $this->topProcessesLinux($limit);
+        if ($this->isWindows()) {
+            $rows = $this->safe(fn () => $this->topProcessesWindows($limit)) ?? [];
+            return ['rows' => $rows, 'error' => $rows ? null : 'No se pudieron leer los procesos (tasklist no disponible).'];
+        }
+
+        // Lectura directa de /proc (no necesita procps ni shell_exec).
+        $rows = $this->safe(fn () => $this->topProcessesFromProc($limit));
+        if (is_array($rows) && count($rows) > 0) {
+            return ['rows' => $rows, 'error' => null];
+        }
+
+        // Nada disponible: explicar el motivo.
+        $error = !is_readable('/proc')
+            ? 'No se pudo leer /proc en este entorno.'
+            : 'No se pudieron leer los procesos del sistema. Si corre en Docker, '
+              . 'el contenedor solo ve sus propios procesos: añade pid: "host" al '
+              . 'servicio para ver los del VPS.';
+
+        return ['rows' => [], 'error' => $error];
+    }
+
+    /**
+     * Lee los procesos directamente de /proc midiendo el %CPU instantáneo con dos
+     * muestras de utime+stime separadas por un intervalo corto (estilo `top`).
+     * Devuelve la lista ordenada por consumo de CPU. No usa shell_exec.
+     */
+    protected function topProcessesFromProc(int $limit): array
+    {
+        if (!is_readable('/proc')) {
+            return [];
+        }
+
+        $clkTck   = $this->clockTicks();
+        $pageSize = 4096; // tamaño de página estándar en x86_64
+        $cores    = $this->cpuCores() ?: 1;
+        $memTotal = (int) ($this->memory()['total'] ?? 0);
+        $uptime   = $this->systemUptime();
+        $userMap  = $this->procUserMap();
+
+        $pids = $this->scanPids();
+        if (empty($pids)) {
+            return [];
+        }
+
+        // Muestra A
+        $totalA = $this->readTotalJiffies();
+        $a = [];
+        foreach ($pids as $pid) {
+            $s = $this->readProcPidStat($pid);
+            if ($s !== null) {
+                $a[$pid] = $s;
+            }
+        }
+
+        usleep(300000); // 300 ms
+
+        // Muestra B
+        $totalB = $this->readTotalJiffies();
+        $totalDelta = ($totalA !== null && $totalB !== null) ? ($totalB - $totalA) : 0;
+
+        $procs = [];
+        foreach ($a as $pid => $sa) {
+            $sb = $this->readProcPidStat($pid);
+            if ($sb === null) {
+                continue; // el proceso terminó entre muestras
+            }
+
+            $procDelta = ($sb['utime'] + $sb['stime']) - ($sa['utime'] + $sa['stime']);
+            $cpu = $totalDelta > 0 ? round($procDelta / $totalDelta * $cores * 100, 1) : 0.0;
+
+            $rssBytes = $sb['rss_pages'] * $pageSize;
+            $mem = $memTotal > 0 ? round($rssBytes / $memTotal * 100, 1) : null;
+
+            $procs[] = [
+                'pid'     => $pid,
+                'user'    => $userMap[$sb['uid']] ?? (string) $sb['uid'],
+                'cpu'     => $cpu,
+                'mem'     => $mem,
+                'rss'     => $rssBytes,
+                'etime'   => $this->formatEtime($uptime, $sb['starttime'], $clkTck),
+                'name'    => $sb['comm'],
+                'command' => mb_substr($this->readProcCmdline($pid) ?: $sb['comm'], 0, 300),
+            ];
+        }
+
+        // Orden por CPU; desempate por memoria residente.
+        usort($procs, function ($x, $y) {
+            return [$y['cpu'], $y['rss']] <=> [$x['cpu'], $x['rss']];
+        });
+
+        return array_slice($procs, 0, $limit);
+    }
+
+    /** Lista los PID actuales (directorios numéricos de /proc). */
+    protected function scanPids(): array
+    {
+        $entries = @scandir('/proc');
+        if ($entries === false) {
+            return [];
+        }
+        $pids = [];
+        foreach ($entries as $e) {
+            if (ctype_digit($e)) {
+                $pids[] = (int) $e;
+            }
+        }
+        return $pids;
+    }
+
+    /** Suma total de jiffies de la línea agregada `cpu` de /proc/stat. */
+    protected function readTotalJiffies(): ?int
+    {
+        if (!is_readable('/proc/stat')) {
+            return null;
+        }
+        $line = strtok((string) @file_get_contents('/proc/stat'), "\n");
+        if (!is_string($line) || !preg_match('/^cpu\s+(.*)$/', $line, $m)) {
+            return null;
+        }
+        return array_sum(array_map('intval', preg_split('/\s+/', trim($m[1]))));
+    }
+
+    /**
+     * Lee los campos relevantes de /proc/{pid}/stat. El campo `comm` puede
+     * contener espacios y paréntesis, así que se parte por el último ')'.
+     *
+     * @return array{utime:int,stime:int,starttime:int,rss_pages:int,comm:string,uid:int}|null
+     */
+    protected function readProcPidStat(int $pid): ?array
+    {
+        $file = "/proc/{$pid}/stat";
+        $content = @file_get_contents($file);
+        if ($content === false || $content === '') {
+            return null;
+        }
+        $rparen = strrpos($content, ')');
+        if ($rparen === false) {
+            return null;
+        }
+        $comm = '';
+        $lparen = strpos($content, '(');
+        if ($lparen !== false && $rparen > $lparen) {
+            $comm = substr($content, $lparen + 1, $rparen - $lparen - 1);
+        }
+        // Tras el ')', el primer token es el campo 3 (state); el campo N es t[N-3].
+        $t = preg_split('/\s+/', trim(substr($content, $rparen + 1)));
+
+        return [
+            'utime'     => (int) ($t[11] ?? 0), // campo 14
+            'stime'     => (int) ($t[12] ?? 0), // campo 15
+            'starttime' => (int) ($t[19] ?? 0), // campo 22
+            'rss_pages' => (int) ($t[21] ?? 0), // campo 24
+            'comm'      => $comm,
+            'uid'       => (int) (@fileowner($file) ?: 0),
+        ];
+    }
+
+    /** Línea de comandos completa de un proceso (argumentos separados por \0). */
+    protected function readProcCmdline(int $pid): string
+    {
+        $raw = @file_get_contents("/proc/{$pid}/cmdline");
+        if ($raw === false || $raw === '') {
+            return '';
+        }
+        return trim(str_replace("\0", ' ', $raw));
+    }
+
+    /** Mapa uid => nombre de usuario, leído de /etc/passwd. */
+    protected function procUserMap(): array
+    {
+        return $this->safe(function () {
+            $map = [];
+            if (is_readable('/etc/passwd')) {
+                foreach (preg_split('/\r?\n/', (string) @file_get_contents('/etc/passwd')) as $line) {
+                    $f = explode(':', $line);
+                    if (count($f) >= 3 && ctype_digit($f[2])) {
+                        $map[(int) $f[2]] = $f[0];
+                    }
+                }
+            }
+            return $map;
         }) ?? [];
     }
 
-    protected function topProcessesLinux(int $limit): array
+    /** Ticks de reloj por segundo (para convertir jiffies a tiempo). */
+    protected function clockTicks(): int
     {
-        $out = $this->run('ps -eo pid,user:20,%cpu,%mem,rss,etime,comm,args --sort=-%cpu --no-headers 2>/dev/null');
-        if (!$out) {
-            return [];
-        }
-        $procs = [];
-        foreach (preg_split('/\r?\n/', trim($out)) as $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
-            }
-            $parts = preg_split('/\s+/', $line, 8);
-            if (count($parts) < 8) {
-                continue;
-            }
-            $procs[] = [
-                'pid'     => (int) $parts[0],
-                'user'    => $parts[1],
-                'cpu'     => (float) $parts[2],
-                'mem'     => (float) $parts[3],
-                'rss'     => (int) $parts[4] * 1024,
-                'etime'   => $parts[5],
-                'name'    => $parts[6],
-                'command' => mb_substr(trim($parts[7]), 0, 300),
-            ];
-            if (count($procs) >= $limit) {
-                break;
+        if (function_exists('posix_sysconf') && defined('POSIX_SC_CLK_TCK')) {
+            $v = @posix_sysconf(POSIX_SC_CLK_TCK);
+            if ($v > 0) {
+                return (int) $v;
             }
         }
-        return $procs;
+        return 100; // valor habitual en Linux
+    }
+
+    /** Segundos de actividad del sistema, leídos de /proc/uptime. */
+    protected function systemUptime(): float
+    {
+        $raw = @file_get_contents('/proc/uptime');
+        if ($raw === false) {
+            return 0.0;
+        }
+        return (float) strtok($raw, ' ');
+    }
+
+    /** Formatea el tiempo transcurrido de un proceso como [Dd]HH:MM:SS. */
+    protected function formatEtime(float $uptime, int $starttime, int $clkTck): string
+    {
+        if ($uptime <= 0 || $clkTck <= 0) {
+            return '—';
+        }
+        $secs = (int) max(0, $uptime - $starttime / $clkTck);
+        $d = intdiv($secs, 86400);
+        $h = intdiv($secs % 86400, 3600);
+        $m = intdiv($secs % 3600, 60);
+        $s = $secs % 60;
+        return ($d > 0 ? "{$d}d " : '') . sprintf('%02d:%02d:%02d', $h, $m, $s);
     }
 
     protected function topProcessesWindows(int $limit): array
