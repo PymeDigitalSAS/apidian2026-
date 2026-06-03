@@ -20,11 +20,13 @@ Estamos enfocados en crear herramientas y soluciones para desarrolladores de sof
 - ### Despliegue con Docker
   * Ubuntu 20.04 , 22.04 y 24.04 | sólo API | sin dominio | proceso manual
      * [Pasos aquí](https://git.buho.la/-/snippets/31)
-- ### Despliegue con Docker | API + Extractor DIAN
-  * Ubuntu 20.04 , 22.04 y 24.04 | API + Extractor | sin dominio | ejecución de script.
-  * Instala en una sola ejecución, sobre un mismo servidor con Docker
-  * Pasos:
-    * [Pasos aquí](https://git.buho.la/facturalatam/co-apidian2026/-/snippets/73) 
+- ### Despliegue con Docker | Extractor DIAN
+  * Ubuntu 20.04 , 22.04 y 24.04 | sin dominio | ejecución de script.
+  * Opciones de instalación:
+    * **API + Extractor** — instala ambos en una sola ejecución, sobre un mismo servidor con Docker.
+      * [Pasos aquí](https://git.buho.la/facturalatam/co-apidian2026/-/snippets/73)
+    * **Sólo Extractor** — instala únicamente el Extractor DIAN, para conectarlo a un API existente.
+      * [Pasos aquí](https://git.buho.la/facturalatam/co-apidian2026/-/snippets/74)
   * Notas:
     * En VPS solo está disponible el **Modo 1** del extractor (extracción por URL). El **Modo 2** (certificado) requiere GUI y NO funciona en este entorno.
     * Si el extractor define `API_SECRET_KEY` en su `.env`, configure también la clave correspondiente en el `.env` del API antes de consumir sus endpoints.
