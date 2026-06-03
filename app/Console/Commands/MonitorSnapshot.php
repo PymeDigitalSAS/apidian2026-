@@ -68,10 +68,14 @@ class MonitorSnapshot extends Command
 
     protected function prune(): void
     {
-        $days = $this->option('prune-days');
-        $days = $days !== null ? (int) $days : (int) config('monitoring.retention_days', 7);
+        $explicit = $this->option('prune-days') !== null;
+        $days = $explicit ? (int) $this->option('prune-days') : (int) config('monitoring.retention_days', 7);
 
         if ($days <= 0) {
+            return;
+        }
+
+        if (!$explicit && (int) now()->minute !== 0) {
             return;
         }
 

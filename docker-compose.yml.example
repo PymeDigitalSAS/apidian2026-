@@ -24,6 +24,25 @@ services:
     networks:
       - apinet
 
+  # Monitoreo de recursos: toma un snapshot cada 10s (comando monitor:snapshot).
+  # Esta es la ÚNICA fuente de captura: por eso monitor:snapshot NO está agendado
+  # en app/Console/Kernel.php (agendarlo allí además duplicaría los snapshots).
+  # pid: "host" hace que la captura de procesos vea los del VPS y no solo los del
+  # contenedor (CPU/RAM/disco ya son del host sin esto). Alternativa más acotada:
+  # quitar pid:host, montar "- /proc:/host/proc:ro" y poner MONITOR_PROC_PATH=/host/proc.
+  scheduling_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scheduling_api
+    working_dir: /var/www/html
+    command: sh -c "while true; do php artisan monitor:snapshot --no-interaction; sleep 10; done"
+    pid: "host"
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - apinet
+
   mariadb:
     image: mariadb:11.5.2
     container_name: mariadb_api

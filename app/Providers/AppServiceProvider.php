@@ -40,11 +40,13 @@ class AppServiceProvider extends ServiceProvider
 
         // Monitoreo: acumula el tiempo de cada consulta de la petición en curso
         // para detectar peticiones lentas (solo en HTTP, no en consola/cron).
+        // El recorder se resuelve UNA sola vez (no por cada query) porque el
+        // listener se dispara en todas las consultas de todas las peticiones.
         if (!$this->app->runningInConsole()) {
-            DB::listen(function ($query) {
+            $recorder = $this->app->make(\App\Services\SlowRequestRecorder::class);
+            DB::listen(function ($query) use ($recorder) {
                 try {
-                    app(\App\Services\SlowRequestRecorder::class)
-                        ->recordQuery($query->sql, (float) $query->time);
+                    $recorder->recordQuery($query->sql, (float) $query->time);
                 } catch (\Throwable $e) {
                     // el monitoreo nunca debe romper una petición
                 }

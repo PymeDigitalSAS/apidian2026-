@@ -19,6 +19,13 @@ use Throwable;
  */
 class SystemMonitorService
 {
+    /** Caché por instancia: el nº de núcleos y la memoria no cambian dentro de
+     *  una misma recolección, y se consultan varias veces (también al leer los
+     *  procesos durante una saturación). Evita releer /proc repetidamente. */
+    private bool $coresResolved = false;
+    private ?int $cores = null;
+    private ?array $memoryCache = null;
+
     /**
      * Recolecta una instantánea de los recursos del sistema.
      *
@@ -90,7 +97,10 @@ class SystemMonitorService
 
     protected function cpuCores(): ?int
     {
-        return $this->safe(function () {
+        if ($this->coresResolved) {
+            return $this->cores;
+        }
+        $this->cores = $this->safe(function () {
             if (is_readable('/proc/cpuinfo')) {
                 $count = substr_count((string) @file_get_contents('/proc/cpuinfo'), 'processor');
                 if ($count > 0) {
@@ -102,6 +112,8 @@ class SystemMonitorService
             }
             return null;
         });
+        $this->coresResolved = true;
+        return $this->cores;
     }
 
     /**
@@ -162,12 +174,16 @@ class SystemMonitorService
 
     protected function memory(): array
     {
+        if ($this->memoryCache !== null) {
+            return $this->memoryCache;
+        }
+
         $result = ['total' => null, 'used' => null, 'percent' => null];
 
         // 1) Límite de cgroup (contenedor Docker) si existe.
         $cgroup = $this->memoryFromCgroup();
         if ($cgroup !== null) {
-            return $cgroup;
+            return $this->memoryCache = $cgroup;
         }
 
         // 2) /proc/meminfo (Linux host).
@@ -201,7 +217,7 @@ class SystemMonitorService
             ];
         });
         if ($meminfo !== null) {
-            return $meminfo;
+            return $this->memoryCache = $meminfo;
         }
 
         // 3) Windows (desarrollo).
@@ -223,11 +239,11 @@ class SystemMonitorService
                 return null;
             });
             if ($win !== null) {
-                return $win;
+                return $this->memoryCache = $win;
             }
         }
 
-        return $result;
+        return $this->memoryCache = $result;
     }
 
     protected function memoryFromCgroup(): ?array
@@ -739,6 +755,7 @@ class SystemMonitorService
                 return null;
             }
 
+            $validLines = 0;
             $sizes = $sizes ?? [];
             foreach (preg_split('/\r?\n/', trim($out)) as $line) {
                 $line = trim($line);
@@ -749,6 +766,7 @@ class SystemMonitorService
                 if (count($parts) < 2 || !is_numeric($parts[0])) {
                     continue;
                 }
+                $validLines++;
                 $path = trim($parts[1]);
                 // Saltar la línea del total del directorio padre (public/received).
                 if ($path === $base) {
@@ -756,6 +774,10 @@ class SystemMonitorService
                 }
                 $nit = basename($path);
                 $sizes[$nit] = ($sizes[$nit] ?? 0) + (int) $parts[0];
+            }
+
+            if ($validLines === 0) {
+                return null;
             }
         }
 
