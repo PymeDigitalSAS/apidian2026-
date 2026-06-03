@@ -336,7 +336,7 @@ class SystemMonitorService
      *
      * @return array
      */
-    public function topProcesses(int $limit = 12): array
+    public function topProcesses(int $limit = 15): array
     {
         return $this->safe(function () use ($limit) {
             return $this->isWindows()
@@ -347,7 +347,7 @@ class SystemMonitorService
 
     protected function topProcessesLinux(int $limit): array
     {
-        $out = $this->run('ps -eo pid,comm,%cpu,%mem --sort=-%cpu --no-headers 2>/dev/null');
+        $out = $this->run('ps -eo pid,user:20,%cpu,%mem,rss,etime,comm,args --sort=-%cpu --no-headers 2>/dev/null');
         if (!$out) {
             return [];
         }
@@ -357,15 +357,19 @@ class SystemMonitorService
             if ($line === '') {
                 continue;
             }
-            $parts = preg_split('/\s+/', $line, 4);
-            if (count($parts) < 4) {
+            $parts = preg_split('/\s+/', $line, 8);
+            if (count($parts) < 8) {
                 continue;
             }
             $procs[] = [
-                'pid'  => (int) $parts[0],
-                'name' => $parts[1],
-                'cpu'  => (float) $parts[2],
-                'mem'  => (float) $parts[3],
+                'pid'     => (int) $parts[0],
+                'user'    => $parts[1],
+                'cpu'     => (float) $parts[2],
+                'mem'     => (float) $parts[3],
+                'rss'     => (int) $parts[4] * 1024,
+                'etime'   => $parts[5],
+                'name'    => $parts[6],
+                'command' => mb_substr(trim($parts[7]), 0, 300),
             ];
             if (count($procs) >= $limit) {
                 break;
@@ -376,7 +380,7 @@ class SystemMonitorService
 
     protected function topProcessesWindows(int $limit): array
     {
-        $out = $this->run('tasklist /fo csv /nh');
+        $out = $this->run('tasklist /v /fo csv /nh');
         if (!$out) {
             return [];
         }
@@ -388,13 +392,17 @@ class SystemMonitorService
             }
             $memKb = (int) preg_replace('/[^\d]/', '', $cols[4]);
             $procs[] = [
-                'pid'  => (int) $cols[1],
-                'name' => $cols[0],
-                'cpu'  => null,
-                'mem'  => round($memKb / 1024, 1), // MB
+                'pid'     => (int) $cols[1],
+                'user'    => $cols[6] ?? null,
+                'cpu'     => null,
+                'mem'     => null,
+                'rss'     => $memKb * 1024,
+                'etime'   => $cols[7] ?? null,
+                'name'    => $cols[0],
+                'command' => $cols[0],
             ];
         }
-        usort($procs, fn ($a, $b) => ($b['mem'] ?? 0) <=> ($a['mem'] ?? 0));
+        usort($procs, fn ($a, $b) => ($b['rss'] ?? 0) <=> ($a['rss'] ?? 0));
         return array_slice($procs, 0, $limit);
     }
 

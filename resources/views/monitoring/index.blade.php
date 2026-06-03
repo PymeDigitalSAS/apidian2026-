@@ -355,6 +355,40 @@
             });
     }
 
+    function summaryBar(label, value, used, total, base) {
+        var w = (value === null || value === undefined) ? 0 : Math.min(100, value);
+        var detail = (used !== null && used !== undefined && total)
+            ? fmtBytes(used) + ' / ' + fmtBytes(total)
+            : pct(value);
+        return '<div class="mb-2">' +
+            '<div class="d-flex justify-content-between" style="font-size:.75rem;">' +
+                '<span>' + label + '</span><span class="text-muted">' + detail + '</span>' +
+            '</div>' +
+            '<div class="progress" style="height:6px;">' +
+                '<div class="progress-bar ' + (barClass(value) || base) + '" style="width:' + w + '%"></div>' +
+            '</div></div>';
+    }
+
+    function renderSystemSummary(p) {
+        var load = (p.load_1 !== null && p.load_1 !== undefined)
+            ? p.load_1 + ' / ' + (p.load_5 !== null ? p.load_5 : '—') + ' / ' + (p.load_15 !== null ? p.load_15 : '—')
+            : '—';
+        var html = '<div class="card bg-light mb-3"><div class="card-body py-2">';
+        html += '<div class="d-flex justify-content-between align-items-center mb-2" style="font-size:.8rem;">' +
+                '<strong><i class="fas fa-server mr-1"></i> Estado del sistema al saturarse</strong>' +
+                '<span class="text-muted">Carga: ' + esc(load) +
+                (p.cpu_cores ? ' · ' + p.cpu_cores + ' núcleos' : '') + '</span>' +
+                '</div>';
+        html += '<div class="row"><div class="col-md-4">' +
+                summaryBar('CPU', p.cpu, null, null, 'bg-primary') + '</div>';
+        html += '<div class="col-md-4">' +
+                summaryBar('Memoria', p.mem, p.mem_used, p.mem_total, 'bg-success') + '</div>';
+        html += '<div class="col-md-4">' +
+                summaryBar('Disco', p.disk, p.disk_used, p.disk_total, 'bg-warning') + '</div>';
+        html += '</div></div></div>';
+        return html;
+    }
+
     function showPeak(idx) {
         var p = peaksCache[idx];
         if (!p || !p.captured) return;
@@ -362,6 +396,7 @@
 
         document.getElementById('peak-modal-time').textContent = p.at + ' · CPU ' + pct(p.cpu);
         var html = '';
+        html += renderSystemSummary(p);
 
         // --- Consultas SQL ---
         html += '<h6 class="mb-2"><i class="fas fa-database mr-1"></i> Consultas SQL que estaban corriendo</h6>';
@@ -380,17 +415,30 @@
             html += '<p class="text-muted">No había consultas SQL activas en ese momento (la saturación no vino de la base de datos).</p>';
         }
 
-        // --- Procesos del sistema ---
-        html += '<h6 class="mb-2 mt-3"><i class="fas fa-list-ol mr-1"></i> Procesos que más consumían</h6>';
+        html += '<h6 class="mb-2 mt-3"><i class="fas fa-list-ol mr-1"></i> Procesos que más consumían <small class="text-muted">(vista tipo htop)</small></h6>';
         if (processes.length) {
-            html += '<div class="table-responsive"><table class="table table-sm table-striped"><thead><tr>' +
-                    '<th style="width:80px;">PID</th><th>Proceso</th><th class="text-right" style="width:80px;">CPU%</th><th class="text-right" style="width:80px;">Mem%</th></tr></thead><tbody>';
+            html += '<div class="table-responsive"><table class="table table-sm table-striped" style="font-size:.78rem;"><thead><tr>' +
+                    '<th style="width:70px;">PID</th>' +
+                    '<th style="width:90px;">Usuario</th>' +
+                    '<th class="text-right" style="width:64px;">CPU%</th>' +
+                    '<th class="text-right" style="width:64px;">MEM%</th>' +
+                    '<th class="text-right" style="width:80px;">RES</th>' +
+                    '<th style="width:80px;">Tiempo</th>' +
+                    '<th>Comando</th></tr></thead><tbody>';
             html += processes.map(function (pr) {
+                var cpu = (pr.cpu !== null && pr.cpu !== undefined) ? pr.cpu.toFixed(1) : '—';
+                var mem = (pr.mem !== null && pr.mem !== undefined) ? pr.mem.toFixed(1) : '—';
+                var cpuCls = 'text-right';
+                if (pr.cpu >= 50) cpuCls += ' text-danger font-weight-bold';
+                else if (pr.cpu >= 20) cpuCls += ' text-warning';
                 return '<tr>' +
                     '<td>' + esc(pr.pid) + '</td>' +
-                    '<td>' + esc(pr.name) + '</td>' +
-                    '<td class="text-right">' + (pr.cpu !== null && pr.cpu !== undefined ? pr.cpu : '—') + '</td>' +
-                    '<td class="text-right">' + (pr.mem !== null && pr.mem !== undefined ? pr.mem : '—') + '</td>' +
+                    '<td>' + esc(pr.user || '—') + '</td>' +
+                    '<td class="' + cpuCls + '">' + cpu + '</td>' +
+                    '<td class="text-right">' + mem + '</td>' +
+                    '<td class="text-right">' + (pr.rss ? fmtBytes(pr.rss) : '—') + '</td>' +
+                    '<td>' + esc(pr.etime || '—') + '</td>' +
+                    '<td><code style="font-size:.7rem;white-space:normal;word-break:break-all;">' + esc(pr.command || pr.name) + '</code></td>' +
                     '</tr>';
             }).join('');
             html += '</tbody></table></div>';

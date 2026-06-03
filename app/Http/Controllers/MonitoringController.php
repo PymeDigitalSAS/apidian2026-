@@ -85,7 +85,12 @@ class MonitoringController extends Controller
         $rows = MonitoringSnapshot::where('created_at', '>=', now()->subHours($hours))
             ->orderByDesc('cpu_percent')
             ->limit(10)
-            ->get(['id', 'cpu_percent', 'mem_percent', 'disk_percent', 'top_queries', 'top_processes', 'created_at']);
+            ->get([
+                'id', 'cpu_percent', 'mem_percent', 'disk_percent',
+                'load_1', 'load_5', 'load_15', 'cpu_cores',
+                'mem_used', 'mem_total', 'disk_used', 'disk_total',
+                'top_queries', 'top_processes', 'created_at',
+            ]);
 
         return response()->json([
             'hours' => $hours,
@@ -115,6 +120,14 @@ class MonitoringController extends Controller
                     'cpu'           => $s->cpu_percent,
                     'mem'           => $s->mem_percent,
                     'disk'          => $s->disk_percent,
+                    'load_1'        => $s->load_1,
+                    'load_5'        => $s->load_5,
+                    'load_15'       => $s->load_15,
+                    'cpu_cores'     => $s->cpu_cores,
+                    'mem_used'      => $s->mem_used,
+                    'mem_total'     => $s->mem_total,
+                    'disk_used'     => $s->disk_used,
+                    'disk_total'    => $s->disk_total,
                     // Hubo captura de saturación si alguna de las columnas no es null
                     // (se llenan solo cuando el CPU superó el umbral), o si hay
                     // peticiones lentas correlacionadas.
