@@ -79,6 +79,12 @@ $cust_id = $path[2];
                             <span>Monitoreo</span>
                         </a>
                     </li>
+                    <li class="{{ ($path[0] === 'backups')?'nav-active':'' }}">
+                        <a class="nav-link" href="{{route('backups.index')}}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-database mr-2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" /><path d="M4 6v6a8 3 0 0 0 16 0v-6" /><path d="M4 12v6a8 3 0 0 0 16 0v-6" /></svg>
+                            <span>Backups</span>
+                        </a>
+                    </li>
                     @endif
                     <li class="">
                         <a href="{{route('logs')}}" class="nav-link" target="BLANK">
