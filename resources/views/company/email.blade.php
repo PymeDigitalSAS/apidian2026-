@@ -134,9 +134,43 @@
             </div>
 
             <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="mail_from_address">Correo del remitente (From)</label>
+                        <input type="email"
+                               class="form-control @error('mail_from_address') is-invalid @enderror"
+                               id="mail_from_address"
+                               name="mail_from_address"
+                               value="{{ old('mail_from_address', $emailConfig['mail_from_address']) }}"
+                               placeholder="ej: facturacion@miempresa.com">
+                        @error('mail_from_address')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <small class="form-text text-muted">Dirección que verá el cliente como remitente. Si se deja vacío se usará el usuario SMTP.</small>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="mail_from_name">Nombre del remitente</label>
+                        <input type="text"
+                               class="form-control @error('mail_from_name') is-invalid @enderror"
+                               id="mail_from_name"
+                               name="mail_from_name"
+                               value="{{ old('mail_from_name', $emailConfig['mail_from_name']) }}"
+                               placeholder="ej: Mi Empresa S.A.S.">
+                        @error('mail_from_name')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <small class="form-text text-muted">Nombre visible del remitente. Si se deja vacío se usará el nombre de la empresa.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
                 <div class="col-12 text-right">
                     <a href="{{ route('home') }}" class="btn btn-secondary mr-2 text-white">Volver</a>
-                    <button type="submit" class="btn btn-primary">Guardar Configuración</button>                    
+                    <button type="submit" class="btn btn-primary">Guardar Configuración</button>
                 </div>
             </div>
         </form>

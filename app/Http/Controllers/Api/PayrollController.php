@@ -125,22 +125,8 @@ class PayrollController extends Controller
     {
         // User
         $user = auth()->user();
-        $smtp_parameters = collect($request->smtp_parameters);
-        if(isset($request->smtp_parameters)){
-            \Config::set('mail.host', $smtp_parameters->toArray()['host']);
-            \Config::set('mail.port', $smtp_parameters->toArray()['port']);
-            \Config::set('mail.username', $smtp_parameters->toArray()['username']);
-            \Config::set('mail.password', $smtp_parameters->toArray()['password']);
-            \Config::set('mail.encryption', $smtp_parameters->toArray()['encryption']);
-        }
-        else
-            if($user->validate_mail_server()){
-                \Config::set('mail.host', $user->mail_host);
-                \Config::set('mail.port', $user->mail_port);
-                \Config::set('mail.username', $user->mail_username);
-                \Config::set('mail.password', $user->mail_password);
-                \Config::set('mail.encryption', $user->mail_encryption);
-            }
+        // Configura SMTP y remitente (empresa/request -> .env -> usuario SMTP).
+        $user->applyMailConfig($request->smtp_parameters);
 
         // User company
         $company = $user->company;

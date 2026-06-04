@@ -130,6 +130,8 @@ class CompanyUserController extends Controller
             'mail_username' => $user->mail_username ?: config('mail.username'),
             'mail_password' => $user->mail_password ? '********' : '',
             'mail_encryption' => $user->mail_encryption ?: config('mail.encryption'),
+            'mail_from_address' => $user->mail_from_address ?: config('mail.from.address'),
+            'mail_from_name' => $user->mail_from_name ?: config('mail.from.name'),
             'has_custom_config' => !empty($user->mail_host)
         ];
 
@@ -144,6 +146,8 @@ class CompanyUserController extends Controller
             'mail_username' => 'required|string',
             'mail_password' => 'required|string',
             'mail_encryption' => 'required|string|in:tls,ssl',
+            'mail_from_address' => 'nullable|email',
+            'mail_from_name' => 'nullable|string',
         ]);
 
         try {
@@ -157,6 +161,8 @@ class CompanyUserController extends Controller
                 'mail_username' => $request->mail_username,
                 'mail_password' => $request->mail_password,
                 'mail_encryption' => $request->mail_encryption,
+                'mail_from_address' => $request->mail_from_address,
+                'mail_from_name' => $request->mail_from_name,
             ]);
 
             return redirect()->back()->with('success', 'Configuración de correo actualizada exitosamente.');

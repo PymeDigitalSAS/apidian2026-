@@ -39,22 +39,8 @@ class SendEmailController extends Controller
         // User
         $ShowAcceptRejectButtons = FALSE;
         $user = auth()->user();
-        $smtp_parameters = collect($request->smtp_parameters);
-        if(isset($request->smtp_parameters)){
-            \Config::set('mail.host', $smtp_parameters->toArray()['host']);
-            \Config::set('mail.port', $smtp_parameters->toArray()['port']);
-            \Config::set('mail.username', $smtp_parameters->toArray()['username']);
-            \Config::set('mail.password', $smtp_parameters->toArray()['password']);
-            \Config::set('mail.encryption', $smtp_parameters->toArray()['encryption']);
-        }
-        else
-            if($user->validate_mail_server()){
-                \Config::set('mail.host', $user->mail_host);
-                \Config::set('mail.port', $user->mail_port);
-                \Config::set('mail.username', $user->mail_username);
-                \Config::set('mail.password', $user->mail_password);
-                \Config::set('mail.encryption', $user->mail_encryption);
-            }
+        // Configura SMTP y remitente (empresa/request -> .env -> usuario SMTP).
+        $user->applyMailConfig($request->smtp_parameters);
 
         // User company
         $company = $user->company;
@@ -155,22 +141,8 @@ class SendEmailController extends Controller
         $company = Company::where('identification_number', '=', $request->company_idnumber)->first();
         // User
         $user = User::where('id', $company->user_id)->firstOrFail();
-        $smtp_parameters = collect($request->smtp_parameters);
-        if(isset($request->smtp_parameters)){
-            \Config::set('mail.host', $smtp_parameters->toArray()['host']);
-            \Config::set('mail.port', $smtp_parameters->toArray()['port']);
-            \Config::set('mail.username', $smtp_parameters->toArray()['username']);
-            \Config::set('mail.password', $smtp_parameters->toArray()['password']);
-            \Config::set('mail.encryption', $smtp_parameters->toArray()['encryption']);
-        }
-        else
-            if($user->validate_mail_server()){
-                \Config::set('mail.host', $user->mail_host);
-                \Config::set('mail.port', $user->mail_port);
-                \Config::set('mail.username', $user->mail_username);
-                \Config::set('mail.password', $user->mail_password);
-                \Config::set('mail.encryption', $user->mail_encryption);
-            }
+        // Configura SMTP y remitente (empresa/request -> .env -> usuario SMTP).
+        $user->applyMailConfig($request->smtp_parameters);
 
         if(empty($company))
             return view('customerloginmensaje', ['titulo' => 'Error al realizar el envio.',
@@ -242,22 +214,8 @@ class SendEmailController extends Controller
         $company = Company::where('identification_number', '=', $request->company_idnumber)->first();
         // User
         $user = User::where('id', $company->user_id)->firstOrFail();
-        $smtp_parameters = collect($request->smtp_parameters);
-        if(isset($request->smtp_parameters)){
-            \Config::set('mail.host', $smtp_parameters->toArray()['host']);
-            \Config::set('mail.port', $smtp_parameters->toArray()['port']);
-            \Config::set('mail.username', $smtp_parameters->toArray()['username']);
-            \Config::set('mail.password', $smtp_parameters->toArray()['password']);
-            \Config::set('mail.encryption', $smtp_parameters->toArray()['encryption']);
-        }
-        else
-            if($user->validate_mail_server()){
-                \Config::set('mail.host', $user->mail_host);
-                \Config::set('mail.port', $user->mail_port);
-                \Config::set('mail.username', $user->mail_username);
-                \Config::set('mail.password', $user->mail_password);
-                \Config::set('mail.encryption', $user->mail_encryption);
-            }
+        // Configura SMTP y remitente (empresa/request -> .env -> usuario SMTP).
+        $user->applyMailConfig($request->smtp_parameters);
 
         if(empty($company))
             return view('customerloginmensaje', ['titulo' => 'Error al realizar el envio.',
@@ -344,22 +302,8 @@ class SendEmailController extends Controller
 
         try {
             $user = auth()->user();
-            $smtp_parameters = collect($request->smtp_parameters);
-            if(isset($request->smtp_parameters)){
-                \Config::set('mail.host', $smtp_parameters->toArray()['host']);
-                \Config::set('mail.port', $smtp_parameters->toArray()['port']);
-                \Config::set('mail.username', $smtp_parameters->toArray()['username']);
-                \Config::set('mail.password', $smtp_parameters->toArray()['password']);
-                \Config::set('mail.encryption', $smtp_parameters->toArray()['encryption']);
-            }
-            else
-                if($user->validate_mail_server()){
-                    \Config::set('mail.host', $user->mail_host);
-                    \Config::set('mail.port', $user->mail_port);
-                    \Config::set('mail.username', $user->mail_username);
-                    \Config::set('mail.password', $user->mail_password);
-                    \Config::set('mail.encryption', $user->mail_encryption);
-                }
+            // Configura SMTP y remitente (empresa/request -> .env -> usuario SMTP).
+            $user->applyMailConfig($request->smtp_parameters);
 
             $company = $user->company;
             $email = $request->email;
@@ -395,22 +339,8 @@ class SendEmailController extends Controller
     {
         try {
             $user = auth()->user();
-            $smtp_parameters = collect($request->smtp_parameters);
-            if(isset($request->smtp_parameters)){
-                \Config::set('mail.host', $smtp_parameters->toArray()['host']);
-                \Config::set('mail.port', $smtp_parameters->toArray()['port']);
-                \Config::set('mail.username', $smtp_parameters->toArray()['username']);
-                \Config::set('mail.password', $smtp_parameters->toArray()['password']);
-                \Config::set('mail.encryption', $smtp_parameters->toArray()['encryption']);
-            }
-            else
-                if($user->validate_mail_server()){
-                    \Config::set('mail.host', $user->mail_host);
-                    \Config::set('mail.port', $user->mail_port);
-                    \Config::set('mail.username', $user->mail_username);
-                    \Config::set('mail.password', $user->mail_password);
-                    \Config::set('mail.encryption', $user->mail_encryption);
-                }
+            // Configura SMTP y remitente (empresa/request -> .env -> usuario SMTP).
+            $user->applyMailConfig($request->smtp_parameters);
 
             $validate = Validator::make($request->all(), [
                 'email' => 'required|email',

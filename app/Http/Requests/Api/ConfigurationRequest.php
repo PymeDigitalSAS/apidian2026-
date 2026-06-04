@@ -82,6 +82,8 @@ class ConfigurationRequest extends FormRequest
             'mail_username' => 'nullable|required_with:mail_host,mail_port,mail_password,mail_encryption|string',
             'mail_password' => 'nullable|required_with:mail_host,mail_port,mail_username,mail_encryption|string',
             'mail_encryption' => 'nullable|required_with:mail_host,mail_port,mail_username,mail_password|string',
+            'mail_from_address' => 'nullable|email',
+            'mail_from_name' => 'nullable|string',
         ];
     }
 }

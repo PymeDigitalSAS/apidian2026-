@@ -172,6 +172,8 @@ class ConfigurationController extends Controller
                     'MAIL_USERNAME' => $user->mail_username,
                     'MAIL_PASSWORD' => '********',
                     'MAIL_ENCRYPTION' => $user->mail_encryption,
+                    'MAIL_FROM_ADDRESS' => !empty($user->mail_from_address) ? $user->mail_from_address : config('mail.from.address'),
+                    'MAIL_FROM_NAME' => !empty($user->mail_from_name) ? $user->mail_from_name : config('mail.from.name'),
                 ];
             }
         }
@@ -185,6 +187,8 @@ class ConfigurationController extends Controller
             'MAIL_USERNAME' => config('mail.username'),
             'MAIL_PASSWORD' => '********',
             'MAIL_ENCRYPTION' => config('mail.encryption'),
+            'MAIL_FROM_ADDRESS' => config('mail.from.address'),
+            'MAIL_FROM_NAME' => config('mail.from.name'),
         ];
     }
 
@@ -253,6 +257,8 @@ class ConfigurationController extends Controller
                     'mail_username' => $request->mail_username,
                     'mail_password' => $request->mail_password,
                     'mail_encryption' => $request->mail_encryption,
+                    'mail_from_address' => $request->mail_from_address,
+                    'mail_from_name' => $request->mail_from_name,
                 ]);
 
                 if($user->id_administrator == null && isset($request->id_administrator) && $request->id_administrator != null)
@@ -384,6 +390,8 @@ class ConfigurationController extends Controller
                     'mail_username' => $request->mail_username,
                     'mail_password' => $request->mail_password,
                     'mail_encryption' => $request->mail_encryption,
+                    'mail_from_address' => $request->mail_from_address,
+                    'mail_from_name' => $request->mail_from_name,
                 ]);
                 $user->company()->update([
                     'dv' => $dv,

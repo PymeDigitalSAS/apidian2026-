@@ -162,13 +162,8 @@ trait DocumentTrait
     protected function registerEmployee($data, $sendmail = false)
     {
         $user = auth()->user();
-        if($user->validate_mail_server()){
-            \Config::set('mail.host', $user->mail_host);
-            \Config::set('mail.port', $user->mail_port);
-            \Config::set('mail.username', $user->mail_username);
-            \Config::set('mail.password', $user->mail_password);
-            \Config::set('mail.encryption', $user->mail_encryption);
-        }
+        // Configura SMTP y remitente de la empresa (este flujo no usa smtp_parameters).
+        $user->applyMailConfig();
 
         $password = "12345";
         $employee = Employee::where('identification_number', '=', $data->identification_number)->get();
@@ -196,13 +191,8 @@ trait DocumentTrait
     protected function registerCustomer($data, $sendmail = false, $sendingcustomer = false)
     {
         $user = auth()->user();
-        if($user->validate_mail_server()){
-            \Config::set('mail.host', $user->mail_host);
-            \Config::set('mail.port', $user->mail_port);
-            \Config::set('mail.username', $user->mail_username);
-            \Config::set('mail.password', $user->mail_password);
-            \Config::set('mail.encryption', $user->mail_encryption);
-        }
+        // Configura SMTP y remitente de la empresa (este flujo no usa smtp_parameters).
+        $user->applyMailConfig();
 
         $password = "12345";
         $companyId = $user->company->id;
