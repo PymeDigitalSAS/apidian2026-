@@ -76,6 +76,24 @@ Route::group(['middleware' => ['auth', 'company.web.access']], function() {
     Route::get('/home', 'HomeController@index')->name('home');
     Route::get('/tools', 'HomeController@tools')->name('tools');
 
+    // Monitoreo de recursos del servidor (solo admin de plataforma)
+    Route::get('/monitoring', 'MonitoringController@index')->name('monitoring.index');
+    Route::get('/monitoring/live', 'MonitoringController@live')->name('monitoring.live');
+    Route::get('/monitoring/history', 'MonitoringController@history')->name('monitoring.history');
+    Route::get('/monitoring/peaks', 'MonitoringController@peaks')->name('monitoring.peaks');
+    Route::get('/monitoring/companies', 'MonitoringController@companies')->name('monitoring.companies');
+
+    // Copias de seguridad / Backups (solo admin de plataforma)
+    Route::get('/backups', 'BackupController@index')->name('backups.index');
+    Route::get('/backups/list', 'BackupController@list')->name('backups.list');
+    Route::get('/backups/purges', 'BackupController@purges')->name('backups.purges');
+    Route::get('/backups/company/{company}/preview', 'BackupController@preview')->name('backups.preview');
+    Route::post('/backups/recalculate', 'BackupController@recalculate')->name('backups.recalculate');
+    Route::post('/backups', 'BackupController@store')->name('backups.store');
+    Route::get('/backups/{backup}/download', 'BackupController@download')->name('backups.download');
+    Route::delete('/backups/{backup}', 'BackupController@destroy')->name('backups.destroy');
+    Route::post('/backups/free-space', 'BackupController@freeSpace')->name('backups.free');
+
     // Extractor de facturas DIAN (servicio Node externo)
     Route::get('/extractor', 'ExtractorController@index')->name('extractor.index');
     Route::post('/extractor/test', 'ExtractorController@testConnection')->name('extractor.test');

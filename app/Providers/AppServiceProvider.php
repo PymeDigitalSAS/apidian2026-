@@ -24,7 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        // Una sola instancia por petición acumula las consultas para el monitoreo.
+        $this->app->singleton(\App\Services\SlowRequestRecorder::class);
     }
 
     /**
@@ -36,6 +37,21 @@ class AppServiceProvider extends ServiceProvider
     {
         DB::setDefaultConnection('mysql');
         Schema::defaultStringLength(191);
+
+        // Monitoreo: acumula el tiempo de cada consulta de la petición en curso
+        // para detectar peticiones lentas (solo en HTTP, no en consola/cron).
+        // El recorder se resuelve UNA sola vez (no por cada query) porque el
+        // listener se dispara en todas las consultas de todas las peticiones.
+        if (!$this->app->runningInConsole()) {
+            $recorder = $this->app->make(\App\Services\SlowRequestRecorder::class);
+            DB::listen(function ($query) use ($recorder) {
+                try {
+                    $recorder->recordQuery($query->sql, (float) $query->time);
+                } catch (\Throwable $e) {
+                    // el monitoreo nunca debe romper una petición
+                }
+            });
+        }
 
         if (config('system_configuration.force_https')) URL::forceScheme('https');
 

@@ -38,7 +38,10 @@ return [
             'driver' => 'database',
             'table' => 'jobs',
             'queue' => 'default',
-            'retry_after' => 90,
+            // Debe ser MAYOR que el timeout del job/worker más largo (los backups
+            // usan timeout=3600). Si no, un backup que tarde más que retry_after
+            // se relanzaría en paralelo. 7200 > 3600 deja margen seguro.
+            'retry_after' => 7200,
         ],
 
         'beanstalkd' => [
