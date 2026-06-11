@@ -155,7 +155,7 @@
                                             data-nit="{{ $c['nit'] }}"
                                             data-name="{{ $c['name'] }}"
                                             title="Respaldar/borrar por año o rango de fechas">
-                                            <i class="fas fa-calendar-alt"></i> Por fecha…
+                                            <i class="fas fa-calendar-alt"></i> Liberar Espacio
                                         </button>
                                     </td>
                                 </tr>
