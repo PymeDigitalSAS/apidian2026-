@@ -15,8 +15,8 @@ class HealthUser extends Model
     protected $fillable = [
         'provider_code', 'health_type_document_identification_id', 'identification_number', 'surname', 'second_surname',
         'first_name', 'middle_name', 'health_type_user_id', 'health_contracting_payment_method_id', 'health_coverage_id',
-        'autorization_numbers', 'mipres', 'mipres_delivery', 'contract_number', 'policy_number', 'co_payment', 'moderating_fee',
-        'recovery_fee', 'shared_payment', 'advance_payment'
+        'autorization_numbers', 'mipres', 'mipres_delivery', 'contract_number', 'policy_number', 'health_invoice_without_contract_id',
+        'co_payment', 'moderating_fee', 'recovery_fee', 'shared_payment', 'advance_payment'
     ];
     public function initRelations()
     {
@@ -57,5 +57,15 @@ class HealthUser extends Model
     */
     public function health_coverage() {
         return HealthCoverage::where('id', $this->health_coverage_id)->firstOrfail();
+    }
+
+    /**
+    * Get the health invoice without contract (motivo factura sin contrato) belongs to.
+    * Es opcional/condicional, por eso devuelve null cuando no se informa el id.
+    */
+    public function health_invoice_without_contract() {
+        if (empty($this->health_invoice_without_contract_id))
+            return null;
+        return HealthInvoiceWithoutContract::where('id', $this->health_invoice_without_contract_id)->first();
     }
 }
