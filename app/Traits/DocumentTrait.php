@@ -521,6 +521,7 @@ trait DocumentTrait
                         $pdf = $this->initMPdf('pos', $temp_template_pdf);
                     else
                         $pdf = $this->initMPdf('invoice', $temp_template_pdf);
+                    $this->setPreviewWatermark($pdf, $request, $cufecude);
                     $pdf->SetHTMLHeader(View::make("pdfs.".strtolower($tipodoc).".header".$template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")));
                     $pdf->SetHTMLFooter(View::make("pdfs.".strtolower($tipodoc).".footer".$template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")));
                     $pdf->WriteHTML(View::make("pdfs.".strtolower($tipodoc).".template".$temp_template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")), HTMLParserMode::HTML_BODY);
@@ -530,6 +531,7 @@ trait DocumentTrait
                         $pdf = $this->initMPdf('pos', $temp_template_pdf);
                     else
                         $pdf = $this->initMPdf();
+                    $this->setPreviewWatermark($pdf, $request, $cufecude);
                     $pdf->SetHTMLHeader(View::make("pdfs.".strtolower($tipodoc).".header".$template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")));
                     $pdf->SetHTMLFooter(View::make("pdfs.".strtolower($tipodoc).".footer".$template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")));
                     $pdf->WriteHTML(View::make("pdfs.".strtolower($tipodoc).".template".$temp_template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")), HTMLParserMode::HTML_BODY);
@@ -933,6 +935,15 @@ trait DocumentTrait
             StorageService::putLocalFile("public/{$company->identification_number}/{$evtPdfName}", $filename, StorageService::isS3());
 //            return compact("resolution", "period", "user", "request", "company", "imgLogo");
             return $QRStr;
+    }
+
+    protected function setPreviewWatermark(Mpdf $pdf, $request, $cufecude = '')
+    {
+        if ($request->is_preview && empty($cufecude)) {
+            $pdf->SetWatermarkText(new \Mpdf\WatermarkText('SIN VALOR', 96, 45, '#FF0000', 0.15));
+            $pdf->showWatermarkText = true;
+            $pdf->watermark_font = 'DejaVuSansCondensed';
+        }
     }
 
     protected function initMPdf(string $type = 'invoice', string $template = null): Mpdf
