@@ -296,6 +296,8 @@ class InvoiceRequest extends FormRequest
             'health_fields.*.users_info.*.mipres_delivery' => 'nullable|string',
             'health_fields.*.users_info.*.contract_number' => 'nullable|string',
             'health_fields.*.users_info.*.policy_number' => 'nullable|string',
+            // Ruta sin el comodin extra (health_fields.users_info.*) para que 'exists' aplique realmente a este campo.
+            'health_fields.users_info.*.health_invoice_without_contract_id' => 'nullable|exists:health_invoice_without_contracts,id',
             'health_fields.*.users_info.*.co_payment' => 'nullable|numeric|min:0|not_in:0',
             'health_fields.*.users_info.*.moderating_fee' => 'nullable|numeric|min:0|not_in:0',
             'health_fields.*.users_info.*.recovery_fee' => 'nullable|numeric|min:0|not_in:0',
@@ -401,6 +403,32 @@ class InvoiceRequest extends FormRequest
             'invoice_lines.*.base_quantity' => 'required|numeric',
             'invoice_lines.*.purchase_order_number' => 'nullable|string|max:50',
         ];
+    }
+
+    /**
+     * Regla de negocio sector salud: si un usuario no informa NUMERO_CONTRATO ni
+     * NUMERO_POLIZA, FACTURA_SIN_CONTRATO (motivo de la tabla SISPRO facturaSinContrato)
+     * es obligatorio. Se valida sobre la ruta real health_fields.users_info.
+     */
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $users = $this->input('health_fields.users_info');
+            if (!is_array($users)) {
+                return;
+            }
+            foreach ($users as $index => $user) {
+                if (!is_array($user)) {
+                    continue;
+                }
+                if (empty($user['contract_number']) && empty($user['policy_number']) && empty($user['health_invoice_without_contract_id'])) {
+                    $validator->errors()->add(
+                        "health_fields.users_info.{$index}.health_invoice_without_contract_id",
+                        'El campo FACTURA_SIN_CONTRATO es obligatorio cuando no se informa NUMERO_CONTRATO ni NUMERO_POLIZA.'
+                    );
+                }
+            }
+        });
     }
 
     protected function prepareForValidation()

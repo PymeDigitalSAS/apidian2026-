@@ -20,6 +20,12 @@
             <Name>NUMERO_POLIZA</Name>
             <Value>{{preg_replace("/[\r\n|\n|\r]+/", "", $healthUser->policy_number)}}</Value>
         </AdditionalInformation>
+        @if(empty($healthUser->contract_number) && !empty($healthUser->health_invoice_without_contract_id))
+        <AdditionalInformation>
+            <Name>FACTURA_SIN_CONTRATO</Name>
+            <Value schemeName="salud_cobertura.gc" schemeID="{{preg_replace("/[\r\n|\n|\r]+/", "", $healthUser->health_invoice_without_contract()->code)}}">{{preg_replace("/[\r\n|\n|\r]+/", "", $healthUser->health_invoice_without_contract()->name)}}</Value>
+        </AdditionalInformation>
+        @endif
         <AdditionalInformation>
             <Name>COPAGO</Name>
             <Value>{{preg_replace("/[\r\n|\n|\r]+/", "", $healthUser->co_payment)}}</Value>
