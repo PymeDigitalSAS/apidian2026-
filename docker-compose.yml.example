@@ -24,6 +24,19 @@ services:
     networks:
       - apinet
 
+  scheduling_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scheduling_api
+    working_dir: /var/www/html
+    command: sh -c "(while true; do php artisan queue:work database --tries=1 --timeout=3600 --max-time=3600 --no-interaction; sleep 5; done) & while true; do php artisan monitor:snapshot --no-interaction; sleep 10; done"
+    pid: "host"
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - apinet
+
   mariadb:
     image: mariadb:11.5.2
     container_name: mariadb_api
