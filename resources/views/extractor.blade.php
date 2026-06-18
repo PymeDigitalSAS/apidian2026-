@@ -10,11 +10,11 @@
 
 <header class="page-header d-flex justify-content-between align-items-center">
     <div>
-        <h2>Extractor de facturas DIAN</h2>
+        <h2>Extractor de factura        <p class="text-muted mb-0" style="font-size:.9rem;">Consulta documentos en la DIAN y descárgalos en Excel o JSON.</p>
     </div>
     <div class="right-wrapper text-end mt-auto pb-1">
         <button type="button" id="btn-test-connection"
-                class="btn btn-info text-white"
+                class="btn btn-outline-primary"
                 @if(!$extractorConfigured) disabled title="EXTRACTOR_URL no está configurada en .env" @endif>
             <i class="fas fa-plug mr-1"></i> Probar conexión
         </button>
@@ -22,51 +22,24 @@
 </header>
 
 @if(!$extractorConfigured)
-    <div class="alert alert-warning mb-3" role="alert" style="font-size:.95rem;">
-        <strong><i class="fas fa-exclamation-triangle mr-1"></i> Extractor no configurado.</strong>
-        Esta herramienta requiere que el administrador defina la variable
-        <code>EXTRACTOR_URL</code> en el archivo <code>.env</code> apuntando al servicio del extractor
-        (p.&nbsp;ej. <code>http://localhost:3001</code> o <code>https://extractor.tu-dominio.com</code>).
-        Después ejecute <code>php artisan config:clear</code> para que el cambio tome efecto.
-        Mientras no esté configurada, las acciones de prueba y extracción permanecerán deshabilitadas.
-    </div>
-@else
-    <div class="alert alert-info py-2 mb-3" style="font-size:.95rem;">
-        <i class="fas fa-info-circle mr-1"></i>
-        Consulta facturas en la <strong>DIAN</strong> por enlace de <strong>Token</strong> y descarga su
-        <strong>Excel</strong> / <strong>JSON</strong>.
+    <div class="alert alert-warning mb-3" role="alert">
+        <i class="fas fa-exclamation-triangle mr-1"></i>
+        <strong>Extractor no configurado.</strong> Contacta al administrador para habilitar esta herramienta
+        (variable <code>EXTRACTOR_URL</code> en <code>.env</code> y luego <code>php artisan config:clear</code>).
     </div>
 @endif
 
 <div id="connection-result" class="mt-2 mb-3" style="display:none;"></div>
 
 <div class="card mb-3">
-    <div class="card-header">
-        <strong><i class="fas fa-cloud-download-alt mr-1"></i> Solicitar extracción</strong>
-    </div>
     <div class="card-body">
-        <ul class="nav nav-tabs mb-3" id="extractorTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <a class="nav-link active" id="tab-url" data-toggle="tab" href="#pane-url" role="tab">
-                    <i class="fas fa-link mr-1"></i> Consulta por Token
-                </a>
-            </li>
-            {{-- Sub-tab "Por Certificado" oculto: aún no disponible. --}}
-            <li class="nav-item" role="presentation" style="display:none;">
-                <a class="nav-link" id="tab-cert" data-toggle="tab" href="#pane-cert" role="tab">
-                    <i class="fas fa-shield-alt mr-1"></i> Por Certificado (.p12)
-                    <span class="badge badge-warning ml-1">pruebas</span>
-                </a>
-            </li>
-        </ul>
-
         <div class="tab-content">
             <div class="tab-pane fade show active" id="pane-url" role="tabpanel">
                 <form id="extract-form">
                     @csrf
                     <div class="row">
                         <div class="form-group col-md-12">
-                            <label for="extr-url">URL de consulta por Token DIAN</label>
+                            <label for="extr-url">Enlace de consulta DIAN (Token)</label>
                             <input type="url" id="extr-url" name="url" class="form-control"
                                    placeholder="https://catalogo-vpfe.dian.gov.co/User/AuthToken?..."
                                    pattern="^https://catalogo-vpfe(-hab)?\.dian\.gov\.co/User/AuthToken.*"
@@ -80,18 +53,18 @@
                         <div class="form-group col-md-4">
                             <label for="extr-tipo">Tipo de documentos</label>
                             <select id="extr-tipo" name="tipo" class="form-control" required>
-                                <option value="Sent">Enviados (Sent)</option>
-                                <option value="Received">Recibidos (Received)</option>
+                                <option value="Sent">Enviados</option>
+                                <option value="Received">Recibidos</option>
                             </select>
                         </div>
 
                         <div class="form-group col-md-4">
-                            <label for="extr-fecha-desde">Fecha desde</label>
+                            <label for="extr-fecha-desde">Desde</label>
                             <input type="date" id="extr-fecha-desde" name="fechaDesde" class="form-control" value="{{ $defaultFechaDesde }}" required>
                         </div>
 
                         <div class="form-group col-md-4">
-                            <label for="extr-fecha-hasta">Fecha hasta</label>
+                            <label for="extr-fecha-hasta">Hasta</label>
                             <input type="date" id="extr-fecha-hasta" name="fechaHasta" class="form-control" value="{{ $defaultFechaHasta }}" required>
                         </div>
                     </div>
@@ -100,57 +73,42 @@
                             @if(!$extractorConfigured) disabled title="EXTRACTOR_URL no está configurada en .env" @endif>
                         <i class="fas fa-play mr-1"></i> Iniciar extracción
                     </button>
-                    <span class="text-muted ml-2" style="font-size:.85rem;">
-                        Esta operación puede tardar varios minutos. La respuesta llegará al terminar.
-                    </span>
                 </form>
-
             </div>
 
+            {{-- Modo "Por Certificado" oculto: aún no disponible. --}}
             <div class="tab-pane fade" id="pane-cert" role="tabpanel" style="display:none;">
-                <div class="alert alert-warning py-2 mb-3" style="font-size:.85rem;">
-                    <i class="fas fa-flask mr-1"></i>
-                    <strong>Modo pruebas.</strong>
-                    Si subes un <code>.p12</code> y su contraseña, el extractor instalará el certificado en el store del SO
-                    temporalmente para que Chrome lo presente al portal DIAN.
-                    Si dejas ambos campos vacíos, el extractor abrirá un Chrome persistente sobre la URL elegida y
-                    <strong>reutilizará la sesión DIAN iniciada manualmente</strong>.
-                </div>
-
                 <form id="extract-cert-form" enctype="multipart/form-data">
                     @csrf
                     <div class="row">
                         <div class="form-group col-md-12">
                             <label for="cert-extr-url">Ambiente DIAN</label>
                             <select id="cert-extr-url" name="url" class="form-control" required>
-                                <option value="https://certificate-vpfe-hab.dian.gov.co/">Habilitación &mdash; https://certificate-vpfe-hab.dian.gov.co/</option>
-                                <option value="https://certificate-vpfe.dian.gov.co">Producción &mdash; https://certificate-vpfe.dian.gov.co</option>
+                                <option value="https://certificate-vpfe-hab.dian.gov.co/">Habilitación</option>
+                                <option value="https://certificate-vpfe.dian.gov.co">Producción</option>
                             </select>
                         </div>
 
                         <div class="form-group col-md-4">
                             <label for="cert-extr-tipo">Tipo de documentos</label>
                             <select id="cert-extr-tipo" name="tipo" class="form-control" required>
-                                <option value="Sent">Enviados (Sent)</option>
-                                <option value="Received">Recibidos (Received)</option>
+                                <option value="Sent">Enviados</option>
+                                <option value="Received">Recibidos</option>
                             </select>
                         </div>
 
                         <div class="form-group col-md-4">
-                            <label for="cert-extr-fecha-desde">Fecha desde</label>
+                            <label for="cert-extr-fecha-desde">Desde</label>
                             <input type="date" id="cert-extr-fecha-desde" name="fechaDesde" class="form-control" value="{{ $defaultFechaDesde }}" required>
                         </div>
 
                         <div class="form-group col-md-4">
-                            <label for="cert-extr-fecha-hasta">Fecha hasta</label>
+                            <label for="cert-extr-fecha-hasta">Hasta</label>
                             <input type="date" id="cert-extr-fecha-hasta" name="fechaHasta" class="form-control" value="{{ $defaultFechaHasta }}" required>
                         </div>
 
                         <div class="form-group col-md-6">
-                            <label for="cert-extr-file">
-                                Archivo de certificado (.p12 / .pfx)
-                                <small class="text-muted">(opcional)</small>
-                            </label>
+                            <label for="cert-extr-file">Certificado (.p12 / .pfx) <small class="text-muted">(opcional)</small></label>
                             <div class="custom-file">
                                 <input type="file" class="custom-file-input" id="cert-extr-file" name="certificate" accept=".p12,.pfx">
                                 <label class="custom-file-label" for="cert-extr-file">Seleccionar archivo...</label>
@@ -158,28 +116,20 @@
                         </div>
 
                         <div class="form-group col-md-6">
-                            <label for="cert-extr-password">
-                                Contraseña del certificado
-                                <small class="text-muted">(opcional)</small>
-                            </label>
+                            <label for="cert-extr-password">Contraseña del certificado <small class="text-muted">(opcional)</small></label>
                             <input type="password" id="cert-extr-password" name="p12Password" class="form-control" autocomplete="new-password">
                         </div>
 
                         <div class="form-group col-md-6">
                             <label for="cert-extr-usercode">User code <small class="text-muted">(opcional)</small></label>
-                            <input type="text" id="cert-extr-usercode" name="userCode" class="form-control"
-                                   placeholder="NIT u otro identificador">
+                            <input type="text" id="cert-extr-usercode" name="userCode" class="form-control" placeholder="NIT u otro identificador">
                         </div>
                     </div>
 
                     <button type="submit" id="btn-extract-cert" class="btn btn-warning">
                         <i class="fas fa-shield-alt mr-1"></i> Iniciar extracción
                     </button>
-                    <span class="text-muted ml-2" style="font-size:.85rem;">
-                        Sin certificado: la primera corrida abrirá Chrome para que inicies sesión; las siguientes reutilizan esa sesión.
-                    </span>
                 </form>
-
             </div>
         </div>
     </div>
@@ -188,11 +138,11 @@
 <div id="extractor-output" class="mt-4" style="display:none;">
     <div class="card mb-3">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <strong><i class="fas fa-terminal mr-1"></i> Progreso en vivo</strong>
+            <strong>Progreso</strong>
             <span id="job-status-badge" class="badge badge-secondary">Iniciando…</span>
         </div>
         <div class="card-body p-0">
-            <div id="job-log" style="background:#1e1e1e;color:#dcdcdc;font-family:Consolas,Menlo,monospace;font-size:.82rem;padding:12px;max-height:340px;overflow-y:auto;white-space:pre-wrap;"></div>
+            <div id="job-log" style="background:#1e1e1e;color:#dcdcdc;font-family:Consolas,Menlo,monospace;font-size:.82rem;padding:12px;max-height:300px;overflow-y:auto;white-space:pre-wrap;"></div>
         </div>
         <div class="card-footer text-muted" style="font-size:.8rem;">
             Job ID: <code id="job-id-display">—</code>
@@ -202,20 +152,34 @@
     <div id="job-summary" class="mb-3" style="display:none;"></div>
 
     <div id="job-downloads" class="mb-3" style="display:none;">
-        <div class="card">
-            <div class="card-header">
-                <strong><i class="fas fa-download mr-1"></i> Archivos generados por el extractor</strong>
-            </div>
-            <div class="card-body">
-                <a id="btn-download-excel" href="#" class="btn btn-success mr-2" style="display:none;" target="_blank">
-                    <i class="fas fa-file-excel mr-1"></i> Descargar Excel
-                </a>
-                <a id="btn-download-json" href="#" class="btn btn-outline-secondary" style="display:none;" target="_blank">
-                    <i class="fas fa-file-code mr-1"></i> Descargar JSON
-                </a>
-            </div>
-        </div>
+        <a id="btn-download-excel" href="#" class="btn btn-success mr-2" style="display:none;" target="_blank">
+            <i class="fas fa-file-excel mr-1"></i> Descargar Excel
+        </a>
+        <a id="btn-download-json" href="#" class="btn btn-outline-secondary" style="display:none;" target="_blank">
+            <i class="fas fa-file-code mr-1"></i> Descargar JSON
+        </a>
     </div>
+
+    <div id="job-data-section" class="card mb-3" style="display:none;">
+        <div class="card-header">
+            <strong>Documentos extraídos</strong>
+/div>
+    </div>
+
+    <div id="job-data-section" class="card mb-3" style="display:none;">
+        <div class="card-header">
+            <strong><i class="fas fa-file-invoice mr-1"></i> Documentos extraídos</strong>
+div>
+
+    <div id="job-data-section" class="card mb-3" style="display:none;">
+        <div class="card-header">
+            <strong><i class="fas fa-file-invoice mr-1"></i> Documentos extraídos</strong>
+div>
+
+    <div id="job-data-section" class="card mb-3" style="display:none;">
+        <div class="card-header">
+            <strong><i class="fas fa-file-invoice mr-1"></i> Documentos extraídos</strong>
+/div>
 
     <div id="job-data-section" class="card mb-3" style="display:none;">
         <div class="card-header">

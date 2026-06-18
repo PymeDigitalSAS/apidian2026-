@@ -181,7 +181,8 @@ class InvoiceController extends Controller
         foreach ($request->invoice_lines as $invoiceLine) {
             $invoiceLines->push(new InvoiceLine($invoiceLine));
         }
-
+        // Marca de agua "SIN VALOR" solo para la vista preeliminar
+        $request->merge(['is_preview' => true]);
         $QRStr = $this->createPDF($user, $company, $customer, $typeDocument, $resolution, $date, $time, $paymentForm, $request, "", "INVOICE", $withHoldingTaxTotal, $notes, $healthfields);
 
         return [
