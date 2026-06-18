@@ -233,16 +233,22 @@ class StateController extends Controller
                                 if(count($invoice) > 0 && $customer->identification_number != '222222222222'){
                                     try{
                                         Mail::to($customer->email)->send(new InvoiceMail($invoice, $customer, $company, $GuardarEn, FALSE, FALSE, $filename));
-                                        if($request->senmailtome)
+                                        if($request->sendmailtome)
                                             Mail::to($user->email)->send(new InvoiceMail($invoice, $customer, $company, $GuardarEn, FALSE, FALSE, $filename));
                                         if($request->email_cc_list){
                                             foreach($request->email_cc_list as $email)
                                                 Mail::to($email)->send(new InvoiceMail($invoice, $customer, $company, $GuardarEn, FALSE, FALSE, $filename));
                                         }
                                         $invoice[0]->send_email_success = 1;
+                                        $invoice[0]->send_email_error = null;
                                         $invoice[0]->save();
                                     } catch (\Exception $m) {
                                         \Log::debug($m->getMessage());
+                                        try {
+                                            $invoice[0]->send_email_success = 0;
+                                            $invoice[0]->send_email_error = substr($m->getMessage(), 0, 500);
+                                            $invoice[0]->save();
+                                        } catch (\Exception $ignored) {}
                                     }
                                 }
                             }
@@ -443,9 +449,15 @@ class StateController extends Controller
                                                 Mail::to($email)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, FALSE));
                                         }
                                         $invoice[0]->send_email_success = 1;
+                                        $invoice[0]->send_email_error = null;
                                         $invoice[0]->save();
                                     } catch (\Exception $m) {
                                         \Log::debug($m->getMessage());
+                                        try {
+                                            $invoice[0]->send_email_success = 0;
+                                            $invoice[0]->send_email_error = substr($m->getMessage(), 0, 500);
+                                            $invoice[0]->save();
+                                        } catch (\Exception $ignored) {}
                                     }
                                 }
                             }
@@ -711,9 +723,15 @@ class StateController extends Controller
                                                 Mail::to($email)->send(new InvoiceMail($invoice, $customer, $company, $GuardarEn, FALSE, FALSE, $filename, FALSE, $request));
                                         }
                                         $invoice[0]->send_email_success = 1;
+                                        $invoice[0]->send_email_error = null;
                                         $invoice[0]->save();
                                     } catch (\Exception $m) {
                                         \Log::debug($m->getMessage());
+                                        try {
+                                            $invoice[0]->send_email_success = 0;
+                                            $invoice[0]->send_email_error = substr($m->getMessage(), 0, 500);
+                                            $invoice[0]->save();
+                                        } catch (\Exception $ignored) {}
                                     }
                                 }
                             }
@@ -929,9 +947,15 @@ class StateController extends Controller
                                                     Mail::to($email)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, FALSE, $request));
                                             }
                                             $invoice[0]->send_email_success = 1;
+                                            $invoice[0]->send_email_error = null;
                                             $invoice[0]->save();
                                         } catch (\Exception $m) {
                                             \Log::debug($m->getMessage());
+                                            try {
+                                                $invoice[0]->send_email_success = 0;
+                                                $invoice[0]->send_email_error = substr($m->getMessage(), 0, 500);
+                                                $invoice[0]->save();
+                                            } catch (\Exception $ignored) {}
                                         }
                                     }
                                 }

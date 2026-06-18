@@ -289,8 +289,16 @@ class PayrollAdjustNoteController extends Controller
                                 Mail::to($worker->email)->send(new PayrollMail($payroll, $worker, $company, FALSE, $filename, $request));
                                 if(isset($request->sendmailtome) && $request->sendmailtome == true)
                                     Mail::to($user->email)->send(new PayrollMail($payroll, $worker, $company, FALSE, $filename, $request));
+                                $payroll[0]->send_email_success = 1;
+                                $payroll[0]->send_email_date_time = \Carbon\Carbon::now()->format('Y-m-d H:i');
+                                $payroll[0]->save();
                             } catch (\Exception $m) {
                                 \Log::debug($m->getMessage());
+                                try {
+                                    $payroll[0]->send_email_success = 0;
+                                    $payroll[0]->send_email_error = substr($m->getMessage(), 0, 500);
+                                    $payroll[0]->save();
+                                } catch (\Exception $ignored) {}
                             }
                         }
                     }

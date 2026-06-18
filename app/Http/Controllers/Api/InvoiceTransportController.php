@@ -412,9 +412,15 @@ class InvoiceTransportController extends Controller
                                     }
                                     $invoice[0]->send_email_success = 1;
                                     $invoice[0]->send_email_date_time = Carbon::now()->format('Y-m-d H:i');
+                                    $invoice[0]->send_email_error = null;
                                     $invoice[0]->save();
                                 } catch (\Exception $m) {
                                     \Log::debug($m->getMessage());
+                                    try {
+                                        $invoice[0]->send_email_success = 0;
+                                        $invoice[0]->send_email_error = substr($m->getMessage(), 0, 500);
+                                        $invoice[0]->save();
+                                    } catch (\Exception $ignored) {}
                                 }
                             }
                         }
@@ -429,8 +435,13 @@ class InvoiceTransportController extends Controller
             }
             return [
                 'message' => "{$typeDocument->name} #{$resolution->next_consecutive} generada con éxito",
-                'send_email_success' => (null !== $invoice && $request->sendmail == true) ?? $invoice[0]->send_email_success == 1,
-                'send_email_date_time' => (null !== $invoice && $request->sendmail == true) ?? Carbon::now()->format('Y-m-d H:i'),
+                'send_email_success' => (null !== $invoice && count($invoice) > 0) ? (bool) $invoice[0]->send_email_success : false,
+                'send_email_date_time' => (null !== $invoice && count($invoice) > 0) ? $invoice[0]->send_email_date_time : null,
+                'email' => ($request->sendmail && null !== $invoice && count($invoice) > 0) ? [
+                    'sent' => (bool) $invoice[0]->send_email_success,
+                    'error' => $invoice[0]->send_email_error,
+                    'sent_at' => $invoice[0]->send_email_date_time,
+                ] : null,
                 'ResponseDian' => $respuestadian,
                 'invoicexml'=>base64_encode(file_get_contents($request->GuardarEn."\\FES-{$resolution->next_consecutive}.xml")),
                 'zipinvoicexml'=>base64_encode(file_get_contents($request->GuardarEn."\\FES-{$resolution->next_consecutive}.zip")),
@@ -510,9 +521,15 @@ class InvoiceTransportController extends Controller
                                     }
                                     $invoice[0]->send_email_success = 1;
                                     $invoice[0]->send_email_date_time = Carbon::now()->format('Y-m-d H:i');
+                                    $invoice[0]->send_email_error = null;
                                     $invoice[0]->save();
                                 } catch (\Exception $m) {
                                     \Log::debug($m->getMessage());
+                                    try {
+                                        $invoice[0]->send_email_success = 0;
+                                        $invoice[0]->send_email_error = substr($m->getMessage(), 0, 500);
+                                        $invoice[0]->save();
+                                    } catch (\Exception $ignored) {}
                                 }
                             }
                         }
@@ -538,8 +555,13 @@ class InvoiceTransportController extends Controller
             
             return [
                 'message' => "{$typeDocument->name} #{$resolution->next_consecutive} generada con éxito",
-                'send_email_success' => (null !== $invoice && $request->sendmail == true) ?? $invoice[0]->send_email_success == 1,
-                'send_email_date_time' => (null !== $invoice && $request->sendmail == true) ?? Carbon::now()->format('Y-m-d H:i'),
+                'send_email_success' => (null !== $invoice && count($invoice) > 0) ? (bool) $invoice[0]->send_email_success : false,
+                'send_email_date_time' => (null !== $invoice && count($invoice) > 0) ? $invoice[0]->send_email_date_time : null,
+                'email' => ($request->sendmail && null !== $invoice && count($invoice) > 0) ? [
+                    'sent' => (bool) $invoice[0]->send_email_success,
+                    'error' => $invoice[0]->send_email_error,
+                    'sent_at' => $invoice[0]->send_email_date_time,
+                ] : null,
                 'ResponseDian' => $respuestadian,
                 'invoicexml'=>StorageService::getBase64Auto("public/{$company->identification_number}/FES-{$resolution->next_consecutive}.xml"),
                 'zipinvoicexml'=>StorageService::getBase64Auto("public/{$company->identification_number}/FES-{$resolution->next_consecutive}.zip"),

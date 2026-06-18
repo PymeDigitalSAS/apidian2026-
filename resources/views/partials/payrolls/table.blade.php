@@ -53,6 +53,7 @@
                     <th scope="col">Prefijo</th>
                     <th scope="col">Numero</th>
                     <th scope="col">ID Empleado</th>
+                    <th scope="col">Correo</th>
                     <th scope="col">XML</th>
                     <th scope="col">PDF</th>
                     <th scope="col">Enviar</th>
@@ -68,6 +69,20 @@
                         <td>{!! $document->prefix !!}</td>
                         <td>{!! $document->consecutive !!}</td>
                         <td>{!! $document->employee_id !!}</td>
+                        <td class="text-center">
+                            @if($document->send_email_success)
+                                <span class="badge badge-success" title="Enviado {{ $document->send_email_date_time }}">
+                                    <i class="fas fa-check"></i> Enviado
+                                </span>
+                            @elseif($document->send_email_error)
+                                <span class="badge badge-danger payroll-email-error" style="cursor:pointer;"
+                                    data-error="{{ $document->send_email_error }}">
+                                    <i class="fas fa-times"></i> Error
+                                </span>
+                            @else
+                                <span class="badge badge-secondary" title="No se solicitó envío de correo">&mdash;</span>
+                            @endif
+                        </td>
                         @php
                             $allow_public_downloads = env("ALLOW_PUBLIC_DOWNLOAD", true)
                         @endphp
@@ -224,4 +239,9 @@ function submitPayrollAction(event, form) {
     });
     return false;
 }
+
+document.addEventListener('click', function(e) {
+    var el = e.target.closest ? e.target.closest('.payroll-email-error') : null;
+    if (el) showPayrollToast(el.getAttribute('data-error'), 'danger');
+});
 </script>

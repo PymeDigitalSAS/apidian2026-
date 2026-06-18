@@ -18,7 +18,7 @@ class DocumentPayroll extends Model
      *
      * @var array
      */
-    protected $fillable = ['identification_number','state_document_id', 'type_document_id', 'prefix', 'consecutive', 'xml', 'pdf', 'cune', 'employee_id', 'date_issue', 'accrued_total', 'deductions_total', 'total_payroll'];
+    protected $fillable = ['identification_number','state_document_id', 'type_document_id', 'prefix', 'consecutive', 'xml', 'pdf', 'cune', 'employee_id', 'date_issue', 'accrued_total', 'deductions_total', 'total_payroll', 'send_email_success', 'send_email_date_time', 'send_email_error'];
 
     /**
      * The attributes that should be mutated to dates.

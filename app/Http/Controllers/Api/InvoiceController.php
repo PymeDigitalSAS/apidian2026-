@@ -29,8 +29,6 @@ use ubl21dian\XAdES\SignAttachedDocument;
 use ubl21dian\Templates\SOAP\SendBillAsync;
 use ubl21dian\Templates\SOAP\SendBillSync;
 use ubl21dian\Templates\SOAP\SendTestSetAsync;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\InvoiceMail;
 use App\Services\StorageService;
 use Carbon\Carbon;
 use DateTime;
@@ -529,6 +527,7 @@ class InvoiceController extends Controller
         // $xml = new \DOMDocument;
         $ar = new \DOMDocument;
         $at = '';
+        $emailStatus = null;
         if ($request->GuardarEn){
             try{
                 $respuestadian = $sendBillSync->signToSend($request->GuardarEn."\\ReqFE-{$resolution->next_consecutive}.xml")->getResponseToObject($request->GuardarEn."\\RptaFE-{$resolution->next_consecutive}.xml");
@@ -579,29 +578,7 @@ class InvoiceController extends Controller
                                                ->where('prefix', '=', $this->ValueXML($signedxml, $td."/cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cac:CorporateRegistrationScheme/cbc:ID/"))
                                                ->where('number', '=', str_replace($this->ValueXML($signedxml, $td."/cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cac:CorporateRegistrationScheme/cbc:ID/"), '', $this->ValueXML($signedxml, $td."/cbc:ID/")))
                                                ->where('state_document_id', '=', 1)->get();
-                    if(isset($request->sendmail)){
-                        if($request->sendmail){
-                            if((count($invoice) > 0 && $customer->company->identification_number != '222222222222') || (count($invoice) > 0 && isset($request->email_pos_customer))){
-                                try{
-                                    if(isset($request->email_pos_customer))
-                                        Mail::to($request->email_pos_customer)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, TRUE, $request));
-                                    else
-                                        Mail::to($customer->email)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, TRUE, $request));
-                                    if($request->sendmailtome)
-                                        Mail::to($user->email)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, FALSE, $request));
-                                    if($request->email_cc_list){
-                                        foreach($request->email_cc_list as $email)
-                                            Mail::to($email)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, FALSE, $request));
-                                    }
-                                    $invoice[0]->send_email_success = 1;
-                                    $invoice[0]->send_email_date_time = Carbon::now()->format('Y-m-d H:i');
-                                    $invoice[0]->save();
-                                } catch (\Exception $m) {
-                                    \Log::debug($m->getMessage());
-                                }
-                            }
-                        }
-                    }
+                    $emailStatus = $this->sendDocumentEmails($request, $invoice, $customer, $company, $user, $filename);
                 }
                 else{
                   $invoice = null;
@@ -614,7 +591,7 @@ class InvoiceController extends Controller
                 return $this->responseStore(false, $message, $request, $invoice_doc, $signInvoice, $invoice, $respuestadian, $resolution, $company, $QRStr, $certificate_days_left, $filename, $at);
             }
             $message = "{$typeDocument->name} #{$resolution->next_consecutive} generada con éxito";
-            return $this->responseStore(true, $message, $request, $invoice_doc, $signInvoice, $invoice, $respuestadian, $resolution, $company, $QRStr, $certificate_days_left, $filename, $at);
+            return $this->responseStore(true, $message, $request, $invoice_doc, $signInvoice, $invoice, $respuestadian, $resolution, $company, $QRStr, $certificate_days_left, $filename, $at, $emailStatus);
         }
         else{
             try{
@@ -677,29 +654,7 @@ class InvoiceController extends Controller
                                                ->where('prefix', '=', $this->ValueXML($signedxml, $td."/cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cac:CorporateRegistrationScheme/cbc:ID/"))
                                                ->where('number', '=', str_replace($this->ValueXML($signedxml, $td."/cac:AccountingSupplierParty/cac:Party/cac:PartyLegalEntity/cac:CorporateRegistrationScheme/cbc:ID/"), '', $this->ValueXML($signedxml, $td."/cbc:ID/")))
                                                ->where('state_document_id', '=', 1)->get();
-                    if(isset($request->sendmail)){
-                        if($request->sendmail){
-                            if((count($invoice) > 0 && $customer->company->identification_number != '222222222222') || (count($invoice) > 0 && isset($request->email_pos_customer))){
-                                try{
-                                    if(isset($request->email_pos_customer))
-                                        Mail::to($request->email_pos_customer)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, TRUE, $request));
-                                    else
-                                        Mail::to($customer->email)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, TRUE, $request));
-                                    if($request->sendmailtome)
-                                        Mail::to($user->email)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, FALSE, $request));
-                                    if($request->email_cc_list){
-                                        foreach($request->email_cc_list as $email)
-                                            Mail::to($email)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, FALSE, $request));
-                                    }
-                                    $invoice[0]->send_email_success = 1;
-                                    $invoice[0]->send_email_date_time = Carbon::now()->format('Y-m-d H:i');
-                                    $invoice[0]->save();
-                                } catch (\Exception $m) {
-                                    \Log::debug($m->getMessage());
-                                }
-                            }
-                        }
-                    }
+                    $emailStatus = $this->sendDocumentEmails($request, $invoice, $customer, $company, $user, $filename);
                 }
                 else{
                   $invoice = null;
@@ -719,7 +674,7 @@ class InvoiceController extends Controller
                 return $this->responseStore(false, $message, $request, $invoice_doc, $signInvoice, $invoice, $respuestadian, $resolution, $company, $QRStr, $certificate_days_left, $filename, $at);
             }
             $message = "{$typeDocument->name} #{$resolution->next_consecutive} generada con éxito";
-            return $this->responseStore(true, $message, $request, $invoice_doc, $signInvoice, $invoice, $respuestadian, $resolution, $company, $QRStr, $certificate_days_left, $filename, $at);
+            return $this->responseStore(true, $message, $request, $invoice_doc, $signInvoice, $invoice, $respuestadian, $resolution, $company, $QRStr, $certificate_days_left, $filename, $at, $emailStatus);
         }
     }
 
@@ -742,7 +697,7 @@ class InvoiceController extends Controller
      * @param String $filename
      *
      */
-    public function responseStore($success, $message, $request, $invoice_doc, $signInvoice, $invoice, $respuestadian, $resolution, $company, $QRStr, $certificate_days_left, $filename, $at)
+    public function responseStore($success, $message, $request, $invoice_doc, $signInvoice, $invoice, $respuestadian, $resolution, $company, $QRStr, $certificate_days_left, $filename, $at = '', $emailStatus = null)
     {
         $generateCufe = $signInvoice->ConsultarCUFE();
         if(empty($invoice_doc->cufe)) {
@@ -775,8 +730,9 @@ class InvoiceController extends Controller
         $response = [
             'success' => $success,
             'message' => $message,
-            'send_email_success' => (null !== $invoice && $request->sendmail == true) ?? $invoice[0]->send_email_success == 1,
-            'send_email_date_time' => (null !== $invoice && $request->sendmail == true) ?? Carbon::now()->format('Y-m-d H:i'),
+            'send_email_success' => $emailStatus ? (bool) $emailStatus['sent'] : false,
+            'send_email_date_time' => ($emailStatus && $emailStatus['sent']) ? $emailStatus['sent_at'] : null,
+            'email' => $emailStatus,
             'urlinvoicexml'=>"FES-{$resolution->next_consecutive}.xml",
             'urlinvoicepdf'=>"FES-{$resolution->next_consecutive}.pdf",
             'urlinvoiceattached'=>"{$filename}.xml",

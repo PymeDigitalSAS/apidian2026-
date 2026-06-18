@@ -1904,4 +1904,74 @@ trait DocumentTrait
         } while ($attempt < $retries);
         return false; // Regresa false si todos los intentos fallan
     }
+
+    /**
+     * Envía los correos de un documento (factura/NC/ND/etc.) y devuelve el estado
+     * del envío para exponerlo en el response del API (issue: indicador visual de
+     * envío de email). No persiste el motivo del fallo en BD; conserva el
+     * comportamiento previo de marcar send_email_success/send_email_date_time al
+     * enviar con éxito. Reutilizable por los controllers que usan este trait.
+     *
+     * @return array|null  null si no se solicitó envío (sendmail != true); en otro caso
+     *                      ['sent'=>bool, 'to'=>?string, 'cc'=>array, 'error'=>?string, 'sent_at'=>?string]
+     */
+    protected function sendDocumentEmails($request, $invoice, $customer, $company, $user, $filename)
+    {
+        if(!isset($request->sendmail) || !$request->sendmail)
+            return null;
+
+        $to = isset($request->email_pos_customer) ? $request->email_pos_customer : ($customer->email ?? null);
+        $cc = is_array($request->email_cc_list ?? null) ? array_values($request->email_cc_list) : [];
+
+        $status = ['sent' => false, 'to' => $to, 'cc' => $cc, 'error' => null, 'sent_at' => null];
+
+        // Consumidor final genérico sin email POS explícito: el envío no aplica.
+        if(count($invoice) == 0 || ($customer->company->identification_number == '222222222222' && !isset($request->email_pos_customer))){
+            $status['error'] = 'not_applicable';
+            return $status;
+        }
+
+        // Cliente sin correo registrado: se persiste para mostrarlo en la interfaz.
+        if(empty($to)){
+            $status['error'] = 'customer_no_email';
+            try {
+                $invoice[0]->send_email_success = 0;
+                $invoice[0]->send_email_error = 'customer_no_email';
+                $invoice[0]->save();
+            } catch (\Exception $ignored) {}
+            return $status;
+        }
+
+        try{
+            Mail::to($to)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, TRUE, $request));
+            if($request->sendmailtome)
+                Mail::to($user->email)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, FALSE, $request));
+            if($request->email_cc_list){
+                foreach($request->email_cc_list as $email)
+                    Mail::to($email)->send(new InvoiceMail($invoice, $customer, $company, FALSE, FALSE, $filename, FALSE, $request));
+            }
+            // El correo se envió: el estado NO debe depender de poder persistir en BD.
+            $status['sent'] = true;
+            $status['sent_at'] = Carbon::now()->format('Y-m-d H:i');
+            try {
+                $invoice[0]->send_email_success = 1;
+                $invoice[0]->send_email_date_time = $status['sent_at'];
+                $invoice[0]->send_email_error = null;
+                $invoice[0]->save();
+            } catch (\Exception $persistErr) {
+                \Log::warning('Correo enviado pero no se pudo persistir el estado (¿falta migración send_email_error?): '.$persistErr->getMessage());
+            }
+        } catch (\Exception $m) {
+            \Log::debug($m->getMessage());
+            $status['error'] = $m->getMessage();
+            // Persiste el fallo para mostrarlo en la interfaz / auditoría.
+            try {
+                $invoice[0]->send_email_success = 0;
+                $invoice[0]->send_email_error = substr($m->getMessage(), 0, 500);
+                $invoice[0]->save();
+            } catch (\Exception $ignored) {}
+        }
+
+        return $status;
+    }
 }

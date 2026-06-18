@@ -73,6 +73,7 @@ class Document extends Model
         'payload_aceptacion',
         'send_email_success',
         'send_email_date_time',
+        'send_email_error',
         'response_dian'
     ];
 

@@ -63,6 +63,7 @@
                     <th class="text-right">Impuesto</th>
                     <th class="text-right">Subtotal</th>
                     <th class="text-right">Total</th>
+                    <th class="text-center">Correo</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -129,6 +130,27 @@
                         <td class="text-right">{{ round($row->total_tax, 2) }}</td>
                         <td class="text-right">{{ round($row->subtotal, 2) }}</td>
                         <td class="text-right">{{ round($row->total, 2) }}</td>
+                        <td class="text-center">
+                            @if($row->send_email_success)
+                                <span class="badge badge-success" title="Enviado {{ $row->send_email_date_time }}">
+                                    <i class="fas fa-check"></i> Enviado
+                                </span>
+                            @elseif($row->send_email_error === 'customer_no_email')
+                                <span class="badge badge-warning" title="El cliente no tiene correo registrado">
+                                    <i class="fas fa-user-slash"></i> Sin correo
+                                </span>
+                            @elseif($row->send_email_error)
+                                <button type="button" class="btn btn-danger btn-xs modalEmailError"
+                                    data-error="{{ $row->send_email_error }}"
+                                    data-doc="{{ $row->prefix }}{{ $row->number }}"
+                                    data-prefix="{{ $row->prefix }}"
+                                    data-number="{{ $row->number }}">
+                                    <i class="fas fa-times"></i> Error
+                                </button>
+                            @else
+                                <span class="badge badge-secondary" title="No se solicitó envío de correo">&mdash;</span>
+                            @endif
+                        </td>
                         <td>
                             @if($row->type_document_id == 1 && $row->response_dian && $resolution_credit_notes && count($resolution_credit_notes) > 0)
                                 @php
@@ -327,6 +349,35 @@
     </div>
 </div> --}}
 
+<!-- Modal: Error de envío de correo -->
+<div class="modal fade" id="emailErrorModal" tabindex="-1" role="dialog" aria-labelledby="emailErrorModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="emailErrorModalLabel">
+                    <i class="fas fa-times-circle text-danger mr-2"></i>Error en el envío del correo
+                </h5>
+                <button type="button" class="close btnCloseEmailError" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Documento: <strong id="emailErrorDoc"></strong></p>
+                <p class="mb-1"><strong>Motivo del fallo:</strong></p>
+                <div class="alert alert-danger mb-0">
+                    <small id="emailErrorMsg" style="white-space: pre-wrap; word-break: break-word;"></small>
+                </div>
+                <div id="emailResendResult" class="mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="btnResendEmail">
+                    <i class="fas fa-paper-plane mr-1"></i> Reenviar correo
+                </button>
+                <button type="button" class="btn btn-secondary btnCloseEmailError" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -643,6 +694,66 @@ $(document).ready(function() {
         var id = $(this).data('id');
         $('#verificarInput').val(id);
         $('#changeStateModal').modal('show');
+    });
+
+    function closeEmailErrorModal() {
+        var $m = $('#emailErrorModal');
+        if ($.fn.modal) { $m.modal('hide'); }
+        // Respaldo manual por si el plugin no cierra (bootstrap.js está deshabilitado en el layout).
+        $m.removeClass('show').css('display', 'none').attr('aria-hidden', 'true');
+        $('body').removeClass('modal-open').css('padding-right', '');
+        $('.modal-backdrop').remove();
+    }
+
+    $(document).off('click', '.modalEmailError');
+    $(document).on('click', '.modalEmailError', function() {
+        $('#emailErrorDoc').text($(this).data('doc'));
+        $('#emailErrorMsg').text($(this).data('error'));
+        $('#emailErrorModal').data('prefix', $(this).data('prefix')).data('number', $(this).data('number'));
+        $('#emailResendResult').html('');
+        $('#btnResendEmail').prop('disabled', false).html('<i class="fas fa-paper-plane mr-1"></i> Reenviar correo');
+        $('#emailErrorModal').modal('show');
+    });
+
+    $(document).off('click', '.btnCloseEmailError');
+    $(document).on('click', '.btnCloseEmailError', function() {
+        closeEmailErrorModal();
+    });
+
+    $(document).off('click', '#btnResendEmail');
+    $(document).on('click', '#btnResendEmail', function() {
+        var $btn = $(this);
+        var prefix = $('#emailErrorModal').data('prefix');
+        var number = $('#emailErrorModal').data('number');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Enviando...');
+        $('#emailResendResult').html('');
+        $.ajax({
+            url: '/api/ubl2.1/send-email',
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer {{ $company->user->api_token }}',
+                'Accept': 'application/json'
+            },
+            data: { prefix: prefix, number: String(number) },
+            success: function(res) {
+                if (res && res.success) {
+                    $('#emailResendResult').html('<div class="alert alert-success mb-0"><i class="fas fa-check mr-1"></i> ' + (res.message || 'Correo reenviado correctamente') + '</div>');
+                    setTimeout(function(){ location.reload(); }, 1500);
+                } else {
+                    var msg = (res && res.message) ? res.message : (typeof res === 'string' ? res : 'No se pudo reenviar el correo');
+                    $('#emailResendResult').html('<div class="alert alert-danger mb-0"><i class="fas fa-times mr-1"></i> ' + msg + '</div>');
+                    $btn.prop('disabled', false).html('<i class="fas fa-paper-plane mr-1"></i> Reenviar correo');
+                }
+            },
+            error: function(xhr) {
+                var msg = 'Error ' + xhr.status;
+                if (xhr.responseJSON && (xhr.responseJSON.message || xhr.responseJSON.error)) {
+                    msg = xhr.responseJSON.message || xhr.responseJSON.error;
+                }
+                $('#emailResendResult').html('<div class="alert alert-danger mb-0"><i class="fas fa-times mr-1"></i> ' + msg + '</div>');
+                $btn.prop('disabled', false).html('<i class="fas fa-paper-plane mr-1"></i> Reenviar correo');
+            }
+        });
     });
 
     // Variable global para almacenar los datos del documento actual
