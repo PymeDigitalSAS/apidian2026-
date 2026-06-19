@@ -163,6 +163,11 @@ Route::middleware(['auth:api', 'storage.context'])->group(function () {
             Route::post('/{prefix}/{number}/{cufe}', 'Api\RegeneratePDFController@document_url');
         });
 
+        // Regenerate Attached Document (XML adjunto code 89)
+        Route::prefix('/regenerate-attached-document')->group(function () {
+            Route::post('/', 'Api\RegenerateAttachedDocumentController@regenerate');
+        });
+
         // Certificate Listing
         Route::get('/certificates-listing', 'Api\ConfigurationController@certificates_listing');
         Route::get('/certificates-listing/{company_identification_number}', 'Api\ConfigurationController@certificates_listing');
