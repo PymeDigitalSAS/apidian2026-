@@ -43,6 +43,12 @@
                         <td style="padding: 0; width: 40%;">Email:</td>
                         <td style="padding: 0;">{{$customer->email}}</td>
                     </tr>
+                    @if(isset($request->customer['collection_route']))
+                    <tr>
+                        <td style="padding: 0; width: 40%;">Ruta de Cobro:</td>
+                        <td style="padding: 0;">{{$request->customer['collection_route']}}</td>
+                    </tr>
+                    @endif
                     @if(!empty($paymentForm)&& $paymentForm->count() > 0)
                     <tr>
                         <td style="padding: 0; width: 40%;">Forma de Pago:</td>
@@ -583,6 +589,60 @@
     </div>
     <p><strong>PRECIO EN LETRAS SON</strong>: {{$Varios->convertir($totalAmount, $idcurrency)}} M/CTE*********.</p>
 
+    @if(isset($request['payment_plan']))
+        <?php $paymentPlan = $request['payment_plan']; ?>
+        <?php
+            $frequencyLabels = [
+                'daily'   => 'Diario',
+                'weekly'  => 'Semanal',
+                'biweekly'=> 'Quincenal',
+                'monthly' => 'Mensual',
+            ];
+        ?>
+        <table class="table" style="width: 100%; font-size: 10px; border: 1px solid #ccc; margin-top: 10px; page-break-inside: avoid;">
+            <thead>
+                <tr>
+                    <th colspan="5" class="text-center" style="background: #f3f3f3;"><strong>Plan de Pagos</strong></th>
+                </tr>
+                <tr>
+                    <th class="text-center">Frecuencia</th>
+                    <th class="text-center">Nro. Cuotas</th>
+                    <th class="text-center">Valor Cuota</th>
+                    <th class="text-center">Fecha Inicio</th>
+                    <th class="text-center">Monto Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="text-center">{{ isset($paymentPlan['frequency']) ? ($frequencyLabels[$paymentPlan['frequency']] ?? $paymentPlan['frequency']) : '' }}</td>
+                    <td class="text-center">{{ $paymentPlan['installments_count'] ?? '' }}</td>
+                    <td class="text-right">{{ isset($paymentPlan['installment_amount']) ? number_format($paymentPlan['installment_amount'], 2) : '' }}</td>
+                    <td class="text-center">{{ $paymentPlan['start_date'] ?? '' }}</td>
+                    <td class="text-right">{{ isset($paymentPlan['total_amount']) ? number_format($paymentPlan['total_amount'], 2) : '' }}</td>
+                </tr>
+            </tbody>
+        </table>
+        @if(isset($paymentPlan['installments']) && count($paymentPlan['installments']) > 0)
+            <table class="table" style="width: 100%; font-size: 11px; border: 1px solid #ccc;">
+                <thead>
+                    <tr>
+                        <th class="text-center">Cuota</th>
+                        <th class="text-center">Fecha Vencimiento</th>
+                        <th class="text-center">Valor Esperado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($paymentPlan['installments'] as $installment)
+                        <tr>
+                            <td class="text-center">{{ $installment['number'] }}</td>
+                            <td class="text-center">{{ $installment['due_date'] }}</td>
+                            <td class="text-right">{{ number_format($installment['expected_amount'], 2) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    @endif
     @if(isset($notes))
         <div class="summarys">
             <div class="text-word" id="note">
@@ -592,10 +652,14 @@
         </div>
     @endif
 
-    <div class="summary" >
-        <div class="text-word" id="note">
-            @if(isset($request->disable_confirmation_text))
-                @if(!$request->disable_confirmation_text)
+    @php
+        $showConfirmationText = isset($request->disable_confirmation_text) && !$request->disable_confirmation_text;
+        $showFirma = isset($firma_facturacion) && !is_null($firma_facturacion);
+    @endphp
+    @if($showConfirmationText || $showFirma)
+        <div class="summary" >
+            <div class="text-word" id="note">
+                @if($showConfirmationText)
                     <p style="font-style: italic;">INFORME EL PAGO AL TELEFONO {{$company->phone}} o al e-mail {{$user->email}}<br>
                         <br>
                         <div id="firma">
@@ -605,17 +669,17 @@
                         </div>
                     </p>
                 @endif
+            </div>
+            @if($showFirma)
+                <table style="font-size: 10px">
+                    <tr>
+                        <td class="vertical-align-top" style="width: 50%; text-align: right">
+                            <img style="width: 250px;" src="{{$firma_facturacion}}">
+                        </td>
+                    </tr>
+                </table>
             @endif
         </div>
-        @if(isset($firma_facturacion) and !is_null($firma_facturacion))
-            <table style="font-size: 10px">
-                <tr>
-                    <td class="vertical-align-top" style="width: 50%; text-align: right">
-                        <img style="width: 250px;" src="{{$firma_facturacion}}">
-                    </td>
-                </tr>
-            </table>
-        @endif
-    </div>
+    @endif
 </body>
 </html>

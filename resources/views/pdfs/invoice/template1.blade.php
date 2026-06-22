@@ -81,6 +81,12 @@
                         <td>Email:</td>
                         <td>{{$customer->email}}</td>
                     </tr>
+                    @if(isset($request->customer['collection_route']))
+                    <tr>
+                        <td>Ruta de Cobro:</td>
+                        <td>{{$request->customer['collection_route']}}</td>
+                    </tr>
+                    @endif
                     @if(!empty($paymentForm) && count($paymentForm) > 0)
                     <tr>
                         <td>Forma de Pago:</td>
@@ -490,6 +496,60 @@
             </p>
         </div>
     </div>
+    @if(isset($request['payment_plan']))
+        <?php $paymentPlan = $request['payment_plan']; ?>
+        <?php
+            $frequencyLabels = [
+                'daily'   => 'Diario',
+                'weekly'  => 'Semanal',
+                'biweekly'=> 'Quincenal',
+                'monthly' => 'Mensual',
+            ];
+        ?>
+        <table class="table" style="width: 100%; font-size: 10px; border: 1px solid #ccc; margin-top: 10px; page-break-inside: avoid;">
+            <thead>
+                <tr>
+                    <th colspan="5" class="text-center" style="background: #f3f3f3;"><strong>Plan de Pagos</strong></th>
+                </tr>
+                <tr>
+                    <th class="text-center">Frecuencia</th>
+                    <th class="text-center">Nro. Cuotas</th>
+                    <th class="text-center">Valor Cuota</th>
+                    <th class="text-center">Fecha Inicio</th>
+                    <th class="text-center">Monto Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="text-center">{{ isset($paymentPlan['frequency']) ? ($frequencyLabels[$paymentPlan['frequency']] ?? $paymentPlan['frequency']) : '' }}</td>
+                    <td class="text-center">{{ $paymentPlan['installments_count'] ?? '' }}</td>
+                    <td class="text-right">{{ isset($paymentPlan['installment_amount']) ? number_format($paymentPlan['installment_amount'], 2) : '' }}</td>
+                    <td class="text-center">{{ $paymentPlan['start_date'] ?? '' }}</td>
+                    <td class="text-right">{{ isset($paymentPlan['total_amount']) ? number_format($paymentPlan['total_amount'], 2) : '' }}</td>
+                </tr>
+            </tbody>
+        </table>
+        @if(isset($paymentPlan['installments']) && count($paymentPlan['installments']) > 0)
+            <table class="table" style="width: 100%; font-size: 11px; border: 1px solid #ccc;">
+                <thead>
+                    <tr>
+                        <th class="text-center">Cuota</th>
+                        <th class="text-center">Fecha Vencimiento</th>
+                        <th class="text-center">Valor Esperado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($paymentPlan['installments'] as $installment)
+                        <tr>
+                            <td class="text-center">{{ $installment['number'] }}</td>
+                            <td class="text-center">{{ $installment['due_date'] }}</td>
+                            <td class="text-right">{{ number_format($installment['expected_amount'], 2) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        @endif
+    @endif
     @if(isset($notes))
     <div style="margin-top:-8px; border: 1px solid grey; border-radius: 1px; padding: 1px; font-size:7px;">
         <div id="note">

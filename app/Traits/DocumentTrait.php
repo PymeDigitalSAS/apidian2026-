@@ -986,7 +986,7 @@ trait DocumentTrait
             $margin_top = '39';
             $margin_left = '10';
             $margin_right = '10';
-            $margin_bottom = '12';
+            $margin_bottom = '15';
 
          } elseif($template == 3 || $template == 7)  {
 
@@ -994,7 +994,7 @@ trait DocumentTrait
             $margin_top = '2';
             // Definir el ancho y el alto en milímetros (por ejemplo, para un largo de 150mm)
             $ancho = 80;  // 80mm de ancho para la impresora de tirilla
-            $alto = 297;   // El alto puede ser más largo dependiendo del contenido a imprimir
+            $alto = 300;   // El alto puede ser más largo dependiendo del contenido a imprimir
             $margin_left = '2';
             $margin_right = '2';
             $margin_bottom = '5';
