@@ -50,6 +50,10 @@
     @isset($request->additional_document_reference)
         @include('xml._additional_document_reference_general', ['node' => 'request'])
     @endisset
+    {{-- ReceiptDocumentReference --}}
+    @if(isset($request['receipt_document_references']) && count($request['receipt_document_references']) > 0)
+        @include('xml._receipt_document_reference')
+    @endif
     {{-- AccountingSupplierParty --}}
     @include('xml._accounting', ['node' => 'AccountingSupplierParty', 'supplier' => true])
     {{-- AccountingCustomerParty --}}

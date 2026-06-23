@@ -37,6 +37,10 @@
     @isset($orderreference)
         @include('xml._order_reference', ['node' => 'OrderReference'])
     @endisset
+    {{-- ReceiptDocumentReference --}}
+    @if(isset($request['receipt_document_references']) && count($request['receipt_document_references']) > 0)
+        @include('xml._receipt_document_reference')
+    @endif
     {{-- AccountingSupplierParty --}}
     @include('xml._accounting', ['node' => 'AccountingSupplierParty', 'supplier' => true])
     {{-- AccountingCustomerParty --}}
