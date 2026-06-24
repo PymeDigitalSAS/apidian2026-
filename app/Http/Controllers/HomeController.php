@@ -100,7 +100,10 @@ class HomeController extends Controller
         $token = $company->user->api_token;
         $url = url('/api/ubl2.1/xml/document/'.$cufe);
 
-        $client = new Client();
+        // verify=false: la API se llama a sí misma por su URL pública HTTPS (loopback);
+        // sin esto cURL falla con error 60 (unable to get local issuer certificate) en
+        // servidores sin bundle de CA. Consistente con el resto de clientes Guzzle del proyecto.
+        $client = new Client(['verify' => false]);
         $response = $client->post($url, [
             'headers' => [
                 'Authorization' => 'Bearer ' . $token,
