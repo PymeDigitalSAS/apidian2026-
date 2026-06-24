@@ -389,7 +389,13 @@ trait DocumentTrait
             }
         }
 
-        $temp_template_pdf = (isset($request->is_tirilla2) && $request->is_tirilla2) ? 7 : $template_pdf;
+        if (isset($request->is_tirilla58) && $request->is_tirilla58) {
+            $temp_template_pdf = 9;
+        } elseif (isset($request->is_tirilla2) && $request->is_tirilla2) {
+            $temp_template_pdf = 7;
+        } else {
+            $temp_template_pdf = $template_pdf;
+        }
 
         $QRStr = '';
 //        try {
@@ -994,6 +1000,18 @@ trait DocumentTrait
             $margin_top = '2';
             // Definir el ancho y el alto en milímetros (por ejemplo, para un largo de 150mm)
             $ancho = 80;  // 80mm de ancho para la impresora de tirilla
+            $alto = 300;   // El alto puede ser más largo dependiendo del contenido a imprimir
+            $margin_left = '2';
+            $margin_right = '2';
+            $margin_bottom = '5';
+
+            $format_print = [$ancho, $alto];
+
+         } elseif($template == 9)  {
+
+            $margin_top = '2';
+            // Tirilla de 58mm de ancho (54mm útiles tras los márgenes)
+            $ancho = 58;  // 58mm de ancho para la impresora de tirilla
             $alto = 300;   // El alto puede ser más largo dependiendo del contenido a imprimir
             $margin_left = '2';
             $margin_right = '2';
