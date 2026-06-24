@@ -53,4 +53,58 @@ class DocumentPayroll extends Model
                     ->where('state_document_id', 1);
     }
 
+    /**
+     * Búsqueda de nóminas (panel de empresa > Nómina).
+     *
+     * @param  string|null  $search    Valor (en fecha es el "desde").
+     * @param  string|null  $field     Columna: number (consecutivo), prefix, employee, date, type.
+     * @param  string|null  $searchTo  "Hasta" del rango de fechas.
+     */
+    public function scopeFilter($query, $search = null, $field = null, $searchTo = null) {
+        $hasValue = !empty($search) || ($field === 'date' && !empty($searchTo));
+        if (!$hasValue) {
+            return $query;
+        }
+
+        if (!empty($field)) {
+            switch ($field) {
+                case 'number':
+                    $query->where(function ($q) use ($search) {
+                        $q->where('consecutive', 'LIKE', "%$search%")
+                            ->orWhereRaw("CONCAT(COALESCE(prefix, ''), COALESCE(consecutive, '')) LIKE ?", ["%$search%"]);
+                    });
+                    break;
+                case 'prefix':
+                    $query->where('prefix', 'LIKE', "%$search%");
+                    break;
+                case 'employee':
+                    $query->where('employee_id', 'LIKE', "%$search%");
+                    break;
+                case 'type':
+                    $query->where('type_document_id', $search);
+                    break;
+                case 'date':
+                    if (!empty($search) && !empty($searchTo)) {
+                        $query->whereDate('date_issue', '>=', $search)->whereDate('date_issue', '<=', $searchTo);
+                    } elseif (!empty($search)) {
+                        $query->whereDate('date_issue', $search);
+                    } elseif (!empty($searchTo)) {
+                        $query->whereDate('date_issue', $searchTo);
+                    }
+                    break;
+            }
+            return $query;
+        }
+
+        // Búsqueda global (todos los campos).
+        $query->where(function ($q) use ($search) {
+            $q->orWhere('consecutive', 'LIKE', "%$search%")
+                ->orWhere('prefix', 'LIKE', "%$search%")
+                ->orWhereRaw("CONCAT(COALESCE(prefix, ''), COALESCE(consecutive, '')) LIKE ?", ["%$search%"])
+                ->orWhere('employee_id', 'LIKE', "%$search%")
+                ->orWhere('date_issue', 'LIKE', "%$search%");
+        });
+        return $query;
+    }
+
 }

@@ -76,7 +76,11 @@ class HomeController extends Controller
             abort(403, 'No tienes acceso a esta empresa.');
         }
 
-        $documents = Document::where('identification_number', $company->identification_number)->orderBy('id', 'DESC')->paginate(20);
+        $documents = Document::where('identification_number', $company->identification_number)
+            ->filter(request('search'), request('search_field'), request('search_to'))
+            ->orderBy('id', 'DESC')
+            ->paginate(20)
+            ->withQueryString();
 
         $resolution_credit_notes = Resolution::where('type_document_id', 4)->where('company_id', $company->id)->get();
 
@@ -121,14 +125,22 @@ class HomeController extends Controller
 
     // replica de SellerLoginController@SellersRadianEventsView
     public function events($company_idnumber){
-        $documents = ReceivedDocument::where('customer','=',$company_idnumber)->where('state_document_id', '=', 1)->paginate(10);
+        $documents = ReceivedDocument::where('customer','=',$company_idnumber)
+            ->where('state_document_id', '=', 1)
+            ->filter(request('event_search'), request('event_search_field'), request('event_search_to'))
+            ->paginate(10)
+            ->withQueryString();
         return view('company.events', compact('documents', 'company_idnumber'));
     }
 
     // replica de SellerLoginController@SellersPayrolls
     public function payrolls($company_idnumber)
     {
-        $documents = DocumentPayroll::where('state_document_id', '=', 1)->where('identification_number', $company_idnumber)->paginate(20);
+        $documents = DocumentPayroll::where('state_document_id', '=', 1)
+            ->where('identification_number', $company_idnumber)
+            ->filter(request('payroll_search'), request('payroll_search_field'), request('payroll_search_to'))
+            ->paginate(20)
+            ->withQueryString();
         return view('company.payrolls', compact('documents', 'company_idnumber'));
     }
 

@@ -9,8 +9,54 @@
     </div>
 </div>
 
+@php
+    // Filtro del panel de empresa (Documentos Electrónicos > Nómina). En el portal de
+    // vendedores no se muestra (ahí va el buscador propio más abajo).
+    $payrollIsCompany  = (Request::is('company*') || Request::is('companies*'));
+    $payrollField      = request('payroll_search_field', 'number');
+    $payrollSearchTerm = request('payroll_search');
+    $payrollSearchTo   = request('payroll_search_to');
+    $payrollHasSearch  = $payrollIsCompany && (filled($payrollSearchTerm) || ($payrollField === 'date' && filled($payrollSearchTo)));
+    $payrollTotal      = method_exists($documents, 'total') ? $documents->total() : $documents->count();
+
+    // Tipos de documento de nómina (Nómina Individual / de Ajuste).
+    $payrollTypes = \App\TypeDocument::whereIn('id', [9, 10])->orderBy('id')->get()->pluck('name', 'id')->toArray();
+
+    $payrollFields = [
+        ['key' => 'number',   'label' => 'Número',      'control' => 'text'],
+        ['key' => 'prefix',   'label' => 'Prefijo',     'control' => 'text'],
+        ['key' => 'employee', 'label' => 'ID Empleado', 'control' => 'text'],
+        ['key' => 'date',     'label' => 'Fecha',       'control' => 'date'],
+    ];
+    if (!empty($payrollTypes)) {
+        $payrollFields[] = ['key' => 'type', 'label' => 'Tipo de documento', 'control' => 'select', 'options' => $payrollTypes];
+    }
+
+    // Texto legible del valor buscado (para el estado vacío).
+    if ($payrollField === 'type') {
+        $payrollDisplay = $payrollTypes[$payrollSearchTerm] ?? $payrollSearchTerm;
+    } elseif ($payrollField === 'date') {
+        $payrollDisplay = (filled($payrollSearchTerm) && filled($payrollSearchTo)) ? ($payrollSearchTerm.' a '.$payrollSearchTo) : ($payrollSearchTerm ?: $payrollSearchTo);
+    } else {
+        $payrollDisplay = $payrollSearchTerm;
+    }
+@endphp
+
+@if($payrollIsCompany)
+    @include('partials.search.bar', [
+        'searchPrefix' => 'payroll_',
+        'fields'       => $payrollFields,
+        'default'      => 'number',
+        'total'        => $payrollTotal,
+    ])
+@endif
+
 @if ($documents->isEmpty())
-    <div class="text-muted text-center mt-4">No hay documentos para mostrar.</div>
+    @if($payrollHasSearch)
+        <div class="text-muted text-center mt-4">No se encontraron documentos que coincidan con "<strong>{{ $payrollDisplay }}</strong>".</div>
+    @else
+        <div class="text-muted text-center mt-4">No hay documentos para mostrar.</div>
+    @endif
 @else
     @if(!(Request::is('company*') || Request::is('companies*')))
     <form method="GET" action="{{ url('/oksellerspayrollssearch/'.$company_idnumber) }}">
@@ -124,10 +170,10 @@
                     </tr>
                 @endforeach
             </tbody>
-            <div>
-                {!! $documents->appends(request()->query())->links() !!}
-            </div>
         </table>
+    </div>
+    <div class="d-flex justify-content-end px-2 pb-2 pt-1">
+        {!! $documents->appends(request()->query())->links('partials.pagination') !!}
     </div>
 @endif
 

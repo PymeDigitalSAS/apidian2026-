@@ -41,8 +41,10 @@ class ProductionController extends Controller
         $invoiceData = array_merge([
             'documents' => Document::where('identification_number', $company->identification_number)
                 ->whereIn('type_document_id', [1,2,3,4,5])
+                ->filter(request('invoice_search'), request('invoice_search_field'), request('invoice_search_to'))
                 ->orderBy('id', 'DESC')
-                ->paginate(20, ['*'], 'invoice_page'),
+                ->paginate(20, ['*'], 'invoice_page')
+                ->withQueryString(),
             'resolution_credit_notes' => Resolution::where('type_document_id', 4)
                 ->where('company_id', $company->id)
                 ->get()
@@ -51,29 +53,37 @@ class ProductionController extends Controller
         $payrollData = array_merge([
             'documents' => DocumentPayroll::where('state_document_id', 1)
                 ->where('identification_number', $company->identification_number)
+                ->filter(request('payroll_search'), request('payroll_search_field'), request('payroll_search_to'))
                 ->orderBy('id', 'DESC')
                 ->paginate(20, ['*'], 'payroll_page')
+                ->withQueryString()
         ], $this->buildResolutionData($company, $payrollResolutionIds));
 
         $supportData = array_merge([
             'documents' => Document::where('identification_number', $company->identification_number)
                 ->whereIn('type_document_id', [11,13])
+                ->filter(request('support_search'), request('support_search_field'), request('support_search_to'))
                 ->orderBy('id', 'DESC')
                 ->paginate(20, ['*'], 'support_page')
+                ->withQueryString()
         ], $this->buildResolutionData($company, $supportResolutionIds));
 
         $eventData = [
             'documents' => ReceivedDocument::where('customer', $company->identification_number)
                 ->where('state_document_id', 1)
+                ->filter(request('event_search'), request('event_search_field'), request('event_search_to'))
                 ->orderBy('id', 'DESC')
                 ->paginate(10, ['*'], 'event_page')
+                ->withQueryString()
         ];
 
         $posData = array_merge([
             'documents' => Document::where('identification_number', $company->identification_number)
                 ->whereIn('type_document_id', [15,16,19,20,22,25,26])
+                ->filter(request('pos_search'), request('pos_search_field'), request('pos_search_to'))
                 ->orderBy('id', 'DESC')
                 ->paginate(20, ['*'], 'pos_page')
+                ->withQueryString()
         ], $this->buildResolutionData($company, $posResolutionIds));
 
         return view('company.production.index', compact(
@@ -137,8 +147,10 @@ class ProductionController extends Controller
                 $typeDocumentIds = [1,2,3,4,5];
                 $documents = Document::where('identification_number', $company->identification_number)
                     ->whereIn('type_document_id', $typeDocumentIds)
+                    ->filter(request('invoice_search'), request('invoice_search_field'), request('invoice_search_to'))
                     ->orderBy('id', 'DESC')
-                    ->paginate(20);
+                    ->paginate(20)
+                    ->withQueryString();
                 $listView = 'company.documents';
                 $indexView = 'company.production.invoice.index';
                 break;
@@ -146,8 +158,10 @@ class ProductionController extends Controller
                 $typeDocumentIds = [11,13];
                 $documents = Document::where('identification_number', $company->identification_number)
                     ->whereIn('type_document_id', $typeDocumentIds)
+                    ->filter(request('support_search'), request('support_search_field'), request('support_search_to'))
                     ->orderBy('id', 'DESC')
-                    ->paginate(20);
+                    ->paginate(20)
+                    ->withQueryString();
                 $listView = 'company.documents';
                 $indexView = 'company.production.support.index';
                 break;
@@ -155,22 +169,28 @@ class ProductionController extends Controller
                 $typeDocumentIds = [15,16,19,20,22,25,26];
                 $documents = Document::where('identification_number', $company->identification_number)
                     ->whereIn('type_document_id', $typeDocumentIds)
+                    ->filter(request('pos_search'), request('pos_search_field'), request('pos_search_to'))
                     ->orderBy('id', 'DESC')
-                    ->paginate(20);
+                    ->paginate(20)
+                    ->withQueryString();
                 $listView = 'company.documents';
                 $indexView = 'company.production.pos.index';
                 break;
             case 'event':
                 $documents = ReceivedDocument::where('customer', $company->identification_number)
                     ->where('state_document_id', 1)
-                    ->paginate(10);
+                    ->filter(request('event_search'), request('event_search_field'), request('event_search_to'))
+                    ->paginate(10)
+                    ->withQueryString();
                 $listView = 'company.events';
                 $indexView = 'company.production.event.index';
                 break;
             case 'payroll':
                 $documents = DocumentPayroll::where('state_document_id', 1)
                     ->where('identification_number', $company->identification_number)
-                    ->paginate(20);
+                    ->filter(request('payroll_search'), request('payroll_search_field'), request('payroll_search_to'))
+                    ->paginate(20)
+                    ->withQueryString();
                 $listView = 'company.payrolls';
                 $indexView = 'company.production.payroll.index';
                 break;
