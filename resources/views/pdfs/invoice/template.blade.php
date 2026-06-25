@@ -433,7 +433,7 @@
         </tbody>
     </table>
     <br>
-    @if(isset($request['payment_plan']))
+    @if(!empty($request['payment_plan']) && !empty($request['payment_plan']['installments_count']))
         <?php $paymentPlan = $request['payment_plan']; ?>
         <?php
             $frequencyLabels = [

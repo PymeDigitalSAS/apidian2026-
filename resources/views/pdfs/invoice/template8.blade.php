@@ -654,7 +654,7 @@
         Payment must be made only to the indicated bank account. We are not responsible for deposits to other accounts.
         <br>
     @endif
-    @if(isset($request['payment_plan']))
+    @if(!empty($request['payment_plan']) && !empty($request['payment_plan']['installments_count']))
         <?php $paymentPlan = $request['payment_plan']; ?>
         <?php
             $frequencyLabels = [

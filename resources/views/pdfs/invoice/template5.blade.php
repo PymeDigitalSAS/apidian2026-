@@ -589,7 +589,7 @@
     </div>
     <p><strong>PRECIO EN LETRAS SON</strong>: {{$Varios->convertir($totalAmount, $idcurrency)}} M/CTE*********.</p>
 
-    @if(isset($request['payment_plan']))
+    @if(!empty($request['payment_plan']) && !empty($request['payment_plan']['installments_count']))
         <?php $paymentPlan = $request['payment_plan']; ?>
         <?php
             $frequencyLabels = [
