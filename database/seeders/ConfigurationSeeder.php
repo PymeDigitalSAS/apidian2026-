@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class ConfigurationSeeder extends Seeder
 {
@@ -157,7 +158,7 @@ class ConfigurationSeeder extends Seeder
             $rutafile = str_replace('\\', '/', $rutafile);
             DB::connection()
                 ->getpdo()
-                ->exec("LOAD DATA LOCAL INFILE '".$rutafile."' INTO TABLE $key({$table['columns']}) SET created_at = NOW(), updated_at = NOW()");
+                ->exec("LOAD DATA LOCAL INFILE '".$rutafile."' IGNORE INTO TABLE $key({$table['columns']}) SET created_at = NOW(), updated_at = NOW()");
         }
     }
 }
