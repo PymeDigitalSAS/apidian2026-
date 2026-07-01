@@ -666,7 +666,7 @@
         El pago debe realizarse únicamente a la cuenta bancaria indicada, no asumimos responsabilidad por consignaciones a otras cuentas.
         <br>
     @endif
-    @if(isset($request['payment_plan']))
+    @if(!empty($request['payment_plan']) && !empty($request['payment_plan']['installments_count']))
         <?php $paymentPlan = $request['payment_plan']; ?>
         <?php
             $frequencyLabels = [
