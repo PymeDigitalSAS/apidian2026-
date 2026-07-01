@@ -126,7 +126,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="prefix">Prefijo <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="prefix" name="prefix" maxlength="10" value="{{ old('prefix', $prefill['prefix'] ?? '') }}">
+                                        <input type="text" class="form-control" id="prefix" name="prefix" maxlength="4" value="{{ old('prefix', $prefill['prefix'] ?? '') }}">
                                         <div class="invalid-feedback"></div>
                                     </div>
                                 </div>

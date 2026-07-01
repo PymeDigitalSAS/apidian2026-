@@ -132,7 +132,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="prefix">Prefijo <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="prefix" name="prefix" maxlength="10" value="{{ old('prefix', $prefill['prefix'] ?? '') }}">
+                                        <input type="text" class="form-control" id="prefix" name="prefix" maxlength="4" value="{{ old('prefix', $prefill['prefix'] ?? '') }}">
                                         <div class="invalid-feedback"></div>
                                     </div>
                                 </div>
@@ -161,8 +161,9 @@
                                 <div class="row">
                                     <div class="col-md-12">
                                         <div class="form-group">
-                                            <label for="technical_key">Clave Técnica <span class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" id="technical_key" name="technical_key" value="{{ old('technical_key', $prefill['technical_key'] ?? '') }}">
+                                            <label for="technical_key">Clave Técnica</label>
+                                            <input type="text" class="form-control" id="technical_key" name="technical_key" value="" readonly placeholder="No aplica para Documento Soporte" style="background:#f8f9fa;">
+                                            <small class="form-text text-muted">La DIAN no requiere clave técnica para Documento Soporte.</small>
                                             <div class="invalid-feedback"></div>
                                         </div>
                                     </div>
@@ -172,14 +173,14 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="from">Rango Inicial <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="from" name="from" min="1" value="{{ old('from', $prefill['from'] ?? '') }}">
+                                        <input type="number" class="form-control" id="from" name="from" min="1" required value="{{ old('from', $prefill['from'] ?? '') }}">
                                         <div class="invalid-feedback"></div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="to">Rango Final <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="to" name="to" min="1" value="{{ old('to', $prefill['to'] ?? '') }}">
+                                        <input type="number" class="form-control" id="to" name="to" min="1" required value="{{ old('to', $prefill['to'] ?? '') }}">
                                         <div class="invalid-feedback"></div>
                                     </div>
                                 </div>
