@@ -406,7 +406,7 @@ class ConfigurationController extends Controller
                     'type_organization_id' => $request->type_organization_id,
                     'type_regime_id' => $request->type_regime_id,
                     'type_liability_id' => $request->type_liability_id,
-                    'type_liability_ids' => $request->type_liability_ids ? json_encode($request->type_liability_ids) : null,
+                    'type_liability_ids' => $request->type_liability_ids,
                     'municipality_id' => $request->municipality_id,
                     'merchant_registration' => $request->merchant_registration,
                     'address' => $request->address,

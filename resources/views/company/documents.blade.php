@@ -428,7 +428,8 @@
 </div>
 
 @push('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+{{-- xlsx-js-style: fork de SheetJS 0.18.5 (mismo motor de lectura) que ademas escribe estilos de celda (colores). Se usa para generar la plantilla de salud con encabezados coloreados por grupo. --}}
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script>
 $(document).ready(function() {
     // Añadir función para copiar token
@@ -1251,6 +1252,163 @@ $(document).ready(function() {
         reader.readAsArrayBuffer(file);
     });
 
+    // Generar y descargar la plantilla de Facturas de Salud en el navegador (sin archivo estatico).
+    // Las columnas se definen aqui: para ajustarlas, edita este arreglo de encabezados.
+    $(document).on('click', '#downloadHealthTemplate', function(e) {
+        e.preventDefault();
+        try {
+            const headers = [
+                'number','type_document_id','resolution_number','prefix','date','sendmail','seze',
+                'establishment_name','establishment_address','establishment_phone','establishment_municipality','establishment_email',
+                'customer_identification_number','customer_dv','customer_name','customer_phone','customer_address','customer_email','customer_merchant_registration',
+                'customer_type_document_identification_id','customer_type_organization_id','customer_type_liability_id','customer_type_regime_id','customer_municipality_id',
+                'payment_form_payment_form_id','payment_form_payment_method_id','payment_form_payment_due_date','payment_form_duration_measure',
+                'health_fields_invoice_period_start_date','health_fields_invoice_period_end_date','health_fields_health_type_operation_id',
+                'health_fields_users_info_provider_code','health_fields_users_info_health_type_document_identification_id','health_fields_users_info_identification_number',
+                'health_fields_users_info_surname','health_fields_users_info_second_surname','health_fields_users_info_first_name','health_fields_users_info_middle_name',
+                'health_fields_users_info_health_type_user_id','health_fields_users_info_health_contracting_payment_method_id','health_fields_users_info_health_coverage_id',
+                'health_fields_users_info_autorization_numbers','health_fields_users_info_mipres','health_fields_users_info_mipres_delivery',
+                'health_fields_users_info_contract_number','health_fields_users_info_policy_number','health_fields_users_info_health_invoice_without_contract_id',
+                'health_fields_users_info_co_payment','health_fields_users_info_moderating_fee','health_fields_users_info_recovery_fee','health_fields_users_info_shared_payment',
+                'invoice_lines_code','invoice_lines_description','invoice_lines_notes','invoice_lines_unit_measure_id','invoice_lines_invoiced_quantity',
+                'invoice_lines_price_amount','invoice_lines_base_quantity','invoice_lines_line_extension_amount','invoice_lines_free_of_charge_indicator',
+                'invoice_lines_type_item_identification_id','invoice_lines_allowance_charges_charge_indicator','invoice_lines_allowance_charges_allowance_charge_reason',
+                'invoice_lines_allowance_charges_amount','invoice_lines_allowance_charges_base_amount',
+                'invoice_lines_tax_totals_tax_id','invoice_lines_tax_totals_tax_amount','invoice_lines_tax_totals_taxable_amount','invoice_lines_tax_totals_percent'
+            ];
+
+            // Factura de ejemplo (#990000001) con 2 lineas: para agregar lineas repite el mismo 'number'
+            // en filas siguientes y llena solo las columnas invoice_lines_*.
+            const ejemplo1 = {
+                number: '990000001', type_document_id: '1', date: '2026-06-30', sendmail: 'false',
+                establishment_name: 'SEDE PRINCIPAL', establishment_address: 'CALLE 10 20-30', establishment_phone: '6011234567',
+                establishment_municipality: '149', establishment_email: 'facturacion@empresa.com',
+                customer_identification_number: '901000000', customer_dv: '1', customer_name: 'EPS EJEMPLO SAS',
+                customer_phone: '6019999999', customer_address: 'AVENIDA 100', customer_email: 'cliente@eps.com',
+                customer_type_document_identification_id: '6', customer_type_organization_id: '1', customer_type_liability_id: '112',
+                customer_type_regime_id: '1', customer_municipality_id: '149',
+                payment_form_payment_form_id: '1', payment_form_payment_method_id: '1',
+                health_fields_invoice_period_start_date: '2026-06-01', health_fields_invoice_period_end_date: '2026-06-30',
+                health_fields_health_type_operation_id: '1',
+                health_fields_users_info_provider_code: '050010001234', health_fields_users_info_health_type_document_identification_id: '1',
+                health_fields_users_info_identification_number: '1234567890', health_fields_users_info_surname: 'PEREZ',
+                health_fields_users_info_second_surname: 'GOMEZ', health_fields_users_info_first_name: 'JUAN', health_fields_users_info_middle_name: 'CARLOS',
+                health_fields_users_info_health_type_user_id: '1', health_fields_users_info_health_contracting_payment_method_id: '4',
+                health_fields_users_info_health_coverage_id: '1', health_fields_users_info_contract_number: 'CTO-2026-001',
+                invoice_lines_code: 'SS001', invoice_lines_description: 'CONSULTA MEDICINA GENERAL', invoice_lines_unit_measure_id: '70',
+                invoice_lines_invoiced_quantity: '1', invoice_lines_price_amount: '50000', invoice_lines_base_quantity: '1',
+                invoice_lines_line_extension_amount: '50000', invoice_lines_free_of_charge_indicator: 'false', invoice_lines_type_item_identification_id: '4',
+                invoice_lines_tax_totals_tax_id: '1', invoice_lines_tax_totals_tax_amount: '9500', invoice_lines_tax_totals_taxable_amount: '50000', invoice_lines_tax_totals_percent: '19'
+            };
+            const ejemplo2 = {
+                number: '990000001',
+                invoice_lines_code: 'SS002', invoice_lines_description: 'EXAMEN DE LABORATORIO', invoice_lines_unit_measure_id: '70',
+                invoice_lines_invoiced_quantity: '2', invoice_lines_price_amount: '25000', invoice_lines_base_quantity: '1',
+                invoice_lines_line_extension_amount: '50000', invoice_lines_free_of_charge_indicator: 'false', invoice_lines_type_item_identification_id: '4',
+                invoice_lines_tax_totals_tax_id: '1', invoice_lines_tax_totals_tax_amount: '9500', invoice_lines_tax_totals_taxable_amount: '50000', invoice_lines_tax_totals_percent: '19'
+            };
+
+            // Clasificacion de obligatoriedad (segun reglas del API) para marcar la cabecera:
+            //   sin marca = obligatorio | (*) = opcional | (**) = opcional, obligatorio segun condicion
+            const REQUIRED = [
+                'number','type_document_id','customer_identification_number','customer_name',
+                'health_fields_invoice_period_start_date','health_fields_invoice_period_end_date','health_fields_health_type_operation_id',
+                'health_fields_users_info_health_contracting_payment_method_id','health_fields_users_info_health_coverage_id',
+                'invoice_lines_code','invoice_lines_description','invoice_lines_unit_measure_id','invoice_lines_invoiced_quantity',
+                'invoice_lines_price_amount','invoice_lines_base_quantity','invoice_lines_line_extension_amount',
+                'invoice_lines_free_of_charge_indicator','invoice_lines_type_item_identification_id'
+            ];
+            const CONDITIONAL = [
+                'resolution_number','prefix','customer_dv','payment_form_payment_due_date','payment_form_duration_measure',
+                'health_fields_users_info_health_invoice_without_contract_id',
+                'invoice_lines_allowance_charges_charge_indicator','invoice_lines_allowance_charges_allowance_charge_reason',
+                'invoice_lines_allowance_charges_amount','invoice_lines_allowance_charges_base_amount',
+                'invoice_lines_tax_totals_tax_id','invoice_lines_tax_totals_tax_amount','invoice_lines_tax_totals_taxable_amount','invoice_lines_tax_totals_percent'
+            ];
+            const labelOf = h => REQUIRED.indexOf(h) >= 0 ? h : (CONDITIONAL.indexOf(h) >= 0 ? h + ' (**)' : h + ' (*)');
+
+            const toRow = (obj) => headers.map(h => (obj[h] !== undefined && obj[h] !== null) ? obj[h] : null);
+            const aoa = [headers.map(labelOf), toRow(ejemplo1), toRow(ejemplo2)];
+
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = headers.map(() => ({ wch: 24 }));
+            ws['!rows'] = [{ hpt: 56 }]; // alto para encabezados con texto ajustado
+
+            // Colorea cada columna segun su "nivel"/grupo del JSON para identificarlo de un vistazo.
+            // head = color del encabezado, tint = color suave para las filas de datos.
+            const GROUPS = [
+                { test: h => h.indexOf('invoice_lines_') === 0,            head: '9C4221', tint: 'F2E0D6' }, // Productos / Lineas
+                { test: h => h.indexOf('health_fields_users_info_') === 0, head: 'B83280', tint: 'F7DEEC' }, // Usuario de salud
+                { test: h => h.indexOf('health_fields_') === 0,            head: '5B3A9B', tint: 'E6DEF3' }, // Datos de salud
+                { test: h => h.indexOf('customer_') === 0,                 head: '2E7D32', tint: 'DDEFDE' }, // Cliente
+                { test: h => h.indexOf('establishment_') === 0,            head: '0E7C7B', tint: 'D5ECEB' }, // Establecimiento
+                { test: h => h.indexOf('payment_form_') === 0,             head: 'C05621', tint: 'F7E2D5' }, // Forma de pago
+                { test: () => true,                                        head: '1F4E78', tint: 'DCE6F1' }  // Datos de la factura
+            ];
+            const groupOf = h => GROUPS.find(g => g.test(h));
+            const bd = { style: 'thin', color: { rgb: 'BFBFBF' } };
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let R = range.s.r; R <= range.e.r; R++) {
+                for (let C = range.s.c; C <= range.e.c; C++) {
+                    const addr = XLSX.utils.encode_cell({ r: R, c: C });
+                    const g = groupOf(headers[C]);
+                    if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+                    if (R === 0) {
+                        ws[addr].s = {
+                            fill: { patternType: 'solid', fgColor: { rgb: g.head } },
+                            font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 10 },
+                            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+                            border: { top: bd, bottom: bd, left: bd, right: bd }
+                        };
+                    } else {
+                        ws[addr].s = {
+                            fill: { patternType: 'solid', fgColor: { rgb: g.tint } },
+                            font: { sz: 10 },
+                            alignment: { vertical: 'center' },
+                            border: { top: bd, bottom: bd, left: bd, right: bd }
+                        };
+                    }
+                }
+            }
+
+            // Hoja "Leyenda" con la explicacion de marcas y condiciones (el importador NO la lee: usa la 1a hoja).
+            const leyenda = [
+                ['LEYENDA DE LA PLANTILLA DE FACTURAS DE SALUD'],
+                [''],
+                ['Marca en la cabecera:'],
+                ['   (sin marca) = Campo OBLIGATORIO'],
+                ['   (*)  = Campo OPCIONAL'],
+                ['   (**) = OPCIONAL, pero OBLIGATORIO si se cumple la condicion indicada abajo'],
+                [''],
+                ['Condiciones de los campos (**):'],
+                ['resolution_number / prefix: obligatorios si la empresa tiene 2 o mas resoluciones para el tipo de documento.'],
+                ['customer_dv: obligatorio si el cliente es NIT (customer_type_document_identification_id = 6).'],
+                ['payment_form_payment_due_date / payment_form_duration_measure: obligatorios si la forma de pago es Credito (payment_form_payment_form_id = 2).'],
+                ['health_fields_users_info_health_invoice_without_contract_id: obligatorio si el usuario NO tiene numero de contrato ni de poliza.'],
+                ['     Valores: 1=Urgencias, 2=ADRES/SOAT/Planes voluntarios, 3=Tutela/orden judicial, 4=Portabilidad/asignacion masiva, 5=Cotizaciones o autorizaciones sin contrato, 6=Recuperacion de organos.'],
+                ['invoice_lines_tax_totals_*: si la linea lleva impuesto, completa tax_id, tax_amount y taxable_amount (percent salvo exento/excluido).'],
+                ['invoice_lines_allowance_charges_*: si la linea lleva descuento/cargo, completa charge_indicator, motivo, amount y base_amount.'],
+                ['co_payment / moderating_fee / recovery_fee / shared_payment: si se indican, deben ser mayores a 0.'],
+                [''],
+                ['Notas:'],
+                ['- Una fila = una linea de factura. Para mas lineas, repite el mismo "number" y llena solo las columnas invoice_lines_*.'],
+                ['- En formato plano se admite un (1) usuario de salud por factura.'],
+                ['- print_users_info_to_pdf se fija automaticamente en TRUE (por eso no aparece como columna).'],
+                ['- Ajusta number, resolution_number, prefix y date a la resolucion real de la empresa.'],
+                ['- Algunos campos opcionales (*) pueden ser exigidos por la DIAN segun el caso (p. ej. identificacion del usuario).']
+            ];
+            const wsL = XLSX.utils.aoa_to_sheet(leyenda);
+            wsL['!cols'] = [{ wch: 110 }];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Plantilla Salud'); // 1a hoja: la que lee el importador
+            XLSX.utils.book_append_sheet(wb, wsL, 'Leyenda');
+            XLSX.writeFile(wb, 'co-documents-batch-health.xlsx');
+        } catch (err) {
+            alert('No se pudo generar la plantilla de salud: ' + (err && err.message ? err.message : err));
+        }
+    });
+
     // Manejo de Excel para Facturas de Salud
     $('#excelFileHealth').on('change', function(e) {
         const file = e.target.files[0];
@@ -1269,11 +1427,11 @@ $(document).ready(function() {
                     return;
                 }
 
-                // Normalizar claves
+                // Normalizar claves (y quitar marcas (*) / (**) que la plantilla pone en la cabecera)
                 const normalizedRows = jsonData.map(r => {
                     const nr = {};
                     Object.keys(r).forEach(k => {
-                        const key = k ? k.toString().trim().toLowerCase() : k;
+                        const key = k ? k.toString().trim().toLowerCase().replace(/\s*\(\*+\)$/, '') : k;
                         nr[key] = r[k];
                     });
                     return nr;
@@ -1359,7 +1517,6 @@ $(document).ready(function() {
                         if (row.health_fields_invoice_period_start_date) hf.invoice_period_start_date = row.health_fields_invoice_period_start_date;
                         if (row.health_fields_invoice_period_end_date) hf.invoice_period_end_date = row.health_fields_invoice_period_end_date;
                         if (row.health_fields_health_type_operation_id) hf.health_type_operation_id = row.health_fields_health_type_operation_id;
-                        if (row.health_fields_print_users_info_to_pdf) hf.print_users_info_to_pdf = row.health_fields_print_users_info_to_pdf;
 
                         let users_info = hf.users_info || [];
                         const hasPrefixedUser = (
@@ -1384,6 +1541,7 @@ $(document).ready(function() {
                                 mipres_delivery: row.health_fields_users_info_mipres_delivery || null,
                                 contract_number: row.health_fields_users_info_contract_number || null,
                                 policy_number: row.health_fields_users_info_policy_number || null,
+                                health_invoice_without_contract_id: row.health_fields_users_info_health_invoice_without_contract_id ? parseInt(row.health_fields_users_info_health_invoice_without_contract_id) : null,
                                 co_payment: row.health_fields_users_info_co_payment || null,
                                 moderating_fee: row.health_fields_users_info_moderating_fee || null,
                                 recovery_fee: row.health_fields_users_info_recovery_fee || null,
@@ -1432,7 +1590,7 @@ $(document).ready(function() {
                                 invoice_period_start_date: formatDateHealth(hf.invoice_period_start_date || hf.invoice_period_start_date),
                                 invoice_period_end_date: formatDateHealth(hf.invoice_period_end_date || hf.invoice_period_end_date),
                                 health_type_operation_id: hf.health_type_operation_id ? parseInt(hf.health_type_operation_id) : (row.health_type_operation_id ? parseInt(row.health_type_operation_id) : null),
-                                print_users_info_to_pdf: (String(hf.print_users_info_to_pdf || '').toLowerCase() === 'true') || false,
+                                print_users_info_to_pdf: true, // siempre TRUE (obligatorio); no se expone como columna en la plantilla
                                 users_info: users_info
                             },
                             customer: customer,
