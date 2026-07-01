@@ -37,12 +37,19 @@ class ResolutionController extends Controller
         $expectsJson = $request->ajax() || $request->wantsJson() || $request->expectsJson();
 
         try {
+            // Las reglas deben respetar el esquema real de la tabla `resolutions`:
+            //   - `from` y `to` son NOT NULL (bigint) -> deben ser obligatorios.
+            //   - `prefix` es char(4) -> máximo 4 caracteres.
+            // Con MySQL en modo estricto (strict=true), permitir null/valores más
+            // largos hacía que la validación pasara pero el INSERT abortara
+            // (1048 "Column 'from' cannot be null" / 1406 "Data too long"),
+            // por eso la resolución "no se registraba".
             $rules = [
                 'type_document_id' => 'required|exists:type_documents,id',
-                'prefix' => 'required|string|max:10',
+                'prefix' => 'required|string|max:4',
                 'resolution' => 'required|string|max:255',
-                'from' => 'nullable|integer|min:0',
-                'to' => 'nullable|integer|min:0',
+                'from' => 'required|integer|min:0',
+                'to' => 'required|integer|min:0|gte:from',
                 'resolution_date' => 'nullable|date',
                 'technical_key' => 'nullable|string|max:255',
                 'date_from' => 'nullable|date',
@@ -53,8 +60,13 @@ class ResolutionController extends Controller
                 'type_document_id.required' => 'El tipo de documento es obligatorio.',
                 'type_document_id.exists' => 'El tipo de documento seleccionado no es válido.',
                 'prefix.required' => 'El prefijo es obligatorio.',
-                'prefix.max' => 'El prefijo no puede tener más de 10 caracteres.',
+                'prefix.max' => 'El prefijo no puede tener más de 4 caracteres.',
                 'resolution.required' => 'El número de resolución es obligatorio.',
+                'from.required' => 'El rango inicial es obligatorio.',
+                'from.integer' => 'El rango inicial debe ser un número entero.',
+                'to.required' => 'El rango final es obligatorio.',
+                'to.integer' => 'El rango final debe ser un número entero.',
+                'to.gte' => 'El rango final debe ser mayor o igual al rango inicial.',
             ];
 
             $request->validate($rules, $messages);
@@ -113,6 +125,14 @@ class ResolutionController extends Controller
         } catch (Exception $e) {
             DB::rollBack();
 
+            // Antes este catch devolvía el error solo por HTTP y no dejaba rastro
+            // en los logs, por lo que fallos de INSERT (p.ej. constraints NOT NULL)
+            // quedaban invisibles. Se registra para poder diagnosticarlos.
+            \Log::error('Error al crear la resolución', [
+                'company' => $companyNumber,
+                'error' => $e->getMessage(),
+            ]);
+
             if ($expectsJson) {
                 return response()->json([
                     'success' => false,
@@ -146,11 +166,12 @@ class ResolutionController extends Controller
                 ], 404);
             }
 
+            // `from` y `to` son NOT NULL en la tabla: obligatorios también al editar.
             $rules = [
                 'type_document_id' => 'required|exists:type_documents,id',
                 'resolution' => 'required|string|max:255',
-                'from' => 'nullable|integer|min:0',
-                'to' => 'nullable|integer|min:0',
+                'from' => 'required|integer|min:0',
+                'to' => 'required|integer|min:0|gte:from',
                 'resolution_date' => 'nullable|date',
                 'technical_key' => 'nullable|string|max:255',
                 'date_from' => 'nullable|date',
@@ -161,6 +182,11 @@ class ResolutionController extends Controller
                 'type_document_id.required' => 'El tipo de documento es obligatorio.',
                 'type_document_id.exists' => 'El tipo de documento seleccionado no es válido.',
                 'resolution.required' => 'El número de resolución es obligatorio.',
+                'from.required' => 'El rango inicial es obligatorio.',
+                'from.integer' => 'El rango inicial debe ser un número entero.',
+                'to.required' => 'El rango final es obligatorio.',
+                'to.integer' => 'El rango final debe ser un número entero.',
+                'to.gte' => 'El rango final debe ser mayor o igual al rango inicial.',
             ];
 
             $request->validate($rules, $messages);

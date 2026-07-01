@@ -743,7 +743,7 @@
   "customer": {
     "identification_number": "89008003",
     "name": "OBANDO LONDONO ALEXANDER",
-    "email": "jeremyabel710@gmail.com"
+    "email": "ejemplo@gmail.com"
   },
   "payment_form": {
     "payment_form_id": 2,

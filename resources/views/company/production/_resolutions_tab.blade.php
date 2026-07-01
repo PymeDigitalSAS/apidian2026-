@@ -112,7 +112,8 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <form class="newResolutionForm_{{ $type }}">
+            <form class="newResolutionForm_{{ $type }}" method="POST"
+                action="{{ route('company.resolutions.store', ['company' => $company->identification_number]) }}">
                 @csrf
                 <div class="modal-body">
                     <div class="row">
@@ -131,7 +132,7 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Prefijo</label>
-                                <input type="text" class="form-control" name="prefix" maxlength="10">
+                                <input type="text" class="form-control" name="prefix" maxlength="4">
                                 <div class="invalid-feedback"></div>
                             </div>
                         </div>
@@ -158,7 +159,14 @@
                         <div class="col-md-12">
                             <div class="form-group">
                                 <label>Clave Técnica</label>
-                                <input type="text" class="form-control" name="technical_key">
+                                @if ($type === 'support')
+                                    {{-- La DIAN no requiere clave técnica para Documento Soporte: campo bloqueado --}}
+                                    <input type="text" class="form-control" name="technical_key" value="" readonly
+                                        placeholder="No aplica para Documento Soporte" style="background:#f8f9fa;">
+                                    <small class="form-text text-muted">La DIAN no requiere clave técnica para Documento Soporte.</small>
+                                @else
+                                    <input type="text" class="form-control" name="technical_key">
+                                @endif
                                 <div class="invalid-feedback"></div>
                             </div>
                         </div>
@@ -219,7 +227,7 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <form class="editResolutionForm_{{ $type }}">
+            <form class="editResolutionForm_{{ $type }}" method="POST" action="">
                 @csrf
                 @method('PUT')
                 <input type="hidden" name="resolution_id">
@@ -266,7 +274,14 @@
                         <div class="col-md-12">
                             <div class="form-group">
                                 <label>Clave Técnica</label>
-                                <input type="text" class="form-control" name="technical_key">
+                                @if ($type === 'support')
+                                    {{-- La DIAN no requiere clave técnica para Documento Soporte: campo bloqueado --}}
+                                    <input type="text" class="form-control" name="technical_key" value="" readonly
+                                        placeholder="No aplica para Documento Soporte" style="background:#f8f9fa;">
+                                    <small class="form-text text-muted">La DIAN no requiere clave técnica para Documento Soporte.</small>
+                                @else
+                                    <input type="text" class="form-control" name="technical_key">
+                                @endif
                                 <div class="invalid-feedback"></div>
                             </div>
                         </div>
@@ -358,24 +373,29 @@
         }
     }
 
-    // Reset form al abrir
+    // Reset form al abrir (se re-selecciona por si el form no existía al cargar el script)
     $(newModalEl).on('show.bs.modal', function () {
-        $newForm[0].reset();
-        clearErrors($newForm);
+        const $f = $('.newResolutionForm_' + TYPE);
+        if ($f.length) {
+            $f[0].reset();
+            clearErrors($f);
+        }
     });
 
-    // Submit crear
-    $newForm.on('submit', function (e) {
+    // Submit crear (delegado en document: engancha aunque el form se cargue después
+    // o el bind directo fallara; usa $(this) para operar sobre el form real enviado).
+    $(document).on('submit', '.newResolutionForm_' + TYPE, function (e) {
         e.preventDefault();
-        clearErrors($newForm);
-        const $btn = $newForm.find('.saveResolutionBtn_' + TYPE);
+        const $form = $(this);
+        clearErrors($form);
+        const $btn = $form.find('.saveResolutionBtn_' + TYPE);
         const original = $btn.html();
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
 
         $.ajax({
             url: STORE_URL,
             method: 'POST',
-            data: $newForm.serialize(),
+            data: $form.serialize(),
             dataType: 'json',
             success: function (response) {
                 if (response.success) {
@@ -388,7 +408,7 @@
             },
             error: function (xhr) {
                 if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
-                    displayErrors($newForm, xhr.responseJSON.errors);
+                    displayErrors($form, xhr.responseJSON.errors);
                     notify('Corrige los errores del formulario', 'error');
                 } else {
                     notify((xhr.responseJSON && xhr.responseJSON.message) || 'Error del servidor', 'error');
@@ -400,35 +420,39 @@
         });
     });
 
-    // Abrir modal editar — cargar datos
+    // Abrir modal editar — cargar datos (re-selecciona el form por robustez)
     $(document).on('click', '.edit-resolution-btn-' + TYPE, function () {
         const $b = $(this);
-        clearErrors($editForm);
-        $editForm.find('[name="resolution_id"]').val($b.data('id'));
-        $editForm.find('[name="type_document_id"]').val($b.data('type-document-id'));
-        $editForm.find('[name="prefix"]').val($b.data('prefix'));
-        $editForm.find('[name="resolution"]').val($b.data('resolution'));
-        $editForm.find('[name="resolution_date"]').val($b.data('resolution-date'));
-        $editForm.find('[name="technical_key"]').val($b.data('technical-key'));
-        $editForm.find('[name="from"]').val($b.data('from'));
-        $editForm.find('[name="to"]').val($b.data('to'));
-        $editForm.find('[name="date_from"]').val($b.data('date-from'));
-        $editForm.find('[name="date_to"]').val($b.data('date-to'));
+        const $form = $('.editResolutionForm_' + TYPE);
+        clearErrors($form);
+        // Respaldo nativo: si el AJAX no engancha, el submit POST (con _method=PUT) va a la URL correcta.
+        $form.attr('action', '/companies/' + COMPANY + '/configuration/resolutions/' + $b.data('id'));
+        $form.find('[name="resolution_id"]').val($b.data('id'));
+        $form.find('[name="type_document_id"]').val($b.data('type-document-id'));
+        $form.find('[name="prefix"]').val($b.data('prefix'));
+        $form.find('[name="resolution"]').val($b.data('resolution'));
+        $form.find('[name="resolution_date"]').val($b.data('resolution-date'));
+        $form.find('[name="technical_key"]').val($b.data('technical-key'));
+        $form.find('[name="from"]').val($b.data('from'));
+        $form.find('[name="to"]').val($b.data('to'));
+        $form.find('[name="date_from"]').val($b.data('date-from'));
+        $form.find('[name="date_to"]').val($b.data('date-to'));
     });
 
-    // Submit editar
-    $editForm.on('submit', function (e) {
+    // Submit editar (delegado en document; usa $(this) para el form real)
+    $(document).on('submit', '.editResolutionForm_' + TYPE, function (e) {
         e.preventDefault();
-        clearErrors($editForm);
-        const $btn = $editForm.find('.updateResolutionBtn_' + TYPE);
+        const $form = $(this);
+        clearErrors($form);
+        const $btn = $form.find('.updateResolutionBtn_' + TYPE);
         const original = $btn.html();
-        const resolutionId = $editForm.find('[name="resolution_id"]').val();
+        const resolutionId = $form.find('[name="resolution_id"]').val();
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Actualizando...');
 
         $.ajax({
             url: '/companies/' + COMPANY + '/configuration/resolutions/' + resolutionId,
             method: 'PUT',
-            data: $editForm.serialize(),
+            data: $form.serialize(),
             dataType: 'json',
             success: function (response) {
                 if (response.success) {
@@ -441,7 +465,7 @@
             },
             error: function (xhr) {
                 if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
-                    displayErrors($editForm, xhr.responseJSON.errors);
+                    displayErrors($form, xhr.responseJSON.errors);
                     notify('Corrige los errores del formulario', 'error');
                 } else {
                     notify((xhr.responseJSON && xhr.responseJSON.message) || 'Error del servidor', 'error');

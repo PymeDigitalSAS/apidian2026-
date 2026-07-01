@@ -141,9 +141,9 @@
                             <div>
                                 <h6 class="mb-0">Plantilla: Facturas de Salud</h6>
                             </div>
-                            <a href="{{ asset('xlsx/co-documents-batch-health.xlsx') }}" class="btn btn-sm btn-outline-primary">
+                            <button type="button" id="downloadHealthTemplate" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-download mr-1"></i>Descargar Plantilla Salud
-                            </a>
+                            </button>
                         </div>
                         <div class="form-group">
                             <label for="excelFileHealth" class="font-weight-bold d-block">
