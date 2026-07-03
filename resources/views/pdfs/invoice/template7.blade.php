@@ -390,6 +390,67 @@
         <img style="width: 50%;" src="{{$imageQr}}">
     </div>
 
+    {{-- Pagos aplicados --}}
+    @php
+        $pagosAplicados = [];
+        if (!empty($request['payments'])) {
+            foreach ($request['payments'] as $pago) {
+                $pagosAplicados[] = [
+                    'medio' => !empty($pago['payment_method_name']) ? $pago['payment_method_name'] : 'Anticipo',
+                    'fecha' => $pago['paiddate'] ?? '',
+                    'valor' => $pago['paidamount'] ?? 0,
+                ];
+            }
+        } elseif (!empty($request['prepaid_payments']) || !empty($request['prepaid_payment'])) {
+            $anticipos = !empty($request['prepaid_payments']) ? $request['prepaid_payments'] : [$request['prepaid_payment']];
+            foreach ($anticipos as $pago) {
+                $pagosAplicados[] = [
+                    'medio' => !empty($pago['payment_method_name']) ? $pago['payment_method_name'] : 'Anticipo',
+                    'fecha' => $pago['paiddate'] ?? '',
+                    'valor' => $pago['paidamount'] ?? 0,
+                ];
+            }
+        }
+    @endphp
+    @if(count($pagosAplicados) > 0)
+        @php
+            $totalPagado = 0;
+            foreach ($pagosAplicados as $pago) {
+                $totalPagado += $pago['valor'];
+            }
+            $saldoPendiente = ($request->legal_monetary_totals['payable_amount'] + ($request->previous_balance ?? 0) - ($TotalRetenciones ?? 0)) - $totalPagado;
+        @endphp
+        <table class="table" style="width: 100%; font-size: 8px; border: 1px solid #ccc; margin-top: 5px; page-break-inside: avoid;">
+            <thead>
+                <tr>
+                    <th colspan="3" class="text-center" style="background: #f3f3f3;"><strong>Pagos Aplicados</strong></th>
+                </tr>
+                <tr>
+                    <th class="text-center">Medio</th>
+                    <th class="text-center">Fecha</th>
+                    <th class="text-center">Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($pagosAplicados as $pago)
+                    <tr>
+                        <td>{{ $pago['medio'] }}</td>
+                        <td class="text-center">{{ $pago['fecha'] }}</td>
+                        <td class="text-right">{{ number_format($pago['valor'], 2) }}</td>
+                    </tr>
+                @endforeach
+                <tr>
+                    <td colspan="2" class="font-bold">Total Pagado</td>
+                    <td class="text-right font-bold">{{ number_format($totalPagado, 2) }}</td>
+                </tr>
+                <tr>
+                    <td colspan="2" class="font-bold">Saldo Pendiente</td>
+                    <td class="text-right font-bold">{{ number_format($saldoPendiente, 2) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    @endif
+
     {{-- Notas --}}
     @if(!empty($request['payment_plan']) && !empty($request['payment_plan']['installments_count']))
         <?php $paymentPlan = $request['payment_plan']; ?>

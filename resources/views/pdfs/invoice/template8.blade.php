@@ -654,6 +654,67 @@
         Payment must be made only to the indicated bank account. We are not responsible for deposits to other accounts.
         <br>
     @endif
+    @php
+        $pagosAplicados = [];
+        if (!empty($request['payments'])) {
+            foreach ($request['payments'] as $pago) {
+                $pagosAplicados[] = [
+                    'medio' => !empty($pago['payment_method_name']) ? $pago['payment_method_name'] : 'Advance Payment',
+                    'fecha' => $pago['paiddate'] ?? '',
+                    'valor' => $pago['paidamount'] ?? 0,
+                ];
+            }
+        } elseif (!empty($request['prepaid_payments']) || !empty($request['prepaid_payment'])) {
+            $anticipos = !empty($request['prepaid_payments']) ? $request['prepaid_payments'] : [$request['prepaid_payment']];
+            foreach ($anticipos as $pago) {
+                $pagosAplicados[] = [
+                    'medio' => !empty($pago['payment_method_name']) ? $pago['payment_method_name'] : 'Advance Payment',
+                    'fecha' => $pago['paiddate'] ?? '',
+                    'valor' => $pago['paidamount'] ?? 0,
+                ];
+            }
+        }
+    @endphp
+    @if(count($pagosAplicados) > 0)
+        @php
+            $totalPagado = 0;
+            foreach ($pagosAplicados as $pago) {
+                $totalPagado += $pago['valor'];
+            }
+            $saldoPendiente = ($request->legal_monetary_totals['payable_amount'] + ($request->previous_balance ?? 0) - ($TotalRetenciones ?? 0)) - $totalPagado;
+        @endphp
+        <table class="table" style="width: 100%; font-size: 10px; border: 1px solid #ccc; margin-top: 10px; page-break-inside: avoid;">
+            <thead>
+                <tr>
+                    <th colspan="4" class="text-center" style="background: #f3f3f3;"><strong>Applied Payments</strong></th>
+                </tr>
+                <tr>
+                    <th class="text-center">#</th>
+                    <th class="text-center">Payment Method</th>
+                    <th class="text-center">Payment Date</th>
+                    <th class="text-center">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($pagosAplicados as $index => $pago)
+                    <tr>
+                        <td class="text-center">{{ $index + 1 }}</td>
+                        <td>{{ $pago['medio'] }}</td>
+                        <td class="text-center">{{ $pago['fecha'] }}</td>
+                        <td class="text-right">{{ number_format($pago['valor'], 2) }}</td>
+                    </tr>
+                @endforeach
+                <tr>
+                    <td colspan="3"><strong>Total Paid</strong></td>
+                    <td class="text-right"><strong>{{ number_format($totalPagado, 2) }}</strong></td>
+                </tr>
+                <tr>
+                    <td colspan="3"><strong>Outstanding Balance</strong></td>
+                    <td class="text-right"><strong>{{ number_format($saldoPendiente, 2) }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    @endif
     @if(!empty($request['payment_plan']) && !empty($request['payment_plan']['installments_count']))
         <?php $paymentPlan = $request['payment_plan']; ?>
         <?php
