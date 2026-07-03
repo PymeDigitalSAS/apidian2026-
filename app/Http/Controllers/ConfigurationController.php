@@ -106,7 +106,11 @@ class ConfigurationController extends Controller
             ], 500);
         }
 
-        $cmd = "\"$pdftotext\" \"$fullPath\" -layout -";
+        // opciones ANTES del archivo: poppler acepta ambos ordenes pero xpdf
+        // (binario usado en hostings sin root) exige [options] <PDF-file>.
+        // -enc UTF-8 porque xpdf emite Latin-1 por defecto y los regex /u
+        // de extraccion fallan con texto no UTF-8
+        $cmd = "\"$pdftotext\" -layout -enc UTF-8 \"$fullPath\" -";
         $text = shell_exec($cmd);
 
         if (!$text || trim($text) == "") {

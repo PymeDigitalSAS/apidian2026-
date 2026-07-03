@@ -1,3 +1,10 @@
+@php
+    // este parcial se incluye desde varias vistas/rutas que no siempre pasan
+    // $invoiceResolution; se resuelve aqui para que la deteccion funcione en todas
+    $invoiceResolution = $invoiceResolution
+        ?? $company->resolutions()->where('type_document_id', 1)->latest('id')->first();
+@endphp
+
 @if(session('success'))
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     {{ session('success') }}
@@ -63,6 +70,13 @@
                 <div id="wizard-content">
                     <!-- Paso 1 -->
                     <div class="wizard-step" id="wizard-step-1">
+                        @if($environmentStatus['has_software'])
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i>
+                            <strong>Ya tienes un software configurado</strong> (los campos muestran tu ID y PIN actuales).
+                            No necesitas hacer nada aquí: presiona <strong>Siguiente</strong> para continuar.
+                        </div>
+                        @endif
                         <form action="{{ route('company.production.software.store', [$company->identification_number, 'invoice']) }}" method="POST">
                             @csrf
                             @method('PUT')
@@ -108,6 +122,14 @@
                     </div>
                     <!-- Paso 2 -->
                     <div class="wizard-step d-none" id="wizard-step-2">
+                        @if($invoiceResolution)
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i>
+                            <strong>La resolución de habilitación ya está configurada</strong>
+                            (prefijo <strong>{{ $invoiceResolution->prefix }}</strong>, N° <strong>{{ $invoiceResolution->resolution }}</strong>).
+                            No necesitas crearla de nuevo: presiona <strong>Siguiente</strong> para continuar.
+                        </div>
+                        @else
                         <form id="newResolutionForm">
                             @csrf
                             <div class="row">
@@ -126,7 +148,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="prefix">Prefijo <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="prefix" name="prefix" maxlength="4" value="{{ old('prefix', $prefill['prefix'] ?? '') }}">
+                                        <input type="text" class="form-control" id="prefix" name="prefix" maxlength="4" value="{{ old('prefix', $prefill['prefix'] ?? 'SETP') }}">
                                         <div class="invalid-feedback"></div>
                                     </div>
                                 </div>
@@ -144,14 +166,14 @@
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="resolution">Número de Resolución <span class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" id="resolution" name="resolution" value="{{ old('resolution', $prefill['resolution'] ?? '') }}">
+                                            <input type="text" class="form-control" id="resolution" name="resolution" value="{{ old('resolution', $prefill['resolution'] ?? '18760000001') }}">
                                             <div class="invalid-feedback"></div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="resolution_date">Fecha de Resolución <span class="text-danger">*</span></label>
-                                            <input type="date" class="form-control" id="resolution_date" name="resolution_date" value="{{ old('resolution_date', $prefill['resolution_date'] ?? '') }}">
+                                            <input type="date" class="form-control" id="resolution_date" name="resolution_date" value="{{ old('resolution_date', $prefill['resolution_date'] ?? '2019-01-19') }}">
                                             <div class="invalid-feedback"></div>
                                         </div>
                                     </div>
@@ -161,7 +183,7 @@
                                     <div class="col-md-12">
                                         <div class="form-group">
                                             <label for="technical_key">Clave Técnica <span class="text-danger">*</span></label>
-                                            <input type="text" class="form-control" id="technical_key" name="technical_key" value="{{ old('technical_key', $prefill['technical_key'] ?? '') }}">
+                                            <input type="text" class="form-control" id="technical_key" name="technical_key" value="{{ old('technical_key', $prefill['technical_key'] ?? 'fc8eac422eba16e22ffd8c6f94b3f40a6e38162c') }}">
                                             <div class="invalid-feedback"></div>
                                         </div>
                                     </div>
@@ -172,14 +194,14 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="from">Rango Inicial <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="from" name="from" min="1" value="{{ old('from', $prefill['from'] ?? '') }}">
+                                        <input type="number" class="form-control" id="from" name="from" min="1" value="{{ old('from', $prefill['from'] ?? '990000000') }}">
                                         <div class="invalid-feedback"></div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="to">Rango Final <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="to" name="to" min="1" value="{{ old('to', $prefill['to'] ?? '') }}">
+                                        <input type="number" class="form-control" id="to" name="to" min="1" value="{{ old('to', $prefill['to'] ?? '995000000') }}">
                                         <div class="invalid-feedback"></div>
                                     </div>
                                 </div>
@@ -191,14 +213,14 @@
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="date_from">Fecha Inicio Vigencia <span class="text-danger">*</span></label>
-                                            <input type="date" class="form-control" id="date_from" name="date_from" value="{{ old('date_from', $prefill['date_from'] ?? '') }}">
+                                            <input type="date" class="form-control" id="date_from" name="date_from" value="{{ old('date_from', $prefill['date_from'] ?? '2019-01-19') }}">
                                             <div class="invalid-feedback"></div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label for="date_to">Fecha Fin Vigencia <span class="text-danger">*</span></label>
-                                            <input type="date" class="form-control" id="date_to" name="date_to" value="{{ old('date_to', $prefill['date_to'] ?? '') }}">
+                                            <input type="date" class="form-control" id="date_to" name="date_to" value="{{ old('date_to', $prefill['date_to'] ?? '2030-01-19') }}">
                                             <div class="invalid-feedback"></div>
                                         </div>
                                     </div>
@@ -206,11 +228,12 @@
                             </div>
                             <div class="mt-3 text-end">
                                 <button type="submit" class="btn btn-primary" id="saveResolutionBtn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-device-floppy" style="margin-top: -3px"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" /><path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M14 4l0 4l-6 0l0 -4" /></svg> 
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-device-floppy" style="margin-top: -3px"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" /><path d="M12 14m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" /><path d="M14 4l0 4l-6 0l0 -4" /></svg>
                                     Guardar
                                 </button>
                             </div>
                         </form>
+                        @endif
                     </div>
                     <!-- Paso 3 -->
                     <div class="wizard-step d-none" id="wizard-step-3">

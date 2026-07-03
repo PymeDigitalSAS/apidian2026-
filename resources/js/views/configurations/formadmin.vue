@@ -399,43 +399,32 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-8">
-                                    <div class="form-group" :class="{'has-danger': errors.idpayroll}">
-                                        <label class="control-label">ID Software Nómina</label>
-                                        <el-input v-model="software.idpayroll"></el-input>
+                                <div class="col-md-12 mt-3">
+                                    <div class="alert alert-info" style="margin-bottom: 10px;">
+                                        <i class="el-icon-info"></i>
+                                        El <b>ID</b> y el <b>PIN</b> del software se crean y consultan en el portal de la DIAN:
+                                        <b>Habilitaci&oacute;n &rarr; Configuraci&oacute;n &rarr; Configurar modos de operaci&oacute;n</b>
+                                        (tome las columnas <b>Id</b> y <b>Pin</b> de la fila con modo <b>Software propio</b>).
+                                        <a href="#" @click.prevent="showSoftwareHelp = true" style="white-space: nowrap;">
+                                            <i class="el-icon-picture"></i> <b>Vista Previa</b>
+                                        </a>
                                     </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label class="control-label">PIN Nómina</label>
-                                        <el-input v-model="software.pinpayroll"></el-input>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-8">
-                                    <div class="form-group">
-                                        <label class="control-label">ID Documento Soporte</label>
-                                        <el-input v-model="software.idsupportdocument"></el-input>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label class="control-label">PIN Documento Soporte</label>
-                                        <el-input v-model="software.pinsupportdocument"></el-input>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-8">
-                                    <div class="form-group">
-                                        <label class="control-label">ID Documento Equivalente</label>
-                                        <el-input v-model="software.ideqdocs"></el-input>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label class="control-label">PIN Documento Equivalente</label>
-                                        <el-input v-model="software.pineqdocs"></el-input>
-                                    </div>
+                                    <el-dialog
+                                        title="Cómo crear el software y obtener el ID y PIN (portal DIAN)"
+                                        :visible.sync="showSoftwareHelp"
+                                        width="85%"
+                                        append-to-body>
+                                        <el-carousel :autoplay="false" arrow="always" indicator-position="outside" height="60vh">
+                                            <el-carousel-item v-for="n in 4" :key="n">
+                                                <div style="height: 100%; display: flex; flex-direction: column;">
+                                                    <div class="text-center" style="margin-bottom: 4px;"><b>Paso {{ n }}</b></div>
+                                                    <img :src="'/img/help/software-paso' + n + '.png'"
+                                                        :alt="'Paso ' + n"
+                                                        style="flex: 1; min-height: 0; width: 100%; object-fit: contain;">
+                                                </div>
+                                            </el-carousel-item>
+                                        </el-carousel>
+                                    </el-dialog>
                                 </div>
                             </div>
                         </div>
@@ -450,6 +439,24 @@
 
             <!-- Resolución -->
             <div class="row" v-show="active == 3">
+                <div class="col-md-12" v-if="existingResolution">
+                    <div class="alert alert-success" style="margin-bottom: 10px;">
+                        <i class="el-icon-success"></i>
+                        Esta empresa <b>ya tiene una resoluci&oacute;n registrada</b>
+                        (prefijo <b>{{ existingResolution.prefix }}</b>, N&deg; <b>{{ existingResolution.resolution }}</b>).
+                        No necesita crearla de nuevo.
+                        <el-button size="mini" type="success" style="margin-left: 8px;" @click="next()">
+                            Omitir este paso <i class="el-icon-arrow-right"></i>
+                        </el-button>
+                    </div>
+                </div>
+                <div class="col-md-12" v-else>
+                    <div class="alert alert-info" style="margin-bottom: 10px;">
+                        <i class="el-icon-info"></i>
+                        Los campos vienen precargados con la <b>resoluci&oacute;n de habilitaci&oacute;n por defecto (SETP)</b>
+                        que la DIAN asigna para pruebas. Solo mod&iacute;fiquelos si su resoluci&oacute;n es diferente.
+                    </div>
+                </div>
                 <div class="col-md-12">
                     <form autocomplete="off">
                         <div class="form-body">
@@ -663,6 +670,8 @@
                 rutProgress: 0,
                 simulatedInterval: null,
                 simulatedDuration: 0,
+                showSoftwareHelp: false,
+                existingResolution: null,
             };
         },
         computed: {
@@ -710,16 +719,17 @@
                     ideqdocs: null,
                     pineqdocs: null,
                 };
+                // precargada con la resolucion de pruebas estandar de la DIAN (habilitacion)
                 this.resolution = {
                     type_document_id: 1,
-                    prefix: null,
-                    resolution: null,
-                    resolution_date: null,
-                    technical_key: null,
-                    from: null,
-                    to: null,
-                    date_from: null,
-                    date_to: null,
+                    prefix: 'SETP',
+                    resolution: '18760000001',
+                    resolution_date: '2019-01-19',
+                    technical_key: 'fc8eac422eba16e22ffd8c6f94b3f40a6e38162c',
+                    from: 990000000,
+                    to: 995000000,
+                    date_from: '2019-01-19',
+                    date_to: '2030-01-19',
                 };
                 this.invoice = {
                     json: this.defaultInvoiceJson(),
@@ -985,6 +995,7 @@
                         if (response.data.success) {
                             this.responseSoftware = response.data;
                             this.$message.success(response.data.message);
+                            this.checkExistingResolution();
                             this.next();
                         } else {
                             this.$message.error(response.data.message || 'Error al guardar el software.');
@@ -1034,6 +1045,21 @@
                 }
 
                 return Object.keys(this.errors).length === 0;
+            },
+            checkExistingResolution() {
+                this.existingResolution = null;
+                if (!this.responseCompany || !this.responseCompany.token) return;
+                this.$http
+                    .get(`/api/ubl2.1/table/resolutions/${this.form.nit}/1`, this.getHeaderConfig())
+                    .then(response => {
+                        const list = (response.data && response.data.resolutions) || [];
+                        if (list.length > 0) {
+                            this.existingResolution = list[0];
+                        }
+                    })
+                    .catch(() => {
+                        // si la consulta falla solo se omite el aviso, no bloquea el wizard
+                    });
             },
             saveResolution(finish = false) {
                 if (!this.validateResolutionFields()) {

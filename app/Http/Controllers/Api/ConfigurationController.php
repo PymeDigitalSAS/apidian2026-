@@ -627,7 +627,9 @@ class ConfigurationController extends Controller
                 throw new Exception('The given data was invalid.');
             }
             $certificateBinary = base64_decode($request->certificate);
-            if (!openssl_pkcs12_read($certificateBinary, $certificate, $request->password)) {
+            // Con OpenSSL 3 un .p12 legacy (RC2/3DES) puede leerse "parcialmente":
+            // devuelve true con la llave pero sin la clave 'cert', por eso se valida tambien
+            if (!openssl_pkcs12_read($certificateBinary, $certificate, $request->password) || empty($certificate['cert'])) {
                 // Intentar modernizar el certificado legacy
                 try {
                     $modernizer = new \App\Services\CertificateModernizerService();
@@ -676,7 +678,7 @@ class ConfigurationController extends Controller
             StorageService::putLocal("certificates/{$name}", $certificateBinary);
 
             $pfxContent = StorageService::getLocal("certificates/{$name}");
-            if (!openssl_pkcs12_read($pfxContent, $x509certdata, $request->password)) {
+            if (!openssl_pkcs12_read($pfxContent, $x509certdata, $request->password) || empty($x509certdata['cert'])) {
                 throw new Exception('The certificate could not be read.');
             }
             else{

@@ -156,9 +156,7 @@ class ConfigurationSeeder extends Seeder
         foreach ($this->tables as $key => $table) {
             $rutafile = public_path($this->prefix.DIRECTORY_SEPARATOR."{$key}.{$this->prefix}");
             $rutafile = str_replace('\\', '/', $rutafile);
-            DB::connection()
-                ->getpdo()
-                ->exec("LOAD DATA LOCAL INFILE '".$rutafile."' IGNORE INTO TABLE $key({$table['columns']}) SET created_at = NOW(), updated_at = NOW()");
+            \App\Helpers\RegularizeDataHelper::loadCsvFile($key, $table['columns'], $rutafile, true);
         }
     }
 }
