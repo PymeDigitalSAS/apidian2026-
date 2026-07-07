@@ -41,6 +41,93 @@ class SupportDocumentController extends Controller
     use DocumentTrait;
 
     /**
+     * Vista preeliminar: genera el PDF de documento soporte con datos del
+     * request pero sin firmar ni enviar a la DIAN (cufecude vacío). Soporta el
+     * override de plantilla (invoice_template + template_token) de createPDF.
+     *
+     * @param \App\Http\Requests\Api\SupportDocumentRequest $request
+     *
+     * @return array
+     */
+    public function preeliminarview(SupportDocumentRequest $request)
+    {
+        try {
+            $user = auth()->user();
+            $company = $user->company;
+
+            $this->ActualizarTablas();
+
+            // Type document
+            $typeDocument = TypeDocument::findOrFail($request->type_document_id);
+
+            // Seller (actúa como "customer" en el PDF)
+            $sellerAll = collect($request->seller);
+            if (isset($sellerAll['municipality_id_fact']))
+                $sellerAll['municipality_id'] = Municipality::where('codefacturador', $sellerAll['municipality_id_fact'])->first();
+            $seller = new User($sellerAll->toArray());
+            $seller->company = new Company($sellerAll->toArray());
+            $seller->postal_zone_code = $sellerAll['postal_zone_code'] ?? null;
+
+            // Resolution
+            $request->resolution->number = $request->number;
+            $resolution = $request->resolution;
+
+            // Date time
+            $date = $request->date;
+            $time = $request->time;
+
+            // Notes
+            $notes = $request->notes;
+
+            // Health Fields
+            if ($request->health_fields) {
+                $healthfields = new HealthField($request->health_fields);
+                $healthfields->initRelations();
+            } else {
+                $healthfields = null;
+            }
+
+            // Payment form
+            if (isset($request->payment_form['payment_form_id']))
+                $paymentFormAll = [(array) $request->payment_form];
+            else
+                $paymentFormAll = $request->payment_form;
+
+            $paymentForm = collect();
+            foreach ($paymentFormAll ?? [$this->paymentFormDefault] as $paymentF) {
+                $payment = PaymentForm::findOrFail($paymentF['payment_form_id']);
+                $payment['payment_method_code'] = PaymentMethod::findOrFail($paymentF['payment_method_id'])->code;
+                $payment['nameMethod'] = PaymentMethod::findOrFail($paymentF['payment_method_id'])->name;
+                $payment['payment_due_date'] = $paymentF['payment_due_date'] ?? null;
+                $payment['duration_measure'] = $paymentF['duration_measure'] ?? null;
+                $paymentForm->push($payment);
+            }
+
+            // Retenciones globales
+            $withHoldingTaxTotal = collect();
+            foreach ($request->with_holding_tax_total ?? [] as $item) {
+                $withHoldingTaxTotal->push(new TaxTotal($item));
+            }
+
+            StorageService::ensureDirectory("public/{$company->identification_number}");
+
+            $this->createPDF($user, $company, $seller, $typeDocument, $resolution, $date, $time, $paymentForm, $request, "", "SUPPORTDOCUMENT", $withHoldingTaxTotal, $notes, $healthfields);
+
+            return [
+                'success' => true,
+                'message' => "Vista preeliminar de documento soporte #{$resolution->next_consecutive} generada con éxito",
+                'urlsupportpdf' => "DSS-{$resolution->next_consecutive}.pdf",
+                'base64supportpdf' => StorageService::getBase64Auto("public/{$company->identification_number}/DSS-{$resolution->next_consecutive}.pdf"),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => "Error generando vista preliminar: " . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Store.
      *
      * @param \App\Http\Requests\Api\SupportDocumentRequest $request

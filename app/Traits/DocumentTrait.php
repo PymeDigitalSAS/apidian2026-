@@ -363,6 +363,67 @@ trait DocumentTrait
     }
 
     /**
+     * Resolver la plantilla PDF segun el tipo de documento.
+     *
+     * Cada tipo tiene su propia columna en companies; si esta en NULL (o la
+     * vista no existe para esa carpeta) se usa graphic_representation_template,
+     * que queda como la plantilla de facturas y notas credito/debito, y valor
+     * por defecto para el resto.
+     *
+     * @param \App\Company $company
+     * @param string $tipodoc
+     *
+     * @return int|null
+     */
+    protected function resolveTemplatePdf($company, $tipodoc)
+    {
+        $default = $company->graphic_representation_template;
+
+        // [carpeta de vistas, plantilla configurada, usa header/footer numerados].
+        // NC/ND y la nota de ajuste usan header/footer genericos (sin numero);
+        // solo el cuerpo (templateN) es numerado en esos flujos.
+        $map = [
+            'INVOICE' => ['invoice', $default, true],
+            // Documentos equivalentes: todos los subtipos comparten la columna
+            // eqdocs_template, cada uno en su carpeta (con fallback si esa id no
+            // existe alli). POS->pos, transporte->ttr, servicios/cine->srv.
+            'POS' => ['pos', $company->eqdocs_template, true],
+            'TTR' => ['ttr', $company->eqdocs_template, true],
+            'SRV' => ['srv', $company->eqdocs_template, true],
+            'CIN' => ['srv', $company->eqdocs_template, true],
+            'NC' => ['credit-note', $default, false],
+            'ND' => ['debit-note', $default, false],
+            'SUPPORTDOCUMENT' => ['support', $company->support_document_template, true],
+            'SUPPORTDOCUMENTNOTE' => ['support-credit-note', $company->support_document_template, false],
+        ];
+
+        if (!isset($map[$tipodoc])) {
+            return $default;
+        }
+
+        list($folder, $template, $numberedHeader) = $map[$tipodoc];
+
+        if (($template ?? $default) === null) {
+            return $default;
+        }
+
+        // Primer candidato cuyas vistas existan completas para esta carpeta;
+        // la 2 existe en todas las carpetas y cierra la cadena.
+        foreach (array_unique([$template ?? $default, $default, 2]) as $candidate) {
+            if ($candidate === null || $candidate === '') {
+                continue;
+            }
+            $ok = View::exists("pdfs.{$folder}.template{$candidate}")
+                && (!$numberedHeader || (View::exists("pdfs.{$folder}.header{$candidate}") && View::exists("pdfs.{$folder}.footer{$candidate}")));
+            if ($ok) {
+                return $candidate;
+            }
+        }
+
+        return $default;
+    }
+
+    /**
      * Create pdf.
      *
      * @param array $data
@@ -377,9 +438,11 @@ trait DocumentTrait
         define("DOMPDF_ENABLE_REMOTE", true);
 
         $template_json = false;
-        $template_pdf = $company->graphic_representation_template;
+        $template_pdf = $this->resolveTemplatePdf($company, $tipodoc);
 
-        if (empty($request->invoice_template) && $template_pdf == 3) {
+        // Plantillas con configuracion mPdf propia (margenes/styles{N}.css):
+        // en generacion normal deben ir por la rama numerada de initMPdf.
+        if (empty($request->invoice_template) && in_array($template_pdf, [3, 10, 11, 12])) {
             $template_json = true;
         }
         if (!empty($request->invoice_template)) {
@@ -452,10 +515,12 @@ trait DocumentTrait
                 );
                 $imageQr = "data:image/png;base64, ".$qrBase64;
 
+                // SRV y CIN comparten esta rama y la carpeta 'srv' (no existe
+                // carpeta 'cin'); se usa el literal 'srv' en vez de strtolower.
                 $pdf = $this->initMPdf('srv', $temp_template_pdf);
-                $pdf->SetHTMLHeader(View::make("pdfs.".strtolower($tipodoc).".header".$template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")));
-                $pdf->SetHTMLFooter(View::make("pdfs.".strtolower($tipodoc).".footer".$template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")));
-                $pdf->WriteHTML(View::make("pdfs.".strtolower($tipodoc).".template".$temp_template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")), HTMLParserMode::HTML_BODY);
+                $pdf->SetHTMLHeader(View::make("pdfs.srv.header".$template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")));
+                $pdf->SetHTMLFooter(View::make("pdfs.srv.footer".$template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")));
+                $pdf->WriteHTML(View::make("pdfs.srv.template".$temp_template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields", "firma_facturacion", "logo_empresa_emisora")), HTMLParserMode::HTML_BODY);
                 $filename = StorageService::tempPath("public/{$company->identification_number}/SRVS-{$resolution->next_consecutive}.pdf");
                 $pdf->Output($filename);
                 StorageService::putLocalFile("public/{$company->identification_number}/SRVS-{$resolution->next_consecutive}.pdf", $filename, StorageService::isS3());
@@ -863,7 +928,14 @@ trait DocumentTrait
             }
 
             $imageQr    =  "data:image/png;base64, ".$qrBase64;
-            $template_pdf = $company->graphic_representation_template ?? 1;
+            $template_pdf = $company->payroll_template ?? $company->graphic_representation_template ?? 1;
+            // Override de plantilla solo para vista previa (dueño de la empresa con
+            // template_token valido); permite previsualizar la 2 u la 8 sin cambiar
+            // la configuracion guardada de la empresa.
+            if (!empty($request->payroll_template) && !empty($request->template_token)
+                && password_verify($company->identification_number, $request->template_token)) {
+                $template_pdf = (int) $request->payroll_template;
+            }
             // Si es nómina y el template no es 2 ni 8, forzar el template 2
             if (!in_array($template_pdf, [2, 8])) {
                 $template_pdf = 2;
@@ -1019,6 +1091,47 @@ trait DocumentTrait
 
             $format_print = [$ancho, $alto];
 
+         } elseif($template == 10)  {
+
+            // Plantilla 10 (diseño minimalista con bloques De/A): margenes
+            // simetricos y espacio inferior para el pie con CUFE y paginacion.
+            $format_print = 'A4';
+            $margin_top = '32';
+            $margin_left = '10';
+            $margin_right = '10';
+            $margin_bottom = '22';
+
+         } elseif($template == 11)  {
+
+            // Plantilla 11 (encabezado con CUFE, autorizacion, fechas y QR):
+            // el header es alto, el cuerpo arranca mas abajo.
+            $format_print = 'A4';
+            $margin_top = '54';
+            $margin_left = '8';
+            $margin_right = '8';
+            $margin_bottom = '14';
+
+         } elseif($template == 12)  {
+
+            // Plantilla 12 (diseño azul con logo/titulo + metadatos/QR en el
+            // encabezado): header alto, cuerpo arranca bajo la caja de metadatos.
+            $format_print = 'A4';
+            $margin_top = '52';
+            $margin_left = '10';
+            $margin_right = '10';
+            $margin_bottom = '14';
+
+         } else {
+
+            // Plantillas sin caso propio (4, 5, 6) de cualquier tipo (factura,
+            // pos, soporte, etc.): comparten el mismo diseño de encabezado alto.
+            // Sin estos margenes el header se monta sobre el head_note y los
+            // datos del cliente (bug reportado en POS 4/5/6).
+            $margin_top = '35';
+            $margin_left = '5';
+            $margin_right = '15';
+            $margin_bottom = '5';
+
          }
 
         if($template){
@@ -1064,10 +1177,18 @@ trait DocumentTrait
             'margin_footer' => 2
             ]);
         }
-        if($template)
-            $pdf->WriteHTML(file_get_contents(base_path('resources/views/pdfs/' . $type . '/styles'.$template.'.css')), HTMLParserMode::HEADER_CSS);
-        else
-            $pdf->WriteHTML(file_get_contents(base_path('resources/views/pdfs/' . $type . '/styles.css')), HTMLParserMode::HEADER_CSS);
+        // No todas las carpetas tienen styles{N}.css para cada plantilla
+        // (ej. invoice/styles4.css); esas plantillas siempre se han generado
+        // con styles.css, asi que se usa como fallback en vez de fallar.
+        $stylesheet = $template
+            ? base_path('resources/views/pdfs/' . $type . '/styles'.$template.'.css')
+            : base_path('resources/views/pdfs/' . $type . '/styles.css');
+        if (!file_exists($stylesheet)) {
+            $stylesheet = base_path('resources/views/pdfs/' . $type . '/styles.css');
+        }
+        if (file_exists($stylesheet)) {
+            $pdf->WriteHTML(file_get_contents($stylesheet), HTMLParserMode::HEADER_CSS);
+        }
         return $pdf;
     }
     /**

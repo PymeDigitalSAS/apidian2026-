@@ -181,8 +181,13 @@ class InvoiceController extends Controller
         foreach ($request->invoice_lines as $invoiceLine) {
             $invoiceLines->push(new InvoiceLine($invoiceLine));
         }
-        // Marca de agua "SIN VALOR" solo para la vista preeliminar
-        $request->merge(['is_preview' => true]);
+        // Marca de agua "SIN VALOR" solo para la vista preeliminar. Se puede
+        // omitir con hide_watermark, pero solo con template_token valido
+        // (vista previa de plantillas del dueño de la empresa).
+        $hideWatermark = $request->hide_watermark
+            && !empty($request->template_token)
+            && password_verify($company->identification_number, $request->template_token);
+        $request->merge(['is_preview' => !$hideWatermark]);
         $QRStr = $this->createPDF($user, $company, $customer, $typeDocument, $resolution, $date, $time, $paymentForm, $request, "", "INVOICE", $withHoldingTaxTotal, $notes, $healthfields);
 
         return [

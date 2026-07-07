@@ -1423,34 +1423,139 @@ class ConfigurationController extends Controller
     }
 
     /**
-     * Obtener las plantillas disponibles.
+     * Tipos de documento con plantilla configurable de forma independiente.
+     * 'folder' es la carpeta de vistas en resources/views/pdfs, 'column' la
+     * columna en companies e 'image' la subcarpeta en public donde estan las
+     * imagenes de vista previa. Sin type se asume 'invoice' (comportamiento
+     * original: graphic_representation_template). NC/ND siguen la de facturas.
      */
-    public function getTemplates()
+    private const TEMPLATE_TYPES = [
+        'factura' => ['name' => 'Factura Electrónica', 'folder' => 'invoice', 'column' => 'graphic_representation_template', 'image' => 'pdf'],
+        'pos' => ['name' => 'Documento Equivalente (POS)', 'folder' => 'pos', 'column' => 'eqdocs_template', 'image' => 'pdf/eqdocs'],
+        'soporte' => ['name' => 'Documento Soporte', 'folder' => 'support', 'column' => 'support_document_template', 'image' => 'pdf/support-document'],
+        'nomina' => ['name' => 'Nómina Electrónica', 'folder' => 'payroll', 'column' => 'payroll_template', 'image' => 'pdf/payroll'],
+    ];
+
+    /**
+     * Alias aceptados en 'type' que se normalizan al tipo canónico (en español).
+     * Incluye los slugs antiguos en inglés (retrocompat) y variantes del
+     * documento soporte, para que cualquier cliente —viejo o nuevo— funcione.
+     */
+    private const TEMPLATE_TYPE_ALIASES = [
+        'invoice' => 'factura',
+        'eqdocs' => 'pos',
+        'support-document' => 'soporte',
+        'payroll' => 'nomina',
+        'documentosoporte' => 'soporte',
+        'documento-soporte' => 'soporte',
+        'documento_soporte' => 'soporte',
+    ];
+
+    /**
+     * Normaliza el 'type' recibido al tipo canónico en español.
+     * - null/vacío  => 'factura' (retrocompat: sin type = facturas).
+     * - canónico o alias conocido => su clave canónica.
+     * - desconocido => null (el llamador responde con error + valid_types).
+     */
+    private function normalizeType($type): ?string
     {
-        $templatePath = resource_path('views/pdfs/invoice/');
-        $imageBaseUrl = asset('pdf/');
+        if ($type === null || $type === '') {
+            return 'factura';
+        }
+        $key = strtolower(trim((string) $type));
+        if (isset(self::TEMPLATE_TYPES[$key])) {
+            return $key;
+        }
+        return self::TEMPLATE_TYPE_ALIASES[$key] ?? null;
+    }
 
-        // Buscar archivos que coincidan con 'templateX.blade.php'
-        $files = File::files($templatePath);
-        $templates = [];
+    /**
+     * Lista amigable de tipos de documento aceptados en el campo 'type':
+     * el valor a enviar ('type') y su nombre legible ('name').
+     */
+    private function validTypesList(): array
+    {
+        $list = [];
+        foreach (self::TEMPLATE_TYPES as $type => $cfg) {
+            $list[] = ['type' => $type, 'name' => $cfg['name']];
+        }
+        return $list;
+    }
 
-        foreach ($files as $file) {
-            if (preg_match('/template(\d+)\.blade\.php$/', $file->getFilename(), $matches)) {
-                $templateNumber = $matches[1]; // Obtener solo el número
-
-                // Generar la URL de la imagen
-                $imageUrl = $imageBaseUrl . "/template{$templateNumber}.png";
-
-                $templates[] = [
-                    'id' => $templateNumber,
-                    'name' => $file->getFilename(),
-                    'image_url' => $imageUrl,
-                ];
+    /**
+     * Ids de plantillas completas (con header{N} y footer{N} propios) que hay
+     * en una carpeta de vistas, ordenados ascendente. Se excluyen plantillas
+     * sin header/footer propios (ej. tirillas 7/9 de factura, que se activan por
+     * request con is_tirilla2/is_tirilla58, no como plantilla fija).
+     */
+    private function availableTemplateIds(string $folder): array
+    {
+        $path = resource_path("views/pdfs/{$folder}/");
+        $ids = [];
+        foreach (File::files($path) as $file) {
+            if (preg_match('/template(\d+)\.blade\.php$/', $file->getFilename(), $m)
+                && File::exists("{$path}header{$m[1]}.blade.php")
+                && File::exists("{$path}footer{$m[1]}.blade.php")) {
+                $ids[] = (int) $m[1];
             }
         }
+        sort($ids);
+        return $ids;
+    }
+
+    /**
+     * Obtener las plantillas disponibles.
+     */
+    public function getTemplates(Request $request)
+    {
+        $rawType = $request->query('type');
+        $type = $this->normalizeType($rawType);
+
+        if ($type === null) {
+            return response()->json([
+                'success' => false,
+                'error' => "El tipo de documento \"{$rawType}\" no es válido.",
+                'message' => 'Envía en el campo "type" uno de estos valores (usa el valor, no el nombre).',
+                'valid_types' => $this->validTypesList(),
+            ], 422);
+        }
+
+        $typeName = self::TEMPLATE_TYPES[$type]['name'];
+        $column = self::TEMPLATE_TYPES[$type]['column'];
+        // Imagenes de vista previa por tipo de documento (subcarpeta en public)
+        $imageBaseUrl = asset(self::TEMPLATE_TYPES[$type]['image']);
+
+        $company = auth()->user()->company;
+
+        // Plantillas completas del tipo, ordenadas ascendente. Se conserva el
+        // formato anterior (id como string, name = archivo blade) para no romper
+        // integraciones existentes, y se agrega 'label' legible ("Plantilla N").
+        $availableIds = $this->availableTemplateIds(self::TEMPLATE_TYPES[$type]['folder']);
+        $templates = [];
+        foreach ($availableIds as $id) {
+            $templates[] = [
+                'id' => (string) $id,                 // formato anterior
+                'name' => "template{$id}.blade.php",  // formato anterior
+                'label' => "Plantilla {$id}",         // nuevo: nombre legible para mostrar
+                'image_url' => $imageBaseUrl . "/template{$id}.png",
+            ];
+        }
+
+        // Plantilla configurada para este tipo; si esta en NULL rige la de facturas.
+        $current = (int) ($company->{$column} ?? $company->graphic_representation_template);
 
         return response()->json([
-            'templates' => $templates
+            'success' => true,
+            'message' => "Estas son las plantillas disponibles para {$typeName}.",
+            'type' => $type,
+            'type_name' => $typeName,
+            'current' => $current,
+            // indica si 'current' esta entre las plantillas de esta lista; puede ser
+            // false si el tipo hereda la plantilla de facturas y esa no existe aqui.
+            'current_available' => in_array($current, $availableIds, true),
+            // tipos aceptados en el campo 'type' (valor a enviar + nombre legible)
+            'valid_types' => $this->validTypesList(),
+            'templates' => $templates,
         ]);
     }
 
@@ -1459,26 +1564,66 @@ class ConfigurationController extends Controller
      */
     public function updateTemplate(Request $request)
     {
-        $request->validate([
-            'id' => 'required|string'
-        ]);
+        $rawType = $request->input('type');
+        $type = $this->normalizeType($rawType);
 
-        $company = auth()->user()->company;
-
-        // Validar si el template existe en la carpeta
-        $templatePath = resource_path("views/pdfs/invoice/template{$request->id}.blade.php");
-
-        if (!File::exists($templatePath)) {
-            return response()->json(['error' => 'La plantilla no existe.'], 404);
+        // Tipo de documento valido: se informan los aceptados para el JSON.
+        if ($type === null) {
+            return response()->json([
+                'success' => false,
+                'error' => "El tipo de documento \"{$rawType}\" no es válido.",
+                'message' => 'Envía en el campo "type" uno de estos valores (usa el valor, no el nombre).',
+                'valid_types' => $this->validTypesList(),
+            ], 422);
         }
 
-        // Guardar en BD
-        $company->graphic_representation_template = $request->id;
+        $typeName = self::TEMPLATE_TYPES[$type]['name'];
+        $folder = self::TEMPLATE_TYPES[$type]['folder'];
+        $column = self::TEMPLATE_TYPES[$type]['column'];
+        // Ids disponibles para este tipo (se devuelven en los errores para que
+        // el cliente sepa exactamente que puede enviar).
+        $available = $this->availableTemplateIds($folder);
+
+        // 'id' debe ser un entero positivo. Se usa para armar el nombre de la
+        // vista, asi que no debe aceptar rutas ni cadenas arbitrarias; se toleran
+        // ceros a la izquierda y espacios (ej. "08" o " 8 " -> 8).
+        $rawId = is_scalar($request->id) ? trim((string) $request->id) : '';
+        if ($rawId === '' || !ctype_digit($rawId) || (int) $rawId < 1) {
+            return response()->json([
+                'success' => false,
+                'error' => 'El campo "id" es obligatorio y debe ser el número de una plantilla.',
+                'message' => "Envía en el campo \"id\" uno de los números de plantilla disponibles para {$typeName}.",
+                'type' => $type,
+                'type_name' => $typeName,
+                'available_templates' => $available,
+            ], 422);
+        }
+
+        $template = (int) $rawId;
+
+        // La plantilla debe existir completa (cuerpo + header + footer) para el tipo.
+        if (!in_array($template, $available, true)) {
+            return response()->json([
+                'success' => false,
+                'error' => "La plantilla número {$template} no está disponible para {$typeName}.",
+                'message' => "Envía en el campo \"id\" uno de los números de plantilla disponibles para {$typeName}.",
+                'type' => $type,
+                'type_name' => $typeName,
+                'available_templates' => $available,
+            ], 404);
+        }
+
+        // Guardar en la columna del tipo de documento
+        $company = auth()->user()->company;
+        $company->{$column} = $template;
         $company->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'Plantilla actualizada correctamente.'
+            'message' => "La plantilla de {$typeName} se actualizó a la número {$template} correctamente.",
+            'type' => $type,
+            'type_name' => $typeName,
+            'template' => $template,
         ]);
     }
 };

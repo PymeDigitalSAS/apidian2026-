@@ -1218,4 +1218,50 @@ class ProductionController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Guardar la plantilla PDF de un tipo de documento de la empresa.
+     * Tipos y columnas alineados con Api\ConfigurationController::TEMPLATE_TYPES
+     * y DocumentTrait::resolveTemplatePdf().
+     */
+    public function updateTemplate(Request $request, $company, $type)
+    {
+        $company = Company::where('identification_number', $company)->firstOrFail();
+
+        $types = [
+            'invoice' => ['folder' => 'invoice', 'column' => 'graphic_representation_template'],
+            'eqdocs' => ['folder' => 'pos', 'column' => 'eqdocs_template'],
+            'support-document' => ['folder' => 'support', 'column' => 'support_document_template'],
+            'payroll' => ['folder' => 'payroll', 'column' => 'payroll_template'],
+        ];
+
+        if (!isset($types[$type])) {
+            return response()->json(['error' => 'Tipo de documento no válido.'], 422);
+        }
+
+        $request->validate([
+            'template' => 'required|integer|min:1',
+        ]);
+
+        $folder = $types[$type]['folder'];
+        $template = (int) $request->input('template');
+
+        // Estos tipos renderizan template{N} + header{N} + footer{N}; una
+        // plantilla sin header/footer propios (ej. tirillas 7/9 de factura)
+        // no es valida como plantilla fija de la empresa.
+        if (!file_exists(resource_path("views/pdfs/{$folder}/template{$template}.blade.php"))
+            || !file_exists(resource_path("views/pdfs/{$folder}/header{$template}.blade.php"))
+            || !file_exists(resource_path("views/pdfs/{$folder}/footer{$template}.blade.php"))) {
+            return response()->json(['error' => 'La plantilla no existe para este tipo de documento.'], 404);
+        }
+
+        $company->{$types[$type]['column']} = $template;
+        $company->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Plantilla actualizada correctamente.',
+            'template' => $template,
+        ]);
+    }
 }

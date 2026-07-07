@@ -41,6 +41,101 @@ class EqDocController extends Controller
     use DocumentTrait;
 
     /**
+     * Vista preeliminar: genera el PDF del documento equivalente con datos del
+     * request sin firmar ni enviar a la DIAN (cufecude vacío). Pensado para POS,
+     * respeta el override de plantilla (invoice_template + template_token) y la
+     * marca de agua "SIN VALOR" (se omite con hide_watermark + template_token).
+     *
+     * @param \App\Http\Requests\Api\EqDocRequest $request
+     *
+     * @return array
+     */
+    public function preeliminarview(EqDocRequest $request)
+    {
+        try {
+            $user = auth()->user();
+            $company = $user->company;
+
+            $this->ActualizarTablas();
+
+            // Type document
+            $typeDocument = TypeDocument::findOrFail($request->type_document_id);
+            $pf = strtoupper($typeDocument->prefix);
+            $pfs = strtoupper($typeDocument->prefix) . "S";
+
+            // Customer
+            $customerAll = collect($request->customer);
+            if (isset($customerAll['municipality_id_fact']))
+                $customerAll['municipality_id'] = Municipality::where('codefacturador', $customerAll['municipality_id_fact'])->first();
+            $customer = new User($customerAll->toArray());
+            $customer->company = new Company($customerAll->toArray());
+
+            // Resolution
+            $request->resolution->number = $request->number;
+            $resolution = $request->resolution;
+
+            // Date time
+            $date = $request->date;
+            $time = $request->time;
+
+            // Notes
+            $notes = $request->notes;
+
+            // Health Fields
+            if ($request->health_fields) {
+                $healthfields = new HealthField($request->health_fields);
+                $healthfields->initRelations();
+            } else {
+                $healthfields = null;
+            }
+
+            // Payment form
+            if (isset($request->payment_form['payment_form_id']))
+                $paymentFormAll = [(array) $request->payment_form];
+            else
+                $paymentFormAll = $request->payment_form;
+
+            $paymentForm = collect();
+            foreach ($paymentFormAll ?? [$this->paymentFormDefault] as $paymentF) {
+                $payment = PaymentForm::findOrFail($paymentF['payment_form_id']);
+                $payment['payment_method_code'] = PaymentMethod::findOrFail($paymentF['payment_method_id'])->code;
+                $payment['nameMethod'] = PaymentMethod::findOrFail($paymentF['payment_method_id'])->name;
+                $payment['payment_due_date'] = $paymentF['payment_due_date'] ?? null;
+                $payment['duration_measure'] = $paymentF['duration_measure'] ?? null;
+                $paymentForm->push($payment);
+            }
+
+            // Retenciones globales
+            $withHoldingTaxTotal = collect();
+            foreach ($request->with_holding_tax_total ?? [] as $item) {
+                $withHoldingTaxTotal->push(new TaxTotal($item));
+            }
+
+            // Marca de agua "SIN VALOR" salvo hide_watermark con template_token válido
+            $hideWatermark = $request->hide_watermark
+                && !empty($request->template_token)
+                && password_verify($company->identification_number, $request->template_token);
+            $request->merge(['is_preview' => !$hideWatermark]);
+
+            StorageService::ensureDirectory("public/{$company->identification_number}");
+
+            $this->createPDF($user, $company, $customer, $typeDocument, $resolution, $date, $time, $paymentForm, $request, "", $pf, $withHoldingTaxTotal, $notes, $healthfields);
+
+            return [
+                'success' => true,
+                'message' => "Vista preeliminar de documento equivalente #{$resolution->next_consecutive} generada con éxito",
+                'urleqdocpdf' => "{$pfs}-{$resolution->next_consecutive}.pdf",
+                'base64eqdocpdf' => StorageService::getBase64Auto("public/{$company->identification_number}/{$pfs}-{$resolution->next_consecutive}.pdf"),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'message' => "Error generando vista preliminar: " . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Store.
      *
      * @param \App\Http\Requests\Api\EqDocRequest $request

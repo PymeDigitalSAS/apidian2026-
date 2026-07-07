@@ -139,6 +139,7 @@ Route::group(['middleware' => ['auth', 'company.web.access']], function() {
     Route::get('/companies/{company}/production/event', 'ProductionController@productionEvent')->name('company.production.event.index');
     Route::put('/companies/{company}/production/environment/{type}', 'ProductionController@updateEnvironment')->name('company.production.environment.update');
     Route::put('/companies/{company}/production/software/{type?}', 'ProductionController@storeSoftware')->where('type', 'invoice|payroll|pos|support')->defaults('type', 'invoice')->name('company.production.software.store');    //configuration
+    Route::put('/companies/{company}/production/template/{type}', 'ProductionController@updateTemplate')->where('type', 'invoice|eqdocs|support-document|payroll')->name('company.production.template.update');
     Route::get('/companies/{company}/production/tabs/{type?}', 'ProductionController@documentsTabs')->name('company.production.tabs');
 
     Route::get('/configuration', 'ConfigurationController@index')->name('configuration_index');

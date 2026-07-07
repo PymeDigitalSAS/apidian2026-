@@ -174,6 +174,7 @@ Route::middleware(['auth:api', 'storage.context'])->group(function () {
 
         // Equivalent Documents
         Route::prefix('/eqdoc')->group(function () {
+            Route::post('/preeliminar-view', 'Api\EqDocController@preeliminarview');
             Route::post('/{testSetId}', 'Api\EqDocController@testSetStore');
             Route::post('/', 'Api\EqDocController@store');
         });
@@ -237,6 +238,7 @@ Route::middleware(['auth:api', 'storage.context'])->group(function () {
 
         // Support Document
         Route::prefix('/support-document')->group(function () {
+            Route::post('/preeliminar-view', 'Api\SupportDocumentController@preeliminarview');
             Route::post('/{testSetId}', 'Api\SupportDocumentController@testSetStore');
             Route::post('/', 'Api\SupportDocumentController@store');
         });

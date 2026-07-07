@@ -452,6 +452,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         Resoluciones
                     </button>
                 </li>
+                <li class="nav-item d-flex" role="presentation">
+                    <button class="nav-link w-100 d-flex justify-content-center align-items-center px-3 py-2 fw-bold"
+                        id="invoice-templates-tab" data-bs-toggle="tab" data-bs-target="#invoice-templates" type="button" role="tab"
+                        aria-controls="invoice-templates" aria-selected="false">
+                        <i class="fas fa-file-image me-2"></i>
+                        Plantilla PDF
+                    </button>
+                </li>
             </ul>
             <div class="tab-content" id="invoiceSubTabsContent">
                 <div class="tab-pane fade show active" id="invoice-list" role="tabpanel" aria-labelledby="invoice-list-tab">
@@ -478,6 +486,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         'resolutionsHab' => $invoiceData['resolutionsHab'] ?? collect(),
                         'resolutionsProd' => $invoiceData['resolutionsProd'] ?? collect(),
                         'resolutionTypeDocuments' => $invoiceData['resolutionTypeDocuments'] ?? collect(),
+                    ])
+                </div>
+                <div class="tab-pane fade" id="invoice-templates" role="tabpanel" aria-labelledby="invoice-templates-tab">
+                    @include('company.production._templates_tab', [
+                        'company' => $company,
+                        'type' => 'invoice',
                     ])
                 </div>
             </div>
@@ -522,6 +536,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         Resoluciones
                     </button>
                 </li>
+                <li class="nav-item d-flex" role="presentation">
+                    <button class="nav-link w-100 d-flex justify-content-center align-items-center px-3 py-2 fw-bold"
+                        id="payroll-templates-tab" data-bs-toggle="tab" data-bs-target="#payroll-templates" type="button" role="tab"
+                        aria-controls="payroll-templates" aria-selected="false">
+                        <i class="fas fa-file-image me-2"></i>
+                        Plantilla PDF
+                    </button>
+                </li>
             </ul>
             <div class="tab-content" id="payrollSubTabsContent">
                 <div class="tab-pane fade show active" id="payroll-list" role="tabpanel" aria-labelledby="payroll-list-tab">
@@ -537,6 +559,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         'company' => $company,
                         'environmentStatus' => $environmentStatuses['payroll'],
                         'typeDocuments' => $typeDocuments
+                    ])
+                </div>
+                <div class="tab-pane fade" id="payroll-templates" role="tabpanel" aria-labelledby="payroll-templates-tab">
+                    @include('company.production._templates_tab', [
+                        'company' => $company,
+                        'type' => 'payroll',
                     ])
                 </div>
                 <div class="tab-pane fade" id="payroll-resolutions" role="tabpanel" aria-labelledby="payroll-resolutions-tab">
@@ -590,6 +618,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         Resoluciones
                     </button>
                 </li>
+                <li class="nav-item d-flex" role="presentation">
+                    <button class="nav-link w-100 d-flex justify-content-center align-items-center px-3 py-2 fw-bold"
+                        id="support-templates-tab" data-bs-toggle="tab" data-bs-target="#support-templates" type="button" role="tab"
+                        aria-controls="support-templates" aria-selected="false">
+                        <i class="fas fa-file-image me-2"></i>
+                        Plantilla PDF
+                    </button>
+                </li>
             </ul>
             <div class="tab-content" id="supportSubTabsContent">
                 <div class="tab-pane fade show active" id="support-list" role="tabpanel" aria-labelledby="support-list-tab">
@@ -616,6 +652,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         'resolutionsHab' => $supportData['resolutionsHab'] ?? collect(),
                         'resolutionsProd' => $supportData['resolutionsProd'] ?? collect(),
                         'resolutionTypeDocuments' => $supportData['resolutionTypeDocuments'] ?? collect(),
+                    ])
+                </div>
+                <div class="tab-pane fade" id="support-templates" role="tabpanel" aria-labelledby="support-templates-tab">
+                    @include('company.production._templates_tab', [
+                        'company' => $company,
+                        'type' => 'support-document',
                     ])
                 </div>
             </div>
@@ -724,6 +766,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         Resoluciones
                     </button>
                 </li>
+                <li class="nav-item d-flex" role="presentation">
+                    <button class="nav-link w-100 d-flex justify-content-center align-items-center px-3 py-2 fw-bold"
+                        id="pos-templates-tab" data-bs-toggle="tab" data-bs-target="#pos-templates" type="button" role="tab"
+                        aria-controls="pos-templates" aria-selected="false">
+                        <i class="fas fa-file-image me-2"></i>
+                        Plantilla PDF
+                    </button>
+                </li>
             </ul>
             <div class="tab-content" id="posSubTabsContent">
                 <div class="tab-pane fade show active" id="pos-list" role="tabpanel" aria-labelledby="pos-list-tab">
@@ -750,6 +800,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         'resolutionsHab' => $posData['resolutionsHab'] ?? collect(),
                         'resolutionsProd' => $posData['resolutionsProd'] ?? collect(),
                         'resolutionTypeDocuments' => $posData['resolutionTypeDocuments'] ?? collect(),
+                    ])
+                </div>
+                <div class="tab-pane fade" id="pos-templates" role="tabpanel" aria-labelledby="pos-templates-tab">
+                    @include('company.production._templates_tab', [
+                        'company' => $company,
+                        'type' => 'eqdocs',
                     ])
                 </div>
             </div>

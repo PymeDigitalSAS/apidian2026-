@@ -87,6 +87,9 @@ class Company extends Model
         'absolut_plan_documents',
         'allow_seller_login',
         'graphic_representation_template',
+        'eqdocs_template',
+        'support_document_template',
+        'payroll_template',
         'storage_mode',
     ];
 
