@@ -75,6 +75,7 @@ Route::middleware(['auth:api', 'storage.context'])->group(function () {
         Route::get('/health_type_users', 'Api\ConfigurationController@table_health_type_users');
         Route::get('/health_contracting_payment_methods', 'Api\ConfigurationController@table_health_contracting_payment_methods');
         Route::get('/health_coverages', 'Api\ConfigurationController@table_health_coverages');
+        Route::get('/health_invoice_without_contracts', 'Api\ConfigurationController@table_health_invoice_without_contracts');
         Route::get('/resolutions/{identification_number?}/{type_id?}', 'Api\ConfigurationController@table_resolutions');
         Route::get('/municipality-code-by-facturador/{codefacturador}', 'Api\MunicipalityController@codeByFacturador');
         Route::post('/municipality-codes-by-facturador', 'Api\MunicipalityController@codesByFacturador');
