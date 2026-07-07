@@ -80,7 +80,6 @@ Si aparecen conflictos:
 Luego:
 
     php artisan migrate --seed
-    unzip storage.zip
     chmod -R 777 storage
     chmod -R 777 bootstrap/cache
     chmod -R 777 vendor/mpdf/mpdf
@@ -127,7 +126,6 @@ Luego:
     composer self-update 2.8.0
     rm composer.lock
     composer install
-    unzip storage.zip
     chmod -R 777 storage
     chmod -R 777 bootstrap/cache
     chmod -R 777 vendor/mpdf/mpdf

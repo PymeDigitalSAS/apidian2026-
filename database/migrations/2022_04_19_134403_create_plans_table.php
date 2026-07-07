@@ -32,9 +32,7 @@ class CreatePlansTable extends Migration
         ];
         $rutafile = public_path($prefix.DIRECTORY_SEPARATOR."{$key}.{$prefix}");
         $rutafile = str_replace('\\', '/', $rutafile);
-        DB::connection()
-            ->getpdo()
-            ->exec("LOAD DATA LOCAL INFILE '".$rutafile."' INTO TABLE $key({$table['columns']}) SET created_at = NOW(), updated_at = NOW()");
+        \App\Helpers\RegularizeDataHelper::loadCsvFile($key, $table['columns'], $rutafile);
     }
 
     /**

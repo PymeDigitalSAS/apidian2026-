@@ -244,8 +244,10 @@ class ProductionController extends Controller
         $company = Company::where('identification_number', $company)->firstOrFail();
         $environmentStatus = $this->getEnvironmentStatus($company, 'invoice');
         $typeDocuments = TypeDocument::all();
+        // resolucion de factura ya registrada (ej. la de habilitacion SETP)
+        $invoiceResolution = $company->resolutions()->where('type_document_id', 1)->latest('id')->first();
 
-        return view('company.production.invoice.index', compact('company', 'environmentStatus', 'typeDocuments'));
+        return view('company.production.invoice.index', compact('company', 'environmentStatus', 'typeDocuments', 'invoiceResolution'));
     }
 
     public function productionPos($company)
