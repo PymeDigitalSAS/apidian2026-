@@ -108,8 +108,13 @@ class ConfigurationController extends Controller
     }
 
     public function table_health_coverages(){
-        $health_coverages = HealthCoverage::all();
+        $health_coverages = HealthCoverage::where('code', '!=', '01')->get();
         return compact('health_coverages');
+    }
+
+    public function table_health_invoice_without_contracts(){
+        $health_invoice_without_contracts = \App\HealthInvoiceWithoutContract::all();
+        return compact('health_invoice_without_contracts');
     }
 
     public function table_resolutions(Request $request, $identification_number = null, $type_document_id = null){

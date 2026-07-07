@@ -318,6 +318,13 @@ class CreditNoteRequest extends FormRequest
                         'El campo FACTURA_SIN_CONTRATO es obligatorio cuando no se informa NUMERO_CONTRATO ni NUMERO_POLIZA.'
                     );
                 }
+                // Resolucion 948/2026: la cobertura 01 (UPC) esta inactiva, usar 16 o 17
+                if (isset($user['health_coverage_id']) && (int) $user['health_coverage_id'] === 1) {
+                    $validator->errors()->add(
+                        "health_fields.users_info.{$index}.health_coverage_id",
+                        'La cobertura 01 (UPC) esta inactiva segun la Resolucion 948 de 2026. Use 16 (UPC Regimen Contributivo) o 17 (UPC Regimen Subsidiado).'
+                    );
+                }
             }
         });
     }
