@@ -1489,16 +1489,20 @@ class ConfigurationController extends Controller
 
     /**
      * Ids de plantillas completas (con header{N} y footer{N} propios) que hay
-     * en una carpeta de vistas, ordenados ascendente. Se excluyen plantillas
-     * sin header/footer propios (ej. tirillas 7/9 de factura, que se activan por
-     * request con is_tirilla2/is_tirilla58, no como plantilla fija).
+     * en una carpeta de vistas, ordenados ascendente. Se excluyen las tirillas
+     * por request de factura (7/9): aunque tienen header{N}/footer{N}, estos van
+     * vacios y solo sirven a la generacion por is_tirilla2/is_tirilla58, no como
+     * plantilla fija seleccionable.
      */
     private function availableTemplateIds(string $folder): array
     {
+        $excluded = ['invoice' => [7, 9]];
+        $skip = $excluded[$folder] ?? [];
         $path = resource_path("views/pdfs/{$folder}/");
         $ids = [];
         foreach (File::files($path) as $file) {
             if (preg_match('/template(\d+)\.blade\.php$/', $file->getFilename(), $m)
+                && !in_array((int) $m[1], $skip, true)
                 && File::exists("{$path}header{$m[1]}.blade.php")
                 && File::exists("{$path}footer{$m[1]}.blade.php")) {
                 $ids[] = (int) $m[1];

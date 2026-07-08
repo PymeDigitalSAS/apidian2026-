@@ -18,11 +18,15 @@
     $tplCfg = $tplTypes[$type] ?? $tplTypes['invoice'];
 
     // Solo plantillas completas: estos 4 tipos usan header{N}/footer{N} ademas
-    // del cuerpo. Esto excluye p. ej. invoice 7 y 9 (tirillas por request con
-    // is_tirilla2/is_tirilla58, sin header propio).
+    // del cuerpo. Ademas se excluyen las tirillas por request de factura (7 y 9):
+    // tienen header/footer vacios solo para no romper la generacion por
+    // is_tirilla2/is_tirilla58, pero NO son plantillas fijas seleccionables.
+    $tplExcluded = ['invoice' => [7, 9]];
+    $tplSkip = $tplExcluded[$tplCfg['folder']] ?? [];
     $tplIds = [];
     foreach (\Illuminate\Support\Facades\File::files(resource_path("views/pdfs/{$tplCfg['folder']}")) as $tplFile) {
         if (preg_match('/template(\d+)\.blade\.php$/', $tplFile->getFilename(), $tplM)
+            && !in_array((int) $tplM[1], $tplSkip, true)
             && file_exists(resource_path("views/pdfs/{$tplCfg['folder']}/header{$tplM[1]}.blade.php"))
             && file_exists(resource_path("views/pdfs/{$tplCfg['folder']}/footer{$tplM[1]}.blade.php"))) {
             $tplIds[] = (int) $tplM[1];

@@ -188,6 +188,11 @@ class InvoiceController extends Controller
             && !empty($request->template_token)
             && password_verify($company->identification_number, $request->template_token);
         $request->merge(['is_preview' => !$hideWatermark]);
+        // Garantizar el directorio de la empresa antes de que mPDF escriba el PDF.
+        // Empresas nuevas (sin logo ni documentos previos) aun no tienen la carpeta
+        // storage/app/public/{nit}; sin esto el Output de mPDF falla con "No such
+        // file or directory". Los demas preeliminarview (eqdoc/nomina/soporte) ya lo hacen.
+        StorageService::ensureDirectory("public/{$company->identification_number}");
         $QRStr = $this->createPDF($user, $company, $customer, $typeDocument, $resolution, $date, $time, $paymentForm, $request, "", "INVOICE", $withHoldingTaxTotal, $notes, $healthfields);
 
         return [

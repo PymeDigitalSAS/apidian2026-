@@ -1247,9 +1247,13 @@ class ProductionController extends Controller
         $template = (int) $request->input('template');
 
         // Estos tipos renderizan template{N} + header{N} + footer{N}; una
-        // plantilla sin header/footer propios (ej. tirillas 7/9 de factura)
-        // no es valida como plantilla fija de la empresa.
-        if (!file_exists(resource_path("views/pdfs/{$folder}/template{$template}.blade.php"))
+        // plantilla sin header/footer propios no es valida como plantilla fija.
+        // Las tirillas por request de factura (7/9) tienen header/footer vacios
+        // solo para la generacion por is_tirilla2/is_tirilla58: no se aceptan
+        // como plantilla fija de la empresa.
+        $excludedTirillas = ['invoice' => [7, 9]];
+        if (in_array($template, $excludedTirillas[$folder] ?? [], true)
+            || !file_exists(resource_path("views/pdfs/{$folder}/template{$template}.blade.php"))
             || !file_exists(resource_path("views/pdfs/{$folder}/header{$template}.blade.php"))
             || !file_exists(resource_path("views/pdfs/{$folder}/footer{$template}.blade.php"))) {
             return response()->json(['error' => 'La plantilla no existe para este tipo de documento.'], 404);
