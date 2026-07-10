@@ -189,6 +189,9 @@ Route::middleware(['auth:api', 'storage.context'])->group(function () {
             Route::get('/state_document/{type}/{number}', 'Api\InvoiceController@changestateDocument');
         });
 
+        // Document lookup (conciliacion): todas las filas por tipo + prefijo + numero
+        Route::get('/document-lookup/{type_document_id}/{prefix}/{number}', 'Api\DocumentLookupController@byPrefixNumber');
+
         // Export Invoice
         Route::prefix('/invoice-export')->group(function () {
             Route::post('/{testSetId}', 'Api\InvoiceExportController@testSetStore');
