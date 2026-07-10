@@ -442,7 +442,7 @@ trait DocumentTrait
 
         // Plantillas con configuracion mPdf propia (margenes/styles{N}.css):
         // en generacion normal deben ir por la rama numerada de initMPdf.
-        if (empty($request->invoice_template) && in_array($template_pdf, [3, 10, 11, 12])) {
+        if (empty($request->invoice_template) && in_array($template_pdf, [3, 10, 11, 12, 13])) {
             $template_json = true;
         }
         if (!empty($request->invoice_template)) {
@@ -1119,6 +1119,17 @@ trait DocumentTrait
             $margin_top = '52';
             $margin_left = '10';
             $margin_right = '10';
+            $margin_bottom = '14';
+
+         } elseif($template == 13)  {
+
+            // Plantilla 13: Media Carta Vertical. Mismo diseño que la 1 pero
+            // en retrato; el header/footer ocupan mas alto al reducirse el
+            // ancho util, por eso los margenes verticales son mayores.
+            $format_print = [148, 210];
+            $margin_top = '38';
+            $margin_left = '5';
+            $margin_right = '5';
             $margin_bottom = '14';
 
          } else {
