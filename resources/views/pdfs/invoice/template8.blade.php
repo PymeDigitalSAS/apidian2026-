@@ -342,9 +342,9 @@
                             <td class="text-right" style="background-color: rgb(194, 241, 194);">{{number_format(($item['line_extension_amount'] / $item['invoiced_quantity']) / $trmValue, 2)}}</td>
                         @endif
                         @if(isset($item['tax_totals']))
-                            <td class="text-right">{{number_format($item['tax_totals'][0]['tax_amount'] / $item['invoiced_quantity'], 2)}}</td>
+                            <td class="text-right">{{number_format($item['tax_totals'][0]['tax_amount'], 2)}}</td>
                             @if(isset($request['deliveryterms']))
-                                <td class="text-right" style="background-color: rgb(194, 241, 194);">{{number_format(($item['tax_totals'][0]['tax_amount'] / $item['invoiced_quantity']) / $trmValue, 2)}}</td>
+                                <td class="text-right" style="background-color: rgb(194, 241, 194);">{{number_format($item['tax_totals'][0]['tax_amount'] / $trmValue, 2)}}</td>
                             @endif
                         @else
                             <td class="text-right">E</td>
