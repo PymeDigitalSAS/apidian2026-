@@ -88,6 +88,11 @@
                             <i class="fas fa-link mr-1"></i> Consulta por Token
                         </a>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="evt-tab-report" data-toggle="tab" href="#evt-pane-report" role="tab">
+                            <i class="fas fa-file-excel mr-1"></i> Reporte por CUFEs
+                        </a>
+                    </li>
                     {{-- Sub-tab "Por Certificado" oculto: aún no disponible. --}}
                     <li class="nav-item" role="presentation" style="display:none;">
                         <a class="nav-link" id="evt-tab-cert" data-toggle="tab" href="#evt-pane-cert" role="tab">
@@ -131,6 +136,123 @@
                                 Esta operaci&oacute;n puede tardar varios minutos.
                             </span>
                         </form>
+                    </div>
+
+                    {{-- ================= Reporte por CUFEs ================= --}}
+                    <div class="tab-pane fade" id="evt-pane-report" role="tabpanel">
+                        <div class="alert alert-info py-2 mb-3" style="font-size:.9rem;">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Obtiene los <strong>CUFEs</strong> del rango (sin descargar ZIP) y luego consulta
+                            cada uno en la DIAN para armar un reporte descargable en <strong>Excel</strong> o <strong>JSON</strong>,
+                            con detalle de <strong>l&iacute;neas de producto e impuestos</strong>
+                            (Excel de 2 hojas: <em>Resumen</em> y <em>L&iacute;neas</em>).
+                        </div>
+
+                        @if(!$extractorApiToken)
+                            <div class="alert alert-warning py-2 mb-3" style="font-size:.9rem;">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>
+                                La empresa <strong>{{ $company->identification_number }}</strong> no tiene
+                                <code>api_token</code>; el enriquecimiento por CUFE requiere token. Genere uno antes de usar esta herramienta.
+                            </div>
+                        @endif
+
+                        <form id="evt-report-form">
+                            @csrf
+                            <input type="hidden" name="tipo" value="Received">
+                            <div class="row">
+                                <div class="form-group col-md-12">
+                                    <label for="evt-report-url">URL de consulta por Token DIAN</label>
+                                    <input type="url" id="evt-report-url" name="url" class="form-control"
+                                           placeholder="{{ $extractorCatalogBase }}User/AuthToken?..."
+                                           pattern="^{{ preg_quote($extractorCatalogBase, '/') }}User/AuthToken.*"
+                                           title="Debe ser un enlace User/AuthToken de DIAN {{ $extractorEnvName }} ({{ $extractorCatalogBase }}User/AuthToken?...)"
+                                           required>
+                                    <small class="form-text text-muted">
+                                        Pega el enlace <code>User/AuthToken</code> emitido por DIAN.
+                                    </small>
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="evt-report-fecha-desde">Fecha desde</label>
+                                    <input type="date" id="evt-report-fecha-desde" name="fechaDesde" class="form-control" value="{{ $defaultFechaDesde }}" required>
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="evt-report-fecha-hasta">Fecha hasta</label>
+                                    <input type="date" id="evt-report-fecha-hasta" name="fechaHasta" class="form-control" value="{{ $defaultFechaHasta }}" required>
+                                </div>
+                            </div>
+                            <button type="submit" id="evt-btn-report" class="btn btn-success"
+                                    @if(!$extractorConfigured || !$extractorApiToken) disabled title="Requiere EXTRACTOR_URL configurada y api_token de la empresa" @endif>
+                                <i class="fas fa-file-excel mr-1"></i> Generar reporte por CUFEs
+                            </button>
+                            <span class="text-muted ml-2" style="font-size:.85rem;">
+                                Consulta 1 vez la DIAN por cada CUFE; puede tardar seg&uacute;n el rango.
+                            </span>
+                        </form>
+
+                        <div id="evt-report-output" class="mt-3" style="display:none;">
+                            <div class="card mb-3">
+                                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                                    <strong><i class="fas fa-tasks mr-1"></i> Progreso</strong>
+                                    <span id="evt-report-badge" class="badge badge-secondary">Iniciando&hellip;</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="evt-report-msg" class="mb-2 text-muted" style="font-size:.9rem;"></div>
+                                    <div class="progress" style="height:20px;">
+                                        <div id="evt-report-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                                             role="progressbar" style="width:0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                    </div>
+                                    <div id="evt-report-counts" class="mt-2 small text-muted"></div>
+                                </div>
+                            </div>
+
+                            <div id="evt-report-downloads" class="card mb-3" style="display:none;">
+                                <div class="card-header py-2">
+                                    <strong><i class="fas fa-download mr-1"></i> Descargar reporte</strong>
+                                </div>
+                                <div class="card-body py-2">
+                                    <button type="button" id="evt-report-dl-excel" class="btn btn-success btn-sm mr-2">
+                                        <i class="fas fa-file-excel mr-1"></i> Descargar Excel
+                                    </button>
+                                    <button type="button" id="evt-report-dl-json" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-file-code mr-1"></i> Descargar JSON
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="evt-report-table-wrap" class="card mb-3" style="display:none;">
+                                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong><i class="fas fa-table mr-1"></i> Vista previa</strong>
+                                        <span id="evt-report-count" class="badge badge-info ml-2">0</span>
+                                        <small class="text-muted ml-2">Primeras filas del reporte.</small>
+                                    </div>
+                                    <button type="button" id="evt-report-register-all" class="btn btn-primary btn-sm" style="display:none;">
+                                        <i class="fas fa-cloud-upload-alt mr-1"></i> Registrar v&aacute;lidos en Eventos RADIAN
+                                    </button>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive" style="max-height:380px; overflow:auto;">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <thead class="thead-light">
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Tipo</th>
+                                                    <th>Folio</th>
+                                                    <th>Fecha</th>
+                                                    <th>NIT Emisor</th>
+                                                    <th>Emisor</th>
+                                                    <th class="text-right">Total</th>
+                                                    <th>Estado RADIAN</th>
+                                                    <th class="text-center">Extracci&oacute;n</th>
+                                                    <th class="text-center">Eventos RADIAN</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="evt-report-tbody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="tab-pane fade" id="evt-pane-cert" role="tabpanel" style="display:none;">
@@ -632,6 +754,388 @@ $(function () {
             $btn.prop('disabled', false);
             showCufeToast('danger', 'Error al cargar', msg);
         });
+    });
+});
+</script>
+@endpush
+
+@push('scripts')
+{{-- ============ Reporte por CUFEs (cufes -> load-document-by-cufe -> Excel/JSON) ============ --}}
+<script>
+$(function () {
+    var apiToken   = @json($extractorApiToken);
+    var companyNit = @json($company->identification_number);
+    var cufesUrl   = '{{ route('extractor.cufes') }}';
+    var enrichUrl  = '{{ url('/api/cufes/enrich') }}';
+    var reportUrl  = '{{ url('/api/cufes/report') }}';
+    var csrfToken  = $('meta[name="csrf-token"]').attr('content');
+
+    // Tamaño de lote: cada CUFE hace 1 consulta SOAP a la DIAN, por eso se
+    // procesan en lotes pequeños desde el navegador (sin queue worker).
+    var BATCH_SIZE = 5;
+
+    var $form      = $('#evt-report-form');
+    var $btn       = $('#evt-btn-report');
+    var $out       = $('#evt-report-output');
+    var $badge     = $('#evt-report-badge');
+    var $msg       = $('#evt-report-msg');
+    var $bar       = $('#evt-report-bar');
+    var $counts    = $('#evt-report-counts');
+    var $downloads = $('#evt-report-downloads');
+    var $tableWrap = $('#evt-report-table-wrap');
+    var $tbody     = $('#evt-report-tbody');
+    var $count     = $('#evt-report-count');
+    var $dlExcel   = $('#evt-report-dl-excel');
+    var $dlJson    = $('#evt-report-dl-json');
+    var $regAll    = $('#evt-report-register-all');
+    var loadCufeUrl = '{{ url('/api/load-document-by-cufe') }}';
+
+    var accumulatedRows = [];
+    var filenameBase = 'reporte_cufes';
+    var btnOriginalHtml = $btn.html();
+
+    function setBadge(status, textOverride) {
+        var map = {
+            starting: ['badge-secondary', '<i class="fas fa-hourglass-half mr-1"></i> Iniciando&hellip;'],
+            cufes:    ['badge-primary',   '<i class="fas fa-spinner fa-spin mr-1"></i> Obteniendo CUFEs&hellip;'],
+            enrich:   ['badge-primary',   '<i class="fas fa-spinner fa-spin mr-1"></i> Consultando DIAN&hellip;'],
+            done:     ['badge-success',   '<i class="fas fa-check mr-1"></i> Completado'],
+            empty:    ['badge-info',      '<i class="fas fa-info-circle mr-1"></i> Sin datos'],
+            error:    ['badge-danger',    '<i class="fas fa-times mr-1"></i> Error']
+        };
+        var pair = map[status] || map.starting;
+        $badge.removeClass(function (_, c) {
+            return (c.match(/(^|\s)badge-\S+/g) || []).join(' ');
+        }).addClass('badge ' + pair[0]).html(textOverride || pair[1]);
+    }
+
+    function setBar(pct, animated) {
+        pct = Math.max(0, Math.min(100, Math.round(pct)));
+        $bar.css('width', pct + '%').attr('aria-valuenow', pct).text(pct + '%');
+        if (animated) {
+            $bar.addClass('progress-bar-animated');
+        } else {
+            $bar.removeClass('progress-bar-animated');
+        }
+    }
+
+    function fmtMoney(n) {
+        if (n === null || n === undefined || n === '') return '';
+        var num = Number(n);
+        if (isNaN(num)) return String(n);
+        return num.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function statusBadgeHtml(st) {
+        if (st === 'ok')       return '<span class="badge badge-success">OK</span>';
+        if (st === 'mismatch') return '<span class="badge badge-warning">No coincide</span>';
+        return '<span class="badge badge-danger">Error</span>';
+    }
+
+    function updateCounts(done, total) {
+        var ok = 0, mm = 0, er = 0;
+        accumulatedRows.forEach(function (r) {
+            if (r.enrich_status === 'ok') ok++;
+            else if (r.enrich_status === 'mismatch') mm++;
+            else er++;
+        });
+        $counts.html('Procesados: <strong>' + done + '/' + total + '</strong> &middot; '
+            + 'OK: <strong>' + ok + '</strong> &middot; '
+            + 'No coincide: <strong>' + mm + '</strong> &middot; '
+            + 'Error: <strong>' + er + '</strong>');
+    }
+
+    function actionCell(r, i) {
+        var $td = $('<td>').addClass('text-center');
+        var cufe = r.cufe || (r.dian && r.dian.cufe) || '';
+        if (!apiToken) {
+            $td.html('<span class="text-muted small">Sin token</span>');
+        } else if (r.registered) {
+            $td.html('<span class="badge badge-success"><i class="fas fa-check mr-1"></i>Registrado</span>');
+        } else if (r.already_registered) {
+            $td.html('<span class="badge badge-secondary"><i class="fas fa-check mr-1"></i>Ya en listado</span>');
+        } else if (r.enrich_status === 'ok' && cufe) {
+            $td.append($('<button>').attr('type', 'button')
+                .addClass('btn btn-sm btn-outline-primary evt-report-reg-btn')
+                .attr('data-idx', i).attr('data-cufe', cufe)
+                .html('<i class="fas fa-plus mr-1"></i> Registrar'));
+        } else {
+            $td.html('<span class="text-muted">&mdash;</span>');
+        }
+        return $td;
+    }
+
+    function renderPreview() {
+        $tbody.empty();
+        var limit = Math.min(accumulatedRows.length, 200);
+        for (var i = 0; i < limit; i++) {
+            var r = accumulatedRows[i];
+            var dian = r.dian || {};
+            var $tr = $('<tr>');
+            $tr.append($('<td>').text(i + 1));
+            $tr.append($('<td>').text(r.tipoDoc || dian.type_document_id || ''));
+            $tr.append($('<td>').text(r.folio || dian.number || ''));
+            $tr.append($('<td>').text(r.fechaEmision || dian.date_issue || ''));
+            $tr.append($('<td>').text(r.nitEmisor || dian.identification_number || ''));
+            $tr.append($('<td>').text(r.nombreEmisor || dian.name_seller || ''));
+            $tr.append($('<td>').addClass('text-right').text(fmtMoney(dian.total)));
+            $tr.append($('<td>').text(r.EstadoRadian || ''));
+            $tr.append($('<td>').addClass('text-center')
+                .attr('title', r.enrich_message || '')
+                .html(statusBadgeHtml(r.enrich_status)));
+            $tr.append(actionCell(r, i));
+            $tbody.append($tr);
+        }
+        $count.text(accumulatedRows.length);
+        $tableWrap.show();
+
+        var pendingOk = accumulatedRows.filter(function (r) {
+            return r.enrich_status === 'ok' && !r.registered && !r.already_registered;
+        }).length;
+        if (apiToken && pendingOk > 0) { $regAll.show(); } else { $regAll.hide(); }
+    }
+
+    function resetOutput() {
+        accumulatedRows = [];
+        $out.show();
+        $msg.text('');
+        setBadge('starting');
+        setBar(0, true);
+        $counts.html('');
+        $downloads.hide();
+        $tableWrap.hide();
+        $tbody.empty();
+        $count.text('0');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Procesando&hellip;');
+    }
+
+    function finishRun(status) {
+        setBadge(status);
+        setBar(100, false);
+        $btn.prop('disabled', false).html(btnOriginalHtml);
+    }
+
+    // Enriquecer los items en lotes secuenciales.
+    function enrichInBatches(items) {
+        var total = items.length;
+        var i = 0;
+        setBadge('enrich');
+        setBar(0, true);
+
+        function next() {
+            if (i >= total) {
+                if (accumulatedRows.length === 0) {
+                    finishRun('empty');
+                    $msg.text('No se obtuvieron filas.');
+                    return;
+                }
+                renderPreview();
+                $downloads.show();
+                finishRun('done');
+                $msg.html('Reporte listo con <strong>' + accumulatedRows.length + '</strong> documento(s). Descargue en Excel o JSON.');
+                return;
+            }
+
+            var batch = items.slice(i, i + BATCH_SIZE);
+            $.ajax({
+                url: enrichUrl,
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + apiToken, 'Accept': 'application/json' },
+                contentType: 'application/json',
+                data: JSON.stringify({ items: batch })
+            }).done(function (resp) {
+                if (resp && resp.success && Array.isArray(resp.rows)) {
+                    accumulatedRows = accumulatedRows.concat(resp.rows);
+                } else {
+                    // El endpoint respondió pero sin filas: marcar el lote como error.
+                    var m = (resp && resp.message) ? resp.message : 'Respuesta inesperada del enriquecimiento.';
+                    batch.forEach(function (it) {
+                        var r = ($.isPlainObject(it)) ? $.extend({}, it) : { cufe: it };
+                        r.dian = null; r.enrich_status = 'error'; r.enrich_message = m;
+                        accumulatedRows.push(r);
+                    });
+                }
+                i += batch.length;
+                updateCounts(i, total);
+                setBar(i / total * 100, true);
+                next();
+            }).fail(function (xhr) {
+                var resp = xhr.responseJSON || {};
+                var m = resp.message || ('HTTP ' + xhr.status);
+                batch.forEach(function (it) {
+                    var r = ($.isPlainObject(it)) ? $.extend({}, it) : { cufe: it };
+                    r.dian = null; r.enrich_status = 'error'; r.enrich_message = m;
+                    accumulatedRows.push(r);
+                });
+                i += batch.length;
+                updateCounts(i, total);
+                setBar(i / total * 100, true);
+                next();
+            });
+        }
+
+        next();
+    }
+
+    $form.on('submit', function (e) {
+        e.preventDefault();
+
+        if (!apiToken) {
+            alert('La empresa ' + companyNit + ' no tiene api_token configurado.');
+            return;
+        }
+
+        var desde = $('#evt-report-fecha-desde').val();
+        var hasta = $('#evt-report-fecha-hasta').val();
+        filenameBase = 'reporte_cufes_' + desde + '_' + hasta;
+
+        resetOutput();
+        setBadge('cufes');
+        $msg.text('Obteniendo la lista de CUFEs del extractor…');
+
+        // Paso 1: obtener los CUFEs (web route, sesión + CSRF)
+        $.ajax({
+            url: cufesUrl,
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': csrfToken },
+            data: $form.serialize(),
+            dataType: 'json'
+        }).done(function (resp) {
+            var items = (resp && Array.isArray(resp.data)) ? resp.data : [];
+            if (!items.length) {
+                finishRun('empty');
+                $msg.text((resp && resp.message) ? resp.message : 'Sin CUFEs en el rango de fechas.');
+                return;
+            }
+            $msg.html('Se obtuvieron <strong>' + items.length + '</strong> CUFE(s). Consultando la DIAN por cada uno&hellip;');
+            enrichInBatches(items);
+        }).fail(function (xhr) {
+            var resp = xhr.responseJSON || {};
+            var errors = resp.errors ? Object.values(resp.errors).flat().join(' · ') : '';
+            finishRun('error');
+            $msg.text((resp.message || 'HTTP ' + xhr.status) + (errors ? ' — ' + errors : ''));
+        });
+    });
+
+    // Descargas: POST de las filas acumuladas -> blob -> descarga
+    function downloadReport(format) {
+        if (!accumulatedRows.length) return;
+        var $b = (format === 'json') ? $dlJson : $dlExcel;
+        var orig = $b.html();
+        $b.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Generando&hellip;');
+
+        fetch(reportUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + apiToken,
+                'Accept': (format === 'json') ? 'application/json' : 'application/octet-stream',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ rows: accumulatedRows, format: format, filenameBase: filenameBase })
+        }).then(function (res) {
+            if (!res.ok) {
+                // Si el backend devolvió un JSON de error (p.ej. falta PhpSpreadsheet),
+                // mostrar su mensaje en vez de un genérico "HTTP 422".
+                return res.json().then(function (j) {
+                    throw new Error((j && j.message) ? j.message : ('HTTP ' + res.status));
+                }, function () { throw new Error('HTTP ' + res.status); });
+            }
+            return res.blob();
+        }).then(function (blob) {
+            var objectUrl = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = filenameBase + (format === 'json' ? '.json' : '.xlsx');
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(objectUrl);
+            $b.prop('disabled', false).html(orig);
+        }).catch(function (err) {
+            $b.prop('disabled', false).html(orig);
+            alert('No se pudo generar el reporte: ' + err.message);
+        });
+    }
+
+    $dlExcel.on('click', function () { downloadReport('xlsx'); });
+    $dlJson.on('click', function () { downloadReport('json'); });
+
+    // ---- Registrar en Eventos RADIAN (received_documents vía load-document-by-cufe) ----
+    // El envío del evento NO se hace aquí: se registra el documento en el listado
+    // y desde la pestaña "Listado" de Eventos RADIAN se envían los eventos.
+    function registerCufe(cufe, $btn, idx, cb) {
+        if (!cufe || !apiToken) { if (cb) cb(false); return; }
+        if ($btn) $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Registrando&hellip;');
+        $.ajax({
+            url: loadCufeUrl,
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + apiToken, 'Accept': 'application/json' },
+            data: { cufe: cufe, save: true }
+        }).done(function (resp) {
+            if (resp && resp.success) {
+                if (idx != null && accumulatedRows[idx]) {
+                    if (resp.already_exists) accumulatedRows[idx].already_registered = true;
+                    else accumulatedRows[idx].registered = true;
+                }
+                if ($btn) {
+                    var lbl = resp.already_exists
+                        ? '<span class="badge badge-secondary"><i class="fas fa-check mr-1"></i>Ya en listado</span>'
+                        : '<span class="badge badge-success"><i class="fas fa-check mr-1"></i>Registrado</span>';
+                    $btn.closest('td').html(lbl);
+                }
+                if (cb) cb(true);
+            } else {
+                var msg = (resp && resp.message) ? resp.message : 'No se pudo registrar.';
+                if ($btn) $btn.prop('disabled', false).attr('title', msg)
+                    .html('<i class="fas fa-exclamation-triangle mr-1"></i> Reintentar');
+                if (cb) cb(false, msg);
+            }
+        }).fail(function (xhr) {
+            var resp = xhr.responseJSON || {};
+            var msg = resp.message || ('HTTP ' + xhr.status);
+            if ($btn) $btn.prop('disabled', false).attr('title', msg)
+                .html('<i class="fas fa-times mr-1"></i> Error');
+            if (cb) cb(false, msg);
+        });
+    }
+
+    // Registro individual (delegación de eventos sobre la tabla)
+    $tbody.on('click', '.evt-report-reg-btn', function () {
+        var $b = $(this);
+        registerCufe($b.data('cufe'), $b, parseInt($b.data('idx'), 10));
+    });
+
+    // Registro masivo de todos los válidos (enrich_status = ok, no registrados)
+    $regAll.on('click', function () {
+        var pending = [];
+        accumulatedRows.forEach(function (r, idx) {
+            var cufe = r.cufe || (r.dian && r.dian.cufe);
+            if (r.enrich_status === 'ok' && !r.registered && !r.already_registered && cufe) {
+                pending.push(idx);
+            }
+        });
+        if (!pending.length) { alert('No hay documentos válidos pendientes por registrar.'); return; }
+
+        $regAll.prop('disabled', true);
+        var okc = 0;
+        function step(k) {
+            if (k >= pending.length) {
+                $regAll.prop('disabled', false).html('<i class="fas fa-cloud-upload-alt mr-1"></i> Registrar v&aacute;lidos en Eventos RADIAN');
+                renderPreview();
+                $msg.html('Registrados <strong>' + okc + '</strong> de <strong>' + pending.length
+                    + '</strong> en Eventos RADIAN. Ve a la pesta&ntilde;a <strong>Listado</strong> para enviar los eventos.');
+                return;
+            }
+            var idx = pending[k];
+            var cufe = accumulatedRows[idx].cufe || (accumulatedRows[idx].dian && accumulatedRows[idx].dian.cufe);
+            var $b = $tbody.find('.evt-report-reg-btn[data-idx="' + idx + '"]');
+            $regAll.html('<i class="fas fa-spinner fa-spin mr-1"></i> Registrando ' + (k + 1) + '/' + pending.length + '&hellip;');
+            registerCufe(cufe, $b.length ? $b : null, idx, function (ok) {
+                if (ok) okc++;
+                step(k + 1);
+            });
+        }
+        step(0);
     });
 });
 </script>

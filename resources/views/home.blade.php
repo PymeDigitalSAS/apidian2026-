@@ -163,6 +163,26 @@
                                         </span>
                                         <span class="ml-2">Almacenamiento</span>
                                     </el-dropdown-item>
+                                    @if(auth()->user() && method_exists(auth()->user(), 'isPlatformAdmin') && auth()->user()->isPlatformAdmin())
+                                    <el-dropdown-item divided></el-dropdown-item>
+                                    <el-dropdown-item class="d-flex align-items-center"
+                                        onclick="openDeleteCompanyModal({{ $row->id }}, '{{ $row->identification_number }}', '{{ addslashes($row->user->name ?? '') }}', {{ $row->total_documents }})">
+                                        <span class="dropdown-icon-left">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                                class="icon icon-tabler icons-tabler-outline icon-tabler-trash text-danger">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                <path d="M4 7l16 0"/>
+                                                <path d="M10 11l0 6"/>
+                                                <path d="M14 11l0 6"/>
+                                                <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/>
+                                                <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/>
+                                            </svg>
+                                        </span>
+                                        <span class="ml-2 text-danger">Eliminar</span>
+                                    </el-dropdown-item>
+                                    @endif
                                 </el-dropdown-menu>
                             </el-dropdown>
                         </td>
@@ -580,6 +600,45 @@
 }
 </style>
 
+{{-- Modal Eliminar Empresa (advertencia + espera de 5s antes de activar el botón) --}}
+<div id="deleteCompanyOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:4000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:10px; max-width:480px; width:92%; box-shadow:0 10px 40px rgba(0,0,0,0.25); overflow:hidden;">
+        <div style="background:#fdecea; padding:16px 20px; display:flex; align-items:center; gap:10px; border-bottom:1px solid #f5c6cb;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none"
+                 stroke="#c0392b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M12 9v4"/><path d="M12 17h.01"/>
+                <path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/>
+            </svg>
+            <h5 style="margin:0; color:#c0392b; font-weight:700;">Eliminar empresa</h5>
+        </div>
+        <div style="padding:20px;">
+            <p style="margin-bottom:10px;">Vas a eliminar la empresa <strong id="delCompanyNit"></strong>
+                <span id="delCompanyNameWrap" class="text-muted">(<span id="delCompanyName"></span>)</span>.</p>
+            <div style="background:#fff8e1; border:1px solid #ffe0a3; border-radius:6px; padding:10px 12px; font-size:13px; color:#8a6d3b; margin-bottom:14px;">
+                <strong>⚠ Esta acción es irreversible.</strong> Se eliminarán también:
+                <ul style="margin:6px 0 0 18px; padding:0;">
+                    <li><strong id="delCompanyDocs">0</strong> documento(s) y sus registros</li>
+                    <li>Resoluciones, certificado, software, clientes e ítems</li>
+                    <li>Registros de Eventos RADIAN y datos RIPS</li>
+                    <li>El usuario/login dueño (si no tiene otra empresa)</li>
+                </ul>
+            </div>
+            <div style="border:1px solid #d6e4ff; background:#f0f7ff; border-radius:6px; padding:10px 12px; margin-bottom:14px; font-size:13px; color:#3b5bdb;">
+                <i class="fas fa-shield-alt mr-1"></i>
+                <strong>Recomendación:</strong> si necesitas conservar la información, genera primero un respaldo de esta empresa desde el módulo <strong>Backups</strong> antes de continuar.
+            </div>
+            <div id="delCountdownMsg" style="font-size:13px; color:#888;"></div>
+        </div>
+        <div style="padding:14px 20px; background:#f8f9fa; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #eee;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeDeleteCompanyModal()">Cancelar</button>
+            <button type="button" id="delConfirmBtn" class="btn btn-danger btn-sm" disabled onclick="confirmDeleteCompany()">
+                Eliminar definitivamente
+            </button>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
@@ -587,6 +646,88 @@
 window.redirectTo = function(url) {
     window.location.href = url;
 }
+
+// ===== Eliminar empresa (modal con espera de 5s + borrado por AJAX) =====
+var delCompanyNit = null;
+var delCountdownTimer = null;
+
+window.openDeleteCompanyModal = function(id, nit, name, docs) {
+    delCompanyNit = nit;
+    document.getElementById('delCompanyNit').textContent = nit;
+    var nameEl = document.getElementById('delCompanyName');
+    var nameWrap = document.getElementById('delCompanyNameWrap');
+    if (name) { nameEl.textContent = name; nameWrap.style.display = ''; }
+    else { nameWrap.style.display = 'none'; }
+    document.getElementById('delCompanyDocs').textContent = (docs != null ? docs : 0);
+
+    document.getElementById('deleteCompanyOverlay').style.display = 'flex';
+
+    var $btn = $('#delConfirmBtn');
+    var $msg = $('#delCountdownMsg');
+    var secs = 10;
+    $btn.prop('disabled', true).text('Espera ' + secs + ' s');
+    $msg.text('');
+
+    if (delCountdownTimer) clearInterval(delCountdownTimer);
+    delCountdownTimer = setInterval(function() {
+        secs--;
+        if (secs > 0) {
+            $btn.text('Espera ' + secs + ' s');
+        } else {
+            clearInterval(delCountdownTimer);
+            delCountdownTimer = null;
+            $btn.prop('disabled', false).text('Eliminar definitivamente');
+            $msg.html('<span style="color:#c0392b;">Ya puedes confirmar la eliminación.</span>');
+        }
+    }, 1000);
+};
+
+window.closeDeleteCompanyModal = function() {
+    if (delCountdownTimer) { clearInterval(delCountdownTimer); delCountdownTimer = null; }
+    document.getElementById('deleteCompanyOverlay').style.display = 'none';
+    delCompanyNit = null;
+};
+
+window.confirmDeleteCompany = function() {
+    if (!delCompanyNit) return;
+    var $btn = $('#delConfirmBtn');
+    $btn.prop('disabled', true).text('Eliminando…');
+    $.ajax({
+        url: '{{ url('/company') }}/' + encodeURIComponent(delCompanyNit) + '/delete',
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            'Accept': 'application/json'
+        }
+    }).done(function(resp) {
+        if (resp && resp.success) {
+            try { sessionStorage.setItem('companyDeletedMsg', (resp.message || 'Empresa eliminada correctamente.')); } catch (e) {}
+            window.location.reload();
+        } else {
+            alert((resp && resp.message) ? resp.message : 'No se pudo eliminar la empresa.');
+            $btn.prop('disabled', false).text('Eliminar definitivamente');
+        }
+    }).fail(function(xhr) {
+        var resp = xhr.responseJSON || {};
+        alert(resp.message || ('Error al eliminar (HTTP ' + xhr.status + ')'));
+        $btn.prop('disabled', false).text('Eliminar definitivamente');
+    });
+};
+
+// Mensaje de éxito tras eliminar (guardado antes del reload)
+document.addEventListener('DOMContentLoaded', function () {
+    var delMsg = null;
+    try { delMsg = sessionStorage.getItem('companyDeletedMsg'); } catch (e) {}
+    if (delMsg) {
+        try { sessionStorage.removeItem('companyDeletedMsg'); } catch (e) {}
+        if (typeof PNotify !== 'undefined') {
+            new PNotify({ title: 'Empresa eliminada', text: delMsg, type: 'success', addclass: 'notification-success', delay: 3500 });
+        } else {
+            alert(delMsg);
+        }
+    }
+});
+
 document.addEventListener("DOMContentLoaded", function () {
 
     const filterText = document.getElementById("filter-text");

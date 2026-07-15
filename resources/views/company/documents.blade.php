@@ -435,12 +435,25 @@ $(document).ready(function() {
     // Añadir función para copiar token
     window.copyToken = function() {
         const tokenText = document.getElementById('apiToken').textContent;
-        navigator.clipboard.writeText(tokenText).then(() => {
-            alert('Token copiado al portapapeles');
-        }).catch(err => {
-            // error al copiar token
-            alert('Error al copiar token');
-        });
+
+        function fallbackCopy() {
+            // Contexto no seguro (http:// que no sea localhost): navigator.clipboard no existe.
+            var $temp = $('<input>');
+            $('body').append($temp);
+            $temp.val(tokenText).select();
+            var ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            $temp.remove();
+            alert(ok ? 'Token copiado al portapapeles' : 'No se pudo copiar automáticamente. Cópielo manualmente.');
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+            navigator.clipboard.writeText(tokenText)
+                .then(() => alert('Token copiado al portapapeles'))
+                .catch(fallbackCopy);
+        } else {
+            fallbackCopy();
+        }
     };
 
     // Variable global para almacenar los datos
@@ -698,13 +711,36 @@ $(document).ready(function() {
 
     $('#copyCufeBtn').on('click', function() {
         var cufe = $('#cufeValue').val();
-        navigator.clipboard.writeText(cufe).then(function() {
+        if (!cufe) return;
+
+        function showCopied() {
             $('#cufeCopiedMsg').removeClass('d-none');
-        }).catch(function() {
-            $('#cufeValue').select();
-            document.execCommand('copy');
-            $('#cufeCopiedMsg').removeClass('d-none');
-        });
+        }
+
+        // Fallback para contexto NO seguro (http:// que no sea localhost),
+        // donde navigator.clipboard no existe: se selecciona el input y se
+        // copia con el método clásico execCommand('copy').
+        function fallbackCopy() {
+            var input = document.getElementById('cufeValue');
+            input.focus();
+            input.select();
+            input.setSelectionRange(0, 99999); // compatibilidad móvil
+            var ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            if (ok) {
+                showCopied();
+            } else {
+                window.prompt('Copie el CUFE manualmente (Ctrl+C):', cufe);
+            }
+        }
+
+        // navigator.clipboard solo está disponible en contexto seguro
+        // (HTTPS o http://localhost). En otros casos, usar el fallback.
+        if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+            navigator.clipboard.writeText(cufe).then(showCopied).catch(fallbackCopy);
+        } else {
+            fallbackCopy();
+        }
     });
 
     $(document).off('click', '.makeApiRequest');

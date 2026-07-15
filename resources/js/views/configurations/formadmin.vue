@@ -372,6 +372,20 @@
                         </div>
                     </form>
                 </div>
+                <div class="col-md-4">
+                    <div class="cert-help-box">
+                        <i class="el-icon-document" style="font-size:22px;color:#409EFF;"></i>
+                        <h5 class="cert-help-title">¿No tienes certificado digital?</h5>
+                        <p class="cert-help-text">
+                            Necesitas un <strong>.pfx / .p12</strong> autorizado para firmar ante la DIAN.
+                        </p>
+                        <a href="https://facturalatam.com/certificados-digitales/"
+                           target="_blank" rel="noopener noreferrer"
+                           class="el-button el-button--success el-button--mini">
+                            <i class="el-icon-shopping-cart-2"></i> Adquirir certificado
+                        </a>
+                    </div>
+                </div>
                 <div class="col-md-12 text-center mt-4">
                     <el-button size="medium" type="primary" :loading="loading_submit" @click="saveCertificate">
                         Siguiente</el-button>
@@ -602,6 +616,29 @@
 <style>
     .extend {
         width: 100%;
+    }
+    .cert-help-box {
+        border: 1px dashed #dcdfe6;
+        border-radius: 6px;
+        padding: 12px 12px;
+        text-align: center;
+        background: #f9fafc;
+        margin-top: 20px;
+    }
+    .cert-help-title {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #2B323D;
+        margin: 6px 0 4px;
+    }
+    .cert-help-text {
+        font-size: 11px;
+        color: #666;
+        margin-bottom: 10px;
+        line-height: 1.35;
+    }
+    .cert-help-box a.el-button {
+        text-decoration: none;
     }
 </style>
 <script>
