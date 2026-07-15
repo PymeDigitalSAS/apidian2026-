@@ -52,9 +52,22 @@ Route::prefix('/ubl2.1')->group(function () {
         Route::post('/', 'Api\StatusZipController@statuszip');
     });
 
+    // Consulta stateless de XMLs por CUFE (cert .p12 + password + cufes -> XMLs base64).
+    // No requiere empresa; protegido con header X-Api-Key (XML_QUERY_API_KEY del .env).
+    Route::post('/xml/by-cufes', 'Api\XmlByCufeController@byCufes');
+
     Route::get('/currencies', 'Api\TrmController@getAllCurrencies');
     Route::get('/trm', 'Api\TrmController@getHtmlTrm');
 });
+
+// ============================================================
+// Orquestador "Por CUFEs" — el API hace TODO: obtiene los CUFEs vía el worker
+// Node (navegador, EXTRACTOR_URL), consulta los XML con el certificado y arma el
+// reporte. Stateless (cert en la petición), protegido con X-Api-Key
+// (XML_QUERY_API_KEY). Rutas espejo del extractor: el cliente solo cambia la URL base.
+// ============================================================
+Route::post('/cufes', 'Api\CufesReportController@cufes');
+Route::post('/xml-by-cufes', 'Api\CufesReportController@byToken');
 
 Route::middleware(['auth:api', 'storage.context'])->group(function () {
 

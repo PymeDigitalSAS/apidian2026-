@@ -1,0 +1,14 @@
+node_modules/
+/downloads
+/respaldos
+.env
+script_api_ip.sh
+mozo22.sh
+actualizarSSL2.sh
+install-api-extractor-ip.sh
+install-extractor-vps-20.sh
+install-extractor-vps-22.sh
+link-extractor-to-proxy.sh
+mozo20.sh
+otroscript.sh
+/scripts

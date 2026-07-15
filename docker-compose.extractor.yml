@@ -1,0 +1,59 @@
+# ============================================================
+# cufes-worker — extractor Node/Puppeteer (servicio APARTE del API).
+#
+# Es el ÚNICO componente que necesita navegador (Chrome) para sacar los CUFEs del
+# catálogo DIAN. El API (Laravel) lo consume por HTTP. El XML por CUFE
+# (certificado) y el reporte ahora los hace el API en PHP.
+#
+#   Levantar:   docker compose -f docker-compose.extractor.yml up -d --build
+#   Logs:       docker compose -f docker-compose.extractor.yml logs -f
+#   Parar:      docker compose -f docker-compose.extractor.yml down
+#
+# CÓMO LO ALCANZA EL API (según dónde corra el API):
+#   • API en Docker (misma red apinet):  EXTRACTOR_URL=http://cufes-worker:3001
+#   • API bare-metal (LAMP):             EXTRACTOR_URL=http://127.0.0.1:3001
+#
+# Requisito: la red externa apinet debe existir (la misma del API):
+#   docker network create apinet   # una sola vez, si no existe
+# ============================================================
+services:
+  cufes-worker:
+    build:
+      context: ./extractcode
+      dockerfile: Dockerfile
+    image: cufes-worker:latest
+    container_name: cufes-worker
+    restart: unless-stopped
+
+    # Publicado en el localhost del host -> lo usa el API bare-metal / debug local.
+    # (Si el API es dockerizado, lo alcanza por la red apinet y este puerto es opcional.)
+    ports:
+      - "127.0.0.1:3001:3001"
+
+    # Chrome/Puppeteer: el /dev/shm por defecto de Docker (64MB) hace crashear a
+    # Chrome. Subirlo evita cuelgues. mem_limit acota el consumo del navegador.
+    shm_size: "1gb"
+    mem_limit: "1500m"
+
+    environment:
+      - NODE_OPTIONS=--openssl-legacy-provider
+      # Si el worker exige API key en sus /api/*, definila aquí y en el API
+      # (EXTRACTOR_API_KEY). Debe coincidir con API_SECRET_KEY del worker.
+      # - API_SECRET_KEY=cambia-esta-clave
+
+    # Misma red externa que el API -> el contenedor php_api puede llamar a
+    # http://cufes-worker:3001 por nombre de servicio.
+    networks:
+      - apinet
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3001/api/jobs || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+networks:
+  apinet:
+    external:
+      name: apinet

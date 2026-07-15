@@ -1,0 +1,546 @@
+###############################################################################
+# Extractor DIAN — colección de requests
+#
+# Cómo usar este archivo:
+#   - VS Code: instalar la extensión "REST Client" (humao.rest-client)
+#   - Click en "Send Request" arriba de cada bloque ###
+#   - Las variables @host, @apiKey se reutilizan abajo
+#
+# Servidor: por default escucha en http://localhost:3000
+# Auth: si API_SECRET_KEY está seteado en el server, mandar header X-Api-Key
+###############################################################################
+
+@host = http://localhost:3000
+@apiKey = pon-aqui-tu-api-key-si-aplica
+
+
+###############################################################################
+# 1) /api/scrape — extracción SIN certificado (URL con token DIAN)
+#
+# Usa el método "url": el cliente entra al portal con un AuthToken que
+# DIAN genera y manda por enlace. NO requiere p12.
+#
+# Body:
+#   url            (string, requerido) — URL completa con AuthToken de DIAN
+#   tipo           (string)            — "Sent" (Enviados) o "Received" (Recibidos)
+#   fechaDesde     (YYYY-MM-DD)
+#   fechaHasta     (YYYY-MM-DD)
+#   excluirEstados (string, opcional)  — coma-separado, ej "Acuse,Rechazo"
+#   async          (boolean, opcional) — true → respuesta inmediata con jobId (recomendado
+#                                        para extracciones largas o múltiples empresas)
+#
+# Modo SÍNCRONO (sin async):
+#   200 OK → { "partial": false, "log": [...], "data": [{...}] }
+#
+# Modo ASÍNCRONO (async: true):
+#   202 Accepted → { "jobId": "...", "statusUrl": "/api/jobs/..." }
+#   Luego hacer polling en GET /api/jobs/:id hasta status="done" o "error"
+#
+# Soporta hasta MAX_CONCURRENT (default 3) extracciones en paralelo.
+# Las que excedan el límite quedan en cola FIFO.
+###############################################################################
+
+### Scrape via URL — síncrono
+POST {{host}}/api/scrape
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "url": "https://catalogo-vpfe.dian.gov.co/User/AuthToken?pk=...&rk=...&token=...",
+  "tipo": "Received",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-01",
+  "excluirEstados": ""
+}
+
+
+### Scrape via URL — asíncrono (recomendado para extracciones largas)
+POST {{host}}/api/scrape
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "async": true,
+  "url": "https://catalogo-vpfe.dian.gov.co/User/AuthToken?pk=...&rk=...&token=...",
+  "tipo": "Received",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-31",
+  "excluirEstados": ""
+}
+
+
+###############################################################################
+# 2) /api/certificate — extracción CON certificado p12
+#
+# Body:
+#   url            (string, requerido) — base del portal certificado
+#   tipo           (string)            — "Sent" o "Received"
+#   fechaDesde     (YYYY-MM-DD)
+#   fechaHasta     (YYYY-MM-DD)
+#   p12Base64      (string, requerido) — contenido del .p12 en base64
+#   p12Password    (string, requerido) — contraseña del p12
+#   userCode       (string, opcional)  — NIT del representante legal
+#   excluirEstados (string, opcional)
+#   async          (boolean, opcional) — true → respuesta inmediata con jobId
+#
+# Notas:
+#   - Solo 1 sesión cert a la vez en Windows (limitación de registro de Chrome)
+#   - El cert se importa al store de Windows automáticamente y se borra al final
+###############################################################################
+
+### Scrape via certificado — síncrono
+POST {{host}}/api/certificate
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "url": "https://certificate-vpfe.dian.gov.co",
+  "tipo": "Sent",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-09",
+  "p12Base64": "MIIK...PEGAR_BASE64_DEL_P12_AQUI...==",
+  "p12Password": "tu-password-del-p12",
+  "userCode": "900123456",
+  "excluirEstados": ""
+}
+
+
+### Scrape via certificado — asíncrono (recomendado para extracciones largas)
+POST {{host}}/api/certificate
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "async": true,
+  "url": "https://certificate-vpfe.dian.gov.co",
+  "tipo": "Sent",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-31",
+  "p12Base64": "MIIK...PEGAR_BASE64_DEL_P12_AQUI...==",
+  "p12Password": "tu-password-del-p12",
+  "userCode": "900123456",
+  "excluirEstados": ""
+}
+
+
+###############################################################################
+# 3) /api/system/consult — endpoint UNIFICADO (URL o certificado en un solo request)
+#
+# Decide el método ("url" o "certificate") con el campo "metodo".
+# Tiene DOS modos de operación:
+#
+#   - SÍNCRONO (default): el cliente espera la respuesta completa.
+#                         Útil para extracciones cortas (<60 seg).
+#   - ASÍNCRONO (async: true): devuelve un jobId al instante. El cliente
+#                              consulta /api/jobs/:id para el resultado.
+#                              Recomendado para extracciones grandes.
+###############################################################################
+
+### 3.a) /api/system/consult — modo SÍNCRONO con URL
+POST {{host}}/api/system/consult
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "metodo": "url",
+  "url": "https://catalogo-vpfe.dian.gov.co/User/AuthToken?pk=...&rk=...&token=...",
+  "tipo": "Received",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-01",
+  "excluirEstados": ""
+}
+
+# Respuesta esperada (200 OK):
+# {
+#   "success": true,
+#   "partial": false,
+#   "message": "Se encontraron 12 documento(s)",
+#   "log": [...],
+#   "data": [...]
+# }
+#
+# Si hubo corte (DIAN expiró, network) PERO bajaron algunas facturas:
+# {
+#   "success": true,
+#   "partial": true,
+#   "message": "Resultado parcial: 5 documento(s) descargados antes del corte",
+#   "log": [...],
+#   "data": [...]
+# }
+
+
+### 3.b) /api/system/consult — modo SÍNCRONO con CERTIFICADO
+POST {{host}}/api/system/consult
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "metodo": "certificate",
+  "url": "https://certificate-vpfe.dian.gov.co",
+  "tipo": "Sent",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-09",
+  "p12Base64": "MIIK...==",
+  "p12Password": "tu-password",
+  "userCode": "900123456",
+  "excluirEstados": "Acuse,Rechazo"
+}
+
+
+### 3.c) /api/system/consult — modo ASÍNCRONO (RECOMENDADO para Laravel)
+#
+# Diferencia: agregar "async": true en el body.
+# El server responde 202 Accepted INMEDIATAMENTE, sin esperar al scraper.
+# Devuelve un jobId que el cliente usa para consultar el estado.
+POST {{host}}/api/system/consult
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "async": true,
+  "metodo": "url",
+  "url": "https://catalogo-vpfe.dian.gov.co/User/AuthToken?pk=...&token=...",
+  "tipo": "Received",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-31",
+  "excluirEstados": ""
+}
+
+# Respuesta inmediata (202 Accepted):
+# {
+#   "success": true,
+#   "jobId": "9b1e2a3f-...-...",
+#   "statusUrl": "/api/jobs/9b1e2a3f-...-...",
+#   "message": "Extracción iniciada — consulte statusUrl para el resultado"
+# }
+#
+# → guardar jobId, hacer polling en /api/jobs/:id (ver siguiente bloque)
+
+
+###############################################################################
+# 3.d) /api/cufes — obtener SOLO los CUFEs del listado (sin descargar ZIPs)
+#
+# Mismo flujo que /api/scrape (método token/URL) pero NO baja los archivos:
+# lee el CUFE (y datos básicos) de cada factura del listado y lo devuelve.
+# Mucho más rápido. Soporta async igual que los demás (jobId + /api/jobs/:id).
+###############################################################################
+
+### 3.d.1) /api/cufes — SÍNCRONO
+POST {{host}}/api/cufes
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "url": "https://catalogo-vpfe.dian.gov.co/User/AuthToken?pk=...&rk=...&token=...",
+  "tipo": "Received",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-31",
+  "excluirEstados": ""
+}
+
+# Respuesta esperada (200 OK):
+# {
+#   "success": true,
+#   "partial": false,
+#   "message": "Se obtuvieron 12 CUFE(s)",
+#   "total": 12,
+#   "folder": "Received_2025-08-01_2025-08-31_...",
+#   "log": [...],
+#   "data": [
+#     {
+#       "cufe": "1f702889fe7a4d7fe5052def9fb501c84eba930c9f18cc98184d580ed290ccf4ba53abbe2d8273279a347019613a1bfe",
+#       "tipoDoc": "01",
+#       "partitionKey": "co|25|1f7",
+#       "fechaEmision": "25-05-2026",
+#       "fechaRecepcion": "25-05-2026",
+#       "grupo": "FE",
+#       "folio": "FE2029",
+#       "descripcion": "Factura electrónica",
+#       "nitEmisor": "900805709",
+#       "nombreEmisor": "Source Solutions SAS",
+#       "nitReceptor": "901846280",
+#       "nombreReceptor": "Digital Buho SAS",
+#       "estado": "Aprobado con notificación",
+#       "EstadoRadian": "Factura Electrónica",
+#       "valor": "$ 1.580.000"
+#     }
+#   ]
+# }
+
+### 3.d.2) /api/cufes — ASÍNCRONO (recomendado para rangos grandes)
+POST {{host}}/api/cufes
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "async": true,
+  "url": "https://catalogo-vpfe.dian.gov.co/User/AuthToken?pk=...&rk=...&token=...",
+  "tipo": "Received",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-31",
+  "excluirEstados": ""
+}
+
+# Respuesta inmediata (202): { "success": true, "jobId": "...", "statusUrl": "/api/jobs/...", ... }
+# Luego polling en /api/jobs/:id (ver sección 4). El "data" del job es el mismo array de CUFEs.
+
+
+###############################################################################
+# 3.e) /api/xml-by-cufes — token -> CUFEs del listado -> API XML -> reporte
+#
+# Método alternativo que NO descarga ZIPs de la DIAN (evita el anti-bot lento de
+# ~90s/línea). El extractor:
+#   1) saca los CUFEs del listado con el método token/URL (igual que /api/cufes),
+#   2) le pide los XML de esos CUFEs al API externo (XML_QUERY_API_URL), que los
+#      consulta en la DIAN con el certificado (.p12) + contraseña,
+#   3) parsea los XML y arma el MISMO reporte (JSON + Excel) que los demás métodos.
+#
+# Requiere configurar en el server: XML_QUERY_API_URL (+ XML_QUERY_API_KEY).
+#
+# Body:
+#   url            (string, requerido) — URL con AuthToken de DIAN (de donde salen los CUFEs)
+#   tipo           (string, requerido) — "Sent" o "Received"
+#   fechaDesde     (YYYY-MM-DD, requerido)
+#   fechaHasta     (YYYY-MM-DD, requerido)
+#   p12Base64      (string, requerido) — .p12/.pfx en base64 (para que el API consulte la DIAN)
+#   p12Password    (string, requerido) — contraseña del .p12
+#   ambiente       (int, opcional)     — 1=prod, 2=hab. Si se omite, se DERIVA de la url
+#                                        (host con "-hab" => 2, si no => 1)
+#   excluirEstados (string, opcional)  — coma-separado, ej "Acuse,Rechazo"
+#   async          (boolean, opcional) — true → jobId inmediato + polling /api/jobs/:id
+###############################################################################
+
+### 3.e.1) /api/xml-by-cufes — SÍNCRONO
+POST {{host}}/api/xml-by-cufes
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "url": "https://catalogo-vpfe.dian.gov.co/User/AuthToken?pk=...&rk=...&token=...",
+  "tipo": "Received",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-31",
+  "p12Base64": "MIIK...PEGAR_BASE64_DEL_P12_AQUI...==",
+  "p12Password": "tu-password-del-p12",
+  "excluirEstados": ""
+}
+
+# Respuesta esperada (200 OK):
+# {
+#   "success": true,
+#   "partial": false,
+#   "message": "Reporte generado: 12 documento(s) de 12 CUFE(s)",
+#   "total": 12,          ← documentos con XML válido (los del reporte)
+#   "cufesTotal": 12,     ← CUFEs encontrados en el listado
+#   "ok": 12,             ← XML devueltos por el API
+#   "fail": 0,            ← CUFEs sin XML (no rompen el lote)
+#   "folder": "Received_2025-08-01_2025-08-31_..._abc123",
+#   "log": [...],
+#   "data": [ {...documento UBL parseado...}, ... ]   ← mismo shape que /api/scrape
+# }
+#
+# Si el API devuelve algunos CUFEs sin XML (parcial de datos):
+#   "message": "Reporte generado: 10 documento(s) de 12 CUFE(s) (2 sin XML)", "ok": 10, "fail": 2
+
+### 3.e.2) /api/xml-by-cufes — ASÍNCRONO (recomendado para rangos grandes)
+POST {{host}}/api/xml-by-cufes
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "async": true,
+  "url": "https://catalogo-vpfe-hab.dian.gov.co/User/AuthToken?pk=...&token=...",
+  "tipo": "Received",
+  "fechaDesde": "2025-08-01",
+  "fechaHasta": "2025-08-31",
+  "p12Base64": "MIIK...==",
+  "p12Password": "tu-password-del-p12",
+  "ambiente": 2
+}
+
+# Respuesta inmediata (202): { "success": true, "jobId": "...", "statusUrl": "/api/jobs/...", ... }
+# Luego polling en /api/jobs/:id (ver sección 4). El "data" del job son los documentos parseados.
+
+
+###############################################################################
+# 4) /api/jobs/:id — consultar estado de un job asíncrono
+#
+# Reemplazar :id por el jobId que devolvió /api/system/consult con async:true.
+# Hacer polling cada 3-10 segundos hasta ver status="done" o "error".
+###############################################################################
+
+### Consultar estado de un job
+GET {{host}}/api/jobs/PEGAR_AQUI_EL_JOB_ID
+X-Api-Key: {{apiKey}}
+
+# Respuestas posibles:
+#
+# Mientras corre:
+# {
+#   "success": true,
+#   "status": "running",
+#   "partial": false,
+#   "exitCode": null,
+#   "folder": null,
+#   "log": ["✅ Iniciando proceso", "📄 Página 1", ...],   ← va creciendo
+#   "data": null,
+#   "createdAt": 1730000000000,
+#   "finishedAt": null
+# }
+#
+# Cuando termina OK:
+# {
+#   "success": true,
+#   "status": "done",
+#   "partial": false,
+#   "exitCode": 0,
+#   "folder": "900123456_Sent_2025-08-01_2025-08-09_..._abc123",
+#   "log": [...],
+#   "data": [{...}, {...}, ...],
+#   "createdAt": 1730000000000,
+#   "finishedAt": 1730000180000
+# }
+#
+# Cuando terminó con corte pero hay datos parciales:
+# {
+#   "status": "done",
+#   "partial": true,             ← bandera de resultado parcial
+#   "exitCode": 1,
+#   "data": [...]                ← las facturas que sí se alcanzaron
+# }
+#
+# Cuando falló sin generar nada:
+# {
+#   "status": "error",
+#   "error": "El scraper finalizó sin generar resultados",
+#   "data": null
+# }
+
+
+###############################################################################
+# 5) /api/jobs — listar todos los jobs en memoria
+#
+# Útil para debug. Los jobs viven JOB_TTL_HOURS (default 2h) después de terminar.
+###############################################################################
+
+### Listar jobs
+GET {{host}}/api/jobs
+X-Api-Key: {{apiKey}}
+
+# Respuesta:
+# {
+#   "success": true,
+#   "jobs": [
+#     {
+#       "jobId": "...",
+#       "status": "done",
+#       "partial": false,
+#       "folder": "900123456_Sent_..._abc123",
+#       "meta": { "metodo": "url", "tipo": "Sent", "fechaDesde": "...", ... },
+#       "createdAt": 1730000000000,
+#       "finishedAt": 1730000180000,
+#       "docs": 42
+#     },
+#     ...
+#   ]
+# }
+
+
+###############################################################################
+# 6) /api/extract-cufes — extraer CUFEs de ZIPs ya descargados
+#
+# No corre el scraper. Solo lee los ZIPs en una carpeta de downloads/ y devuelve
+# CUFE + datos básicos de cada XML. Útil cuando ya tenés los ZIPs y necesitás
+# solo los CUFEs sin re-extraer.
+#
+# Body:
+#   folder (string, opcional) — nombre de la carpeta dentro de downloads/.
+#                               Si se omite, usa la más reciente.
+###############################################################################
+
+### Extraer CUFEs de la carpeta más reciente
+POST {{host}}/api/extract-cufes
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{}
+
+
+### Extraer CUFEs de una carpeta específica
+POST {{host}}/api/extract-cufes
+Content-Type: application/json
+X-Api-Key: {{apiKey}}
+
+{
+  "folder": "900123456_Sent_2025-08-01_2025-08-09_2025-08-10_14-30-15_abc123"
+}
+
+
+###############################################################################
+# Cómo integrarlo desde cualquier cliente HTTP
+#
+# Los ejemplos están en PHP/Laravel pero el patrón aplica igual a Python
+# (requests/httpx), Node (axios/fetch), curl, o cualquier lenguaje.
+###############################################################################
+#
+# ── MODO SÍNCRONO ──
+# El cliente espera la respuesta completa. Solo recomendado si el timeout
+# de tu stack alcanza los 2-5 minutos (extracciones cortas).
+#
+# PHP/Laravel:
+# $r = Http::timeout(300)
+#         ->withHeaders(['X-Api-Key' => 'tu-api-key'])
+#         ->post('http://extractor/api/system/consult', [
+#             'metodo'      => 'certificate',
+#             'url'         => 'https://certificate-vpfe.dian.gov.co',
+#             'tipo'        => 'Sent',
+#             'fechaDesde'  => '2025-08-01',
+#             'fechaHasta'  => '2025-08-31',
+#             'p12Base64'   => $p12Base64,
+#             'p12Password' => $password,
+#             'userCode'    => $nit,
+#         ]);
+# $data = $r->json('data');
+#
+# ── MODO ASÍNCRONO (RECOMENDADO para extracciones grandes) ──
+# 1. El cliente lanza la extracción y recibe un jobId en < 1 s.
+# 2. Hace polling en /api/jobs/:id hasta ver status='done' o 'error'.
+# 3. Sin timeouts de red — el scraper puede correr horas si hace falta.
+#
+# PHP/Laravel:
+# $start = Http::withHeaders(['X-Api-Key' => 'tu-api-key'])
+#              ->post('http://extractor/api/system/consult', [
+#                  'async'      => true,
+#                  'metodo'     => 'url',
+#                  'url'        => $authTokenUrl,
+#                  'tipo'       => 'Received',
+#                  'fechaDesde' => '2025-08-01',
+#                  'fechaHasta' => '2025-08-31',
+#              ]);
+# $jobId = $start->json('jobId');
+#
+# do {
+#     sleep(5);
+#     $status = Http::withHeaders([...])->get("http://extractor/api/jobs/{$jobId}")->json();
+# } while ($status['status'] === 'running');
+#
+# if ($status['status'] === 'done') {
+#     $facturas = $status['data'];        // array de documentos UBL parseados
+#     if ($status['partial']) {
+#         // extracción cortada (sesión DIAN expiró) pero se rescataron datos parciales
+#     }
+# } else {
+#     // status === 'error' — $status['error'] tiene el detalle
+# }
+#
+# Python (requests):
+# import requests, time
+# headers = {'X-Api-Key': 'tu-api-key'}
+# r = requests.post('http://extractor/api/system/consult',
+#                   json={'async': True, 'metodo': 'url', ...}, headers=headers)
+# job_id = r.json()['jobId']
+# while True:
+#     s = requests.get(f'http://extractor/api/jobs/{job_id}', headers=headers).json()
+#     if s['status'] != 'running': break
+#     time.sleep(5)
+# facturas = s.get('data', [])

@@ -50,4 +50,10 @@ return [
         'timeout' => (int) env('EXTRACTOR_TIMEOUT', 120),
     ],
 
+    // API key que protege el endpoint stateless /api/ubl2.1/xml/by-cufes
+    // (consulta de XMLs por CUFE con certificado enviado en la petición).
+    'xmlquery' => [
+        'key' => env('XML_QUERY_API_KEY'),
+    ],
+
 ];
