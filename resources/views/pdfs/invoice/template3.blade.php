@@ -372,7 +372,7 @@
 
                             @if(isset($item['tax_totals']))
                                 @if(isset($item['tax_totals'][0]['tax_amount']))
-                                    <td class="text-right">{{number_format($item['tax_totals'][0]['tax_amount'] / $item['invoiced_quantity'], 2)}}</td>
+                                    <td class="text-right">{{number_format($item['tax_totals'][0]['tax_amount'], 2)}}</td>
                                 @else
                                     <td class="text-right">{{number_format(0, 2)}}</td>
                                 @endif
