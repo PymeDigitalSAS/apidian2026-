@@ -1035,6 +1035,9 @@ trait DocumentTrait
         $margin_right = null;
         $margin_top = null;
         $margin_bottom = null;
+        $margin_header = 5;
+        $margin_footer = 2;
+        $auto_bottom_margin = false;
 
         $filename = base_path('resources/views/pdfs/' . $type . '/config'.$template.'.json');
             if (file_exists($filename)) {
@@ -1124,13 +1127,18 @@ trait DocumentTrait
          } elseif($template == 13)  {
 
             // Plantilla 13: Media Carta Vertical. Mismo diseño que la 1 pero
-            // en retrato; el header/footer ocupan mas alto al reducirse el
-            // ancho util, por eso los margenes verticales son mayores.
+            // en retrato. El cuerpo (header + tabla) no debe pasar la mitad de
+            // la hoja: con margin_bottom = 105 (la mitad de 210 mm) el salto de
+            // pagina se dispara justo en la linea media, asi que si hay mas
+            // items mPDF continua en otra pagina sin bajar de la mitad. El pie
+            // se mantiene anclado al fondo de la hoja (margin_footer = 2).
             $format_print = [148, 210];
-            $margin_top = '38';
+            $margin_top = '33';
             $margin_left = '5';
             $margin_right = '5';
-            $margin_bottom = '14';
+            $margin_bottom = '105';
+            $margin_footer = 2;
+            $auto_bottom_margin = false;
 
          } else {
 
@@ -1162,8 +1170,9 @@ trait DocumentTrait
                 'margin_right' => $margin_right,
                 'margin_top' => $margin_top,
                 'margin_bottom' => $margin_bottom ,
-                'margin_header' => 5,
-                'margin_footer' => 2,
+                'margin_header' => $margin_header,
+                'margin_footer' => $margin_footer,
+                'setAutoBottomMargin' => $auto_bottom_margin,
                 'format' => isset($format_print) ? $format_print : null ,  // Esta es la línea que se añade para definir el tamaño del papel
                 'orientation' => isset($orientation) ? $orientation : 'P',
             ]);
