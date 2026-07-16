@@ -129,10 +129,49 @@ class UblDocumentParser
     }
 
     /**
+     * Mapea la salida de parse() a la estructura `dian` (claves neutras) que
+     * consume CufeReportExporter. Reutilizable por el orquestador stateless
+     * (que ya tiene el XML y no pasa por RadianEventController::buildDocumentByCufe).
+     *
+     * @param  array $p  salida de parse()
+     * @return array
+     */
+    public function mapToDian(array $p): array
+    {
+        return [
+            'doc_type'              => $p['doc_type'] ?? null,
+            'type_document_id'      => $p['type_code'] ?? null,
+            'number'                => $p['number'] ?? null,
+            'prefix'                => $p['prefix'] ?? null,
+            'cufe'                  => $p['cufe'] ?? null,
+            'date_issue'            => trim(($p['issue_date'] ?? '') . ' ' . ($p['issue_time'] ?? '')),
+            'due_date'              => $p['due_date'] ?? null,
+            'currency'              => $p['currency'] ?? null,
+            'ambient_id'            => $p['ambient_id'] ?? null,
+            'identification_number' => $p['supplier']['nit'] ?? null,
+            'name_seller'           => $p['supplier']['name'] ?? null,
+            'customer'              => $p['customer']['nit'] ?? null,
+            'customer_name'         => $p['customer']['name'] ?? null,
+            'payment_means_id'      => $p['payment_means_id'] ?? null,
+            'payment_means_code'    => $p['payment_means_code'] ?? null,
+            'subtotal'              => $p['line_extension'] ?? null,
+            'tax_exclusive'         => $p['tax_exclusive'] ?? null,
+            'total_discount'        => $p['allowance_total'] ?? null,
+            'total_tax'             => $p['header_taxes_total'] ?? null,
+            'retention_total'       => $p['withholdings_total'] ?? null,
+            'total'                 => $p['payable'] ?? null,
+            'tax_breakdown'         => $p['tax_breakdown'] ?? [],
+            'lines'                 => $p['lines'] ?? [],
+        ];
+    }
+
+    /**
      * Si el XML es un AttachedDocument, devuelve el documento interno
      * (Invoice/CreditNote/DebitNote) embebido en cbc:Description.
+     * Si no es AttachedDocument, devuelve el XML tal cual (no-op).
+     * Público para poder reutilizarlo al devolver XMLs al extractor.
      */
-    private function unwrapAttachedDocument(string $xml): string
+    public function unwrapAttachedDocument(string $xml): string
     {
         if (strpos($xml, '<AttachedDocument') === false) {
             return $xml;

@@ -1,0 +1,75 @@
+# ============================================================
+# cufes-worker — extractor Node/Puppeteer (servicio APARTE del API).
+#
+# Es el ÚNICO componente que necesita navegador (Chrome) para sacar los CUFEs del
+# catálogo DIAN. El API (Laravel) lo consume por HTTP. El XML por CUFE
+# (certificado) y el reporte ahora los hace el API en PHP.
+#
+#   Levantar:   docker compose -f docker-compose.extractor.yml up -d --build
+#   Logs:       docker compose -f docker-compose.extractor.yml logs -f
+#   Parar:      docker compose -f docker-compose.extractor.yml down
+#
+# CÓMO LO ALCANZA EL API (según dónde corra el API):
+#   • API en Docker (misma red):  EXTRACTOR_URL=http://cufes-worker:3001
+#   • API bare-metal (LAMP):      EXTRACTOR_URL=http://127.0.0.1:3001
+#
+# RED DE DOCKER (autodetección):
+# El worker debe estar en la MISMA red que el contenedor php_api. Según la
+# instalación, esa red puede llamarse distinto:
+#   • Instalación API + facturador (script combinado):  proxynet
+#   • Instalación solo API:                              apinet
+# Por eso el nombre de la red es una VARIABLE (EXTRACTOR_NETWORK). Lo más simple
+# es levantar con el script que la detecta solo:
+#   ./extractor-up.sh
+# ...que averigua la red de php_api y la pasa. Si prefieres a mano:
+#   EXTRACTOR_NETWORK=proxynet docker compose -f docker-compose.extractor.yml up -d --build
+# (Si no la defines, usa "apinet" por defecto.)
+# ============================================================
+services:
+  cufes-worker:
+    build:
+      context: ./extractcode
+      dockerfile: Dockerfile
+    image: cufes-worker:latest
+    container_name: cufes-worker
+    restart: unless-stopped
+
+    # Publicado en el localhost del host -> lo usa el API bare-metal / debug local.
+    # (Si el API es dockerizado, lo alcanza por la red apinet y este puerto es opcional.)
+    ports:
+      - "127.0.0.1:3001:3001"
+
+    # Chrome/Puppeteer: el /dev/shm por defecto de Docker (64MB) hace crashear a
+    # Chrome. Subirlo evita cuelgues. mem_limit acota el consumo del navegador.
+    # Headful (Xvfb) consume más RAM que headless -> 2g para evitar OOM (SIGKILL).
+    shm_size: "1gb"
+    mem_limit: "2g"
+
+    environment:
+      - NODE_OPTIONS=--openssl-legacy-provider
+      # Anti-bot: el WAF de la DIAN (Azure) detecta Chrome headless. Corriendo
+      # headful bajo Xvfb (pantalla virtual) es mucho menos detectable. La imagen
+      # ya trae xvfb; con CHROME_HEADLESS=false server.js usa xvfb-run automáticamente.
+      - CHROME_HEADLESS=false
+      # Si el worker exige API key en sus /api/*, definila aquí y en el API
+      # (EXTRACTOR_API_KEY). Debe coincidir con API_SECRET_KEY del worker.
+      # - API_SECRET_KEY=cambia-esta-clave
+
+    # Misma red externa que el API -> el contenedor php_api puede llamar a
+    # http://cufes-worker:3001 por nombre de servicio.
+    networks:
+      - api_net
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3001/api/jobs || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+# Red externa del API (proxynet o apinet según la instalación). Se resuelve por la
+# variable EXTRACTOR_NETWORK; el script extractor-up.sh la detecta automáticamente.
+networks:
+  api_net:
+    external: true
+    name: ${EXTRACTOR_NETWORK:-apinet}

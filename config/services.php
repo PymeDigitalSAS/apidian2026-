@@ -45,9 +45,18 @@ return [
     ],
 
     'extractor' => [
-        'url' => env('EXTRACTOR_URL'),
+        // Default por convención: si el cliente usa el docker-compose estándar
+        // (servicio "cufes-worker" en la red apinet), no necesita configurar nada.
+        // En bare-metal/LAMP se sobreescribe con EXTRACTOR_URL=http://127.0.0.1:3001
+        'url' => env('EXTRACTOR_URL', 'http://cufes-worker:3001'),
         'api_key' => env('EXTRACTOR_API_KEY'),
         'timeout' => (int) env('EXTRACTOR_TIMEOUT', 120),
+    ],
+
+    // API key que protege el endpoint stateless /api/ubl2.1/xml/by-cufes
+    // (consulta de XMLs por CUFE con certificado enviado en la petición).
+    'xmlquery' => [
+        'key' => env('XML_QUERY_API_KEY'),
     ],
 
 ];

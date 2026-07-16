@@ -1,0 +1,31 @@
+{
+  "name": "scraper-dian",
+  "version": "1.3.0",
+  "description": "",
+  "main": "index.js",
+  "bin": "index.js",
+  "pkg": {
+    "scripts": "puppeteer/.local-chromium/**/*"
+  },
+  "scripts": {
+    "start": "cross-env NODE_OPTIONS=--openssl-legacy-provider node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "js02castillo-jonnystuar@gmail.com",
+  "license": "ISC",
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "axios": "^1.10.0",
+    "dotenv": "^17.4.2",
+    "express": "^4.18.2",
+    "minimist": "^1.2.8",
+    "puppeteer": "^24.10.0",
+    "rebrowser-puppeteer-core": "^24.8.1",
+    "xlsx": "^0.18.5",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
+  }
+}

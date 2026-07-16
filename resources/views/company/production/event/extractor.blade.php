@@ -23,6 +23,10 @@
     $extractorCatalogBase = $extractorIsProd
         ? 'https://catalogo-vpfe.dian.gov.co/'
         : 'https://catalogo-vpfe-hab.dian.gov.co/';
+    // Escape para el atributo HTML5 pattern (regex de JavaScript, motor "v"):
+    // solo se escapan los metacaracteres de JS. NO usar preg_quote, porque escapa
+    // ":" y "-" con "\", que el motor "v" rechaza ("Invalid escape").
+    $extractorCatalogBaseJs = preg_replace('/[.*+?^${}()|[\]\\\\]/', '\\\\$0', $extractorCatalogBase);
 @endphp
 
 {{-- Toast flotante para la acción "Cargar por CUFE" --}}
@@ -67,12 +71,6 @@
                 <code>php artisan config:clear</code>. Mientras no se configure, las acciones de
                 prueba y extracci&oacute;n permanecer&aacute;n deshabilitadas.
             </div>
-        @else
-            <div class="alert alert-info py-2 mb-3" style="font-size:.9rem;">
-                <i class="fas fa-info-circle mr-1"></i>
-                Consulta facturas <strong>recibidas</strong> en la DIAN y carga sus datos por CUFE
-                para enviar eventos RADIAN sobre ellas.
-            </div>
         @endif
 
         <div id="evt-extr-conn-result" class="mt-2 mb-3" style="display:none;"></div>
@@ -84,13 +82,8 @@
             <div class="card-body">
                 <ul class="nav nav-tabs mb-3" id="evtExtractorTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link active" id="evt-tab-url" data-toggle="tab" href="#evt-pane-url" role="tab">
-                            <i class="fas fa-link mr-1"></i> Consulta por Token
-                        </a>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link" id="evt-tab-report" data-toggle="tab" href="#evt-pane-report" role="tab">
-                            <i class="fas fa-file-excel mr-1"></i> Reporte por CUFEs
+                        <a class="nav-link active" id="evt-tab-report" data-toggle="tab" href="#evt-pane-report" role="tab">
+                            <i class="fas fa-file-excel mr-1"></i> Extracci&oacute;n por token
                         </a>
                     </li>
                     {{-- Sub-tab "Por Certificado" oculto: aún no disponible. --}}
@@ -103,51 +96,8 @@
                 </ul>
 
                 <div class="tab-content">
-                    <div class="tab-pane fade show active" id="evt-pane-url" role="tabpanel">
-                        <form id="evt-extract-form">
-                            @csrf
-                            <input type="hidden" name="tipo" value="Received">
-                            <div class="row">
-                                <div class="form-group col-md-12">
-                                    <label for="evt-extr-url">URL de consulta por Token DIAN</label>
-                                    <input type="url" id="evt-extr-url" name="url" class="form-control"
-                                           placeholder="{{ $extractorCatalogBase }}User/AuthToken?..."
-                                           pattern="^{{ preg_quote($extractorCatalogBase, '/') }}User/AuthToken.*"
-                                           title="Debe ser un enlace User/AuthToken de DIAN {{ $extractorEnvName }} ({{ $extractorCatalogBase }}User/AuthToken?...)"
-                                           required>
-                                    <small class="form-text text-muted">
-                                        Pega el enlace <code>User/AuthToken</code> emitido por DIAN.
-                                    </small>
-                                </div>
-                                <div class="form-group col-md-6">
-                                    <label for="evt-extr-fecha-desde">Fecha desde</label>
-                                    <input type="date" id="evt-extr-fecha-desde" name="fechaDesde" class="form-control" value="{{ $defaultFechaDesde }}" required>
-                                </div>
-                                <div class="form-group col-md-6">
-                                    <label for="evt-extr-fecha-hasta">Fecha hasta</label>
-                                    <input type="date" id="evt-extr-fecha-hasta" name="fechaHasta" class="form-control" value="{{ $defaultFechaHasta }}" required>
-                                </div>
-                            </div>
-                            <button type="submit" id="evt-btn-extract" class="btn btn-primary"
-                                    @if(!$extractorConfigured) disabled title="EXTRACTOR_URL no está configurada en .env" @endif>
-                                <i class="fas fa-play mr-1"></i> Iniciar extracci&oacute;n
-                            </button>
-                            <span class="text-muted ml-2" style="font-size:.85rem;">
-                                Esta operaci&oacute;n puede tardar varios minutos.
-                            </span>
-                        </form>
-                    </div>
-
-                    {{-- ================= Reporte por CUFEs ================= --}}
-                    <div class="tab-pane fade" id="evt-pane-report" role="tabpanel">
-                        <div class="alert alert-info py-2 mb-3" style="font-size:.9rem;">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Obtiene los <strong>CUFEs</strong> del rango (sin descargar ZIP) y luego consulta
-                            cada uno en la DIAN para armar un reporte descargable en <strong>Excel</strong> o <strong>JSON</strong>,
-                            con detalle de <strong>l&iacute;neas de producto e impuestos</strong>
-                            (Excel de 2 hojas: <em>Resumen</em> y <em>L&iacute;neas</em>).
-                        </div>
-
+                    {{-- ================= Extracción por token ================= --}}
+                    <div class="tab-pane fade show active" id="evt-pane-report" role="tabpanel">
                         @if(!$extractorApiToken)
                             <div class="alert alert-warning py-2 mb-3" style="font-size:.9rem;">
                                 <i class="fas fa-exclamation-triangle mr-1"></i>
@@ -164,11 +114,16 @@
                                     <label for="evt-report-url">URL de consulta por Token DIAN</label>
                                     <input type="url" id="evt-report-url" name="url" class="form-control"
                                            placeholder="{{ $extractorCatalogBase }}User/AuthToken?..."
-                                           pattern="^{{ preg_quote($extractorCatalogBase, '/') }}User/AuthToken.*"
+                                           pattern="^{{ $extractorCatalogBaseJs }}User/AuthToken.*"
                                            title="Debe ser un enlace User/AuthToken de DIAN {{ $extractorEnvName }} ({{ $extractorCatalogBase }}User/AuthToken?...)"
                                            required>
                                     <small class="form-text text-muted">
                                         Pega el enlace <code>User/AuthToken</code> emitido por DIAN.
+                                    </small>
+                                    <small class="form-text text-warning">
+                                        <i class="fas fa-exclamation-circle mr-1"></i>
+                                        El token debe corresponder al mismo ambiente
+                                        (<strong>{!! $extractorEnvName !!}</strong>) que los eventos RADIAN de esta empresa.
                                     </small>
                                 </div>
                                 <div class="form-group col-md-6">
@@ -766,6 +721,7 @@ $(function () {
     var apiToken   = @json($extractorApiToken);
     var companyNit = @json($company->identification_number);
     var cufesUrl   = '{{ route('extractor.cufes') }}';
+    var jobUrlBase = '{{ url('/extractor/job') }}';   // + '/' + jobId (polling async)
     var enrichUrl  = '{{ url('/api/cufes/enrich') }}';
     var reportUrl  = '{{ url('/api/cufes/report') }}';
     var csrfToken  = $('meta[name="csrf-token"]').attr('content');
@@ -991,9 +947,11 @@ $(function () {
 
         resetOutput();
         setBadge('cufes');
-        $msg.text('Obteniendo la lista de CUFEs del extractor…');
+        $msg.text('Iniciando extracción de CUFEs en el extractor…');
 
-        // Paso 1: obtener los CUFEs (web route, sesión + CSRF)
+        // Paso 1: iniciar el job async en el extractor (respuesta inmediata con jobId).
+        // El extractor arranca Chrome headful (~60-90s) — por eso NO se espera la
+        // respuesta síncrona (daría 504 en el proxy): se hace polling del job.
         $.ajax({
             url: cufesUrl,
             method: 'POST',
@@ -1001,14 +959,12 @@ $(function () {
             data: $form.serialize(),
             dataType: 'json'
         }).done(function (resp) {
-            var items = (resp && Array.isArray(resp.data)) ? resp.data : [];
-            if (!items.length) {
-                finishRun('empty');
-                $msg.text((resp && resp.message) ? resp.message : 'Sin CUFEs en el rango de fechas.');
+            if (!resp || !resp.jobId) {
+                finishRun('error');
+                $msg.text((resp && resp.message) ? resp.message : 'El extractor no devolvió un jobId.');
                 return;
             }
-            $msg.html('Se obtuvieron <strong>' + items.length + '</strong> CUFE(s). Consultando la DIAN por cada uno&hellip;');
-            enrichInBatches(items);
+            pollCufesJob(resp.jobId);
         }).fail(function (xhr) {
             var resp = xhr.responseJSON || {};
             var errors = resp.errors ? Object.values(resp.errors).flat().join(' · ') : '';
@@ -1016,6 +972,61 @@ $(function () {
             $msg.text((resp.message || 'HTTP ' + xhr.status) + (errors ? ' — ' + errors : ''));
         });
     });
+
+    // Polling del job de CUFEs hasta status 'done'/'error'. En la DIAN esto tarda
+    // porque Chrome corre headful bajo Xvfb para evitar el WAF anti-bot.
+    function pollCufesJob(jobId) {
+        var POLL_MS = 3000;      // cada 3s
+        var MAX_TRIES = 200;     // ~10 min de techo
+        var tries = 0;
+        var startedAt = Date.now();
+
+        (function tick() {
+            tries++;
+            $.ajax({
+                url: jobUrlBase + '/' + encodeURIComponent(jobId),
+                method: 'GET',
+                headers: { 'X-CSRF-TOKEN': csrfToken },
+                dataType: 'json'
+            }).done(function (resp) {
+                var status = resp && resp.status;
+
+                if (status === 'running') {
+                    if (tries >= MAX_TRIES) {
+                        finishRun('error');
+                        $msg.text('La extracción tardó demasiado (timeout de espera). Revisa el extractor.');
+                        return;
+                    }
+                    var secs = Math.round((Date.now() - startedAt) / 1000);
+                    $msg.html('Extrayendo CUFEs del catálogo DIAN&hellip; <small class="text-muted">(' + secs + 's)</small>');
+                    setTimeout(tick, POLL_MS);
+                    return;
+                }
+
+                // status 'done' o 'error' (partial => 'done' con datos parciales)
+                var items = (resp && Array.isArray(resp.data)) ? resp.data : [];
+                if (!items.length) {
+                    var errMsg = resp && (resp.error || resp.message);
+                    if (status === 'error') {
+                        finishRun('error');
+                        $msg.text(errMsg || 'El extractor terminó con error y sin CUFEs.');
+                    } else {
+                        finishRun('empty');
+                        $msg.text(errMsg || 'Sin CUFEs en el rango de fechas.');
+                    }
+                    return;
+                }
+                var extra = resp.partial ? ' <span class="text-warning">(resultado parcial)</span>' : '';
+                $msg.html('Se obtuvieron <strong>' + items.length + '</strong> CUFE(s)' + extra + '. Consultando la DIAN por cada uno&hellip;');
+                enrichInBatches(items);
+            }).fail(function (xhr) {
+                var resp = xhr.responseJSON || {};
+                // 404 del job (expirado) o error de red: cortar el polling.
+                finishRun('error');
+                $msg.text(resp.message || ('Error consultando el estado del job (HTTP ' + xhr.status + ').'));
+            });
+        })();
+    }
 
     // Descargas: POST de las filas acumuladas -> blob -> descarga
     function downloadReport(format) {

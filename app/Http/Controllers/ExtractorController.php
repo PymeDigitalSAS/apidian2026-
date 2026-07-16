@@ -162,9 +162,14 @@ class ExtractorController extends Controller
     }
 
     /**
-     * Obtener los CUFEs de un rango de fechas desde el extractor (POST /api/cufes),
-     * de forma síncrona (sin descargar ZIP). Devuelve la lista de CUFEs con su
-     * metadata para luego enriquecerlos por lotes vía /api/cufes/enrich.
+     * Inicia la obtención de CUFEs en el extractor de forma ASÍNCRONA
+     * (POST /api/cufes con async:true). Devuelve un jobId al instante; el
+     * navegador consulta el estado con job() (GET /extractor/jobs/{id}).
+     *
+     * Se usa async para no mantener abierta una petición HTTP larga: arrancar
+     * Chrome headful + pasar el WAF de la DIAN tarda ~60-90s aunque haya pocos
+     * CUFEs, y el nginx-proxy corta a los 60s (504). Con jobId + polling la
+     * respuesta inicial es inmediata y no hay timeout.
      */
     public function cufes(Request $request)
     {
@@ -178,7 +183,6 @@ class ExtractorController extends Controller
 
         $extractorUrl = config('services.extractor.url');
         $apiKey = config('services.extractor.api_key');
-        $timeout = config('services.extractor.timeout', 120);
 
         if (empty($extractorUrl)) {
             return response()->json([
@@ -190,8 +194,8 @@ class ExtractorController extends Controller
         try {
             $client = new Client([
                 'base_uri' => rtrim($extractorUrl, '/') . '/',
-                // La consulta de CUFEs puede tardar en rangos amplios; damos margen.
-                'timeout'  => max((int) $timeout, 300),
+                // Solo se espera el 202 con el jobId (respuesta inmediata).
+                'timeout'  => 20,
                 'verify'   => false,
             ]);
 
@@ -205,6 +209,7 @@ class ExtractorController extends Controller
                 'tipo'       => $request->input('tipo'),
                 'fechaDesde' => $request->input('fechaDesde'),
                 'fechaHasta' => $request->input('fechaHasta'),
+                'async'      => true,
             ];
             if ($request->filled('excluirEstados')) {
                 $payload['excluirEstados'] = $request->input('excluirEstados');
@@ -216,17 +221,19 @@ class ExtractorController extends Controller
             ]);
 
             $body = json_decode((string) $response->getBody(), true) ?: [];
-            $data = is_array($body['data'] ?? null) ? $body['data'] : [];
+
+            if (empty($body['jobId'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $body['message'] ?? 'El extractor no devolvió un jobId.',
+                ], 502);
+            }
 
             return response()->json([
-                'success' => $body['success'] ?? (count($data) > 0),
-                'partial' => $body['partial'] ?? false,
-                'total'   => $body['total'] ?? count($data),
-                'message' => $body['message'] ?? '',
-                'folder'  => $body['folder'] ?? null,
-                'log'     => $body['log'] ?? [],
-                'data'    => $data,
-            ]);
+                'success' => true,
+                'jobId'   => $body['jobId'],
+                'message' => $body['message'] ?? 'Extracción de CUFEs iniciada.',
+            ], 202);
         } catch (ConnectException $e) {
             return response()->json([
                 'success' => false,

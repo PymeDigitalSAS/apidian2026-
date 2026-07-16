@@ -52,9 +52,28 @@ Route::prefix('/ubl2.1')->group(function () {
         Route::post('/', 'Api\StatusZipController@statuszip');
     });
 
+    // Consulta stateless de XMLs por CUFE (cert .p12 + password + cufes -> XMLs base64).
+    // No requiere empresa; protegido con header X-Api-Key (XML_QUERY_API_KEY del .env).
+    Route::post('/xml/by-cufes', 'Api\XmlByCufeController@byCufes');
+
     Route::get('/currencies', 'Api\TrmController@getAllCurrencies');
     Route::get('/trm', 'Api\TrmController@getHtmlTrm');
 });
+
+// ============================================================
+// Orquestador "Por CUFEs" — el API hace TODO: obtiene los CUFEs vía el worker
+// Node (navegador, EXTRACTOR_URL), consulta los XML con el certificado y arma el
+// reporte. Stateless (cert en la petición), protegido con X-Api-Key
+// (XML_QUERY_API_KEY). Rutas espejo del extractor: el cliente solo cambia la URL base.
+// ============================================================
+Route::post('/cufes', 'Api\CufesReportController@cufes');
+Route::post('/xml-by-cufes', 'Api\CufesReportController@byToken');
+
+// Flujo completo por TOKEN (sin certificado), espejo del /api/scrape del worker:
+// descarga los documentos del listado DIAN y los parsea. Devuelve { log, data }
+// con la misma estructura del extractor. Soporta async:true + polling /api/jobs/{id}.
+Route::post('/scrape', 'Api\CufesReportController@scrape');
+Route::get('/jobs/{id}', 'Api\CufesReportController@job');
 
 Route::middleware(['auth:api', 'storage.context'])->group(function () {
 
@@ -72,6 +91,13 @@ Route::middleware(['auth:api', 'storage.context'])->group(function () {
     // generar el reporte descargable (XLSX / JSON).
     Route::post('cufes/enrich', 'Api\RadianEventController@enrichCufes');
     Route::post('cufes/report', 'Api\RadianEventController@cufesReport');
+
+    // Extracción por token AUTENTICADA (token de empresa -> certificado propio).
+    //  - stream: UN endpoint que emite el log en vivo (SSE) + JSON final (como el extractor).
+    //  - async : POST devuelve jobId; GET consulta avance/resultado (datos procesados).
+    Route::post('extractor/company/stream', 'Api\RadianEventController@streamCompanyExtraction');
+    Route::post('extractor/company', 'Api\RadianEventController@startCompanyExtraction');
+    Route::get('extractor/company/jobs/{id}', 'Api\RadianEventController@companyExtractionStatus');
 
     Route::get('/customer/{document}/{nit}', 'Api\CustomerController@getAcquirer');
 
