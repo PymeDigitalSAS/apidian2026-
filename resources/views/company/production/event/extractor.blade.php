@@ -86,6 +86,11 @@
                             <i class="fas fa-file-excel mr-1"></i> Extracci&oacute;n por token
                         </a>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="evt-tab-cufe" data-toggle="tab" href="#evt-pane-cufe" role="tab">
+                            <i class="fas fa-file-code mr-1"></i> Consulta por CUFE
+                        </a>
+                    </li>
                     {{-- Sub-tab "Por Certificado" oculto: aún no disponible. --}}
                     <li class="nav-item" role="presentation" style="display:none;">
                         <a class="nav-link" id="evt-tab-cert" data-toggle="tab" href="#evt-pane-cert" role="tab">
@@ -108,8 +113,18 @@
 
                         <form id="evt-report-form">
                             @csrf
-                            <input type="hidden" name="tipo" value="Received">
                             <div class="row">
+                                <div class="form-group col-md-12">
+                                    <label for="evt-report-tipo">Tipo de listado DIAN</label>
+                                    <select id="evt-report-tipo" name="tipo" class="form-control">
+                                        <option value="Received" selected>Documentos recibidos &mdash; permite registrar en Eventos RADIAN</option>
+                                        <option value="Sent">Documentos enviados &mdash; solo reporte (sin eventos)</option>
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        <strong>Recibidos</strong>: facturas que te emitieron; puedes registrarlas en Eventos RADIAN.
+                                        <strong>Enviados</strong>: facturas que t&uacute; emitiste; solo genera el reporte.
+                                    </small>
+                                </div>
                                 <div class="form-group col-md-12">
                                     <label for="evt-report-url">URL de consulta por Token DIAN</label>
                                     <input type="url" id="evt-report-url" name="url" class="form-control"
@@ -204,6 +219,85 @@
                                             </thead>
                                             <tbody id="evt-report-tbody"></tbody>
                                         </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- ================= Consulta por CUFE ================= --}}
+                    <div class="tab-pane fade" id="evt-pane-cufe" role="tabpanel">
+                        @if(!$extractorApiToken)
+                            <div class="alert alert-warning py-2 mb-3" style="font-size:.9rem;">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>
+                                La empresa <strong>{{ $company->identification_number }}</strong> no tiene
+                                <code>api_token</code>; esta consulta lo requiere. Genere uno antes de usarla.
+                            </div>
+                        @endif
+
+                        <div class="alert alert-info py-2 mb-3" style="font-size:.9rem;">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Ingresa el <strong>CUFE</strong> de un documento: el API lo consulta en la DIAN con el
+                            certificado de esta empresa, muestra sus datos, y permite <strong>descargar el XML</strong>
+                            y <strong>registrarlo en Eventos RADIAN</strong>.
+                        </div>
+
+                        <form id="evt-cufe-form">
+                            @csrf
+                            <div class="form-group">
+                                <label for="evt-cufe-input">CUFE del documento</label>
+                                <div class="input-group">
+                                    <input type="text" id="evt-cufe-input" name="cufe" class="form-control"
+                                           placeholder="Pega aqu&iacute; el CUFE del documento&hellip;" autocomplete="off" required>
+                                    <div class="input-group-append">
+                                        <button type="submit" id="evt-cufe-btn" class="btn btn-primary"
+                                                @if(!$extractorApiToken) disabled title="Requiere api_token de la empresa" @endif>
+                                            <i class="fas fa-search mr-1"></i> Consultar
+                                        </button>
+                                    </div>
+                                </div>
+                                <small class="form-text text-warning">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    El CUFE debe ser del mismo ambiente (<strong>{!! $extractorEnvName !!}</strong>) que esta empresa.
+                                </small>
+                            </div>
+                        </form>
+
+                        <div id="evt-cufe-msg" class="mb-2" style="display:none;"></div>
+
+                        <div id="evt-cufe-result" style="display:none;">
+                            <div class="card mb-3">
+                                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                    <strong><i class="fas fa-file-invoice mr-1"></i> Documento</strong>
+                                    <span id="evt-cufe-doctype" class="badge badge-info"></span>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0">
+                                            <tbody id="evt-cufe-fields"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="card-footer py-2">
+                                    <button type="button" id="evt-cufe-dl" class="btn btn-outline-secondary btn-sm mr-2">
+                                        <i class="fas fa-download mr-1"></i> Descargar XML
+                                    </button>
+                                    <button type="button" id="evt-cufe-reg" class="btn btn-primary btn-sm" style="display:none;">
+                                        <i class="fas fa-cloud-upload-alt mr-1"></i> Registrar en Eventos RADIAN
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="card mb-3">
+                                <div class="card-header py-2">
+                                    <a data-toggle="collapse" href="#evt-cufe-xml-wrap" style="text-decoration:none;">
+                                        <strong><i class="fas fa-code mr-1"></i> XML</strong>
+                                        <small class="text-muted ml-2">(clic para ver / ocultar)</small>
+                                    </a>
+                                </div>
+                                <div id="evt-cufe-xml-wrap" class="collapse">
+                                    <div class="card-body p-0">
+                                        <pre id="evt-cufe-xml" class="mb-0 p-2" style="max-height:320px; overflow:auto; font-size:.75rem; white-space:pre-wrap; word-break:break-all;"></pre>
                                     </div>
                                 </div>
                             </div>
@@ -749,6 +843,9 @@ $(function () {
     var accumulatedRows = [];
     var filenameBase = 'reporte_cufes';
     var btnOriginalHtml = $btn.html();
+    // Tipo de listado seleccionado. 'Received' = recibidos (permite eventos RADIAN);
+    // 'Sent' = enviados (solo reporte, sin registrar eventos).
+    var currentReportTipo = 'Received';
 
     function setBadge(status, textOverride) {
         var map = {
@@ -804,7 +901,10 @@ $(function () {
     function actionCell(r, i) {
         var $td = $('<td>').addClass('text-center');
         var cufe = r.cufe || (r.dian && r.dian.cufe) || '';
-        if (!apiToken) {
+        if (currentReportTipo === 'Sent') {
+            // Documentos enviados: no aplican eventos RADIAN, solo reporte.
+            $td.html('<span class="text-muted small">Solo reporte</span>');
+        } else if (!apiToken) {
             $td.html('<span class="text-muted small">Sin token</span>');
         } else if (r.registered) {
             $td.html('<span class="badge badge-success"><i class="fas fa-check mr-1"></i>Registrado</span>');
@@ -845,10 +945,11 @@ $(function () {
         $count.text(accumulatedRows.length);
         $tableWrap.show();
 
+        // "Registrar en Eventos RADIAN" solo aplica a documentos RECIBIDOS.
         var pendingOk = accumulatedRows.filter(function (r) {
             return r.enrich_status === 'ok' && !r.registered && !r.already_registered;
         }).length;
-        if (apiToken && pendingOk > 0) { $regAll.show(); } else { $regAll.hide(); }
+        if (apiToken && currentReportTipo === 'Received' && pendingOk > 0) { $regAll.show(); } else { $regAll.hide(); }
     }
 
     function resetOutput() {
@@ -898,7 +999,7 @@ $(function () {
                 method: 'POST',
                 headers: { 'Authorization': 'Bearer ' + apiToken, 'Accept': 'application/json' },
                 contentType: 'application/json',
-                data: JSON.stringify({ items: batch })
+                data: JSON.stringify({ items: batch, tipo: currentReportTipo })
             }).done(function (resp) {
                 if (resp && resp.success && Array.isArray(resp.rows)) {
                     accumulatedRows = accumulatedRows.concat(resp.rows);
@@ -943,7 +1044,9 @@ $(function () {
 
         var desde = $('#evt-report-fecha-desde').val();
         var hasta = $('#evt-report-fecha-hasta').val();
-        filenameBase = 'reporte_cufes_' + desde + '_' + hasta;
+        currentReportTipo = $('#evt-report-tipo').val() || 'Received';
+        var pref = (currentReportTipo === 'Sent') ? 'reporte_enviados_' : 'reporte_recibidos_';
+        filenameBase = pref + desde + '_' + hasta;
 
         resetOutput();
         setBadge('cufes');
@@ -1147,6 +1250,222 @@ $(function () {
             });
         }
         step(0);
+    });
+});
+</script>
+
+{{-- ============ Consulta por CUFE (xml/document/{cufe} existente -> procesar + descargar + registrar) ============ --}}
+<script>
+$(function () {
+    var apiToken    = @json($extractorApiToken);
+    var companyNit  = @json($company->identification_number);
+    // Endpoint EXISTENTE: POST /api/ubl2.1/xml/document/{cufe} (auth token empresa).
+    var xmlDocBase  = '{{ url('/api/ubl2.1/xml/document') }}';
+    var loadCufeUrl = '{{ url('/api/load-document-by-cufe') }}';
+
+    var $form    = $('#evt-cufe-form');
+    var $input   = $('#evt-cufe-input');
+    var $btn     = $('#evt-cufe-btn');
+    var $msg     = $('#evt-cufe-msg');
+    var $result  = $('#evt-cufe-result');
+    var $fields  = $('#evt-cufe-fields');
+    var $xml     = $('#evt-cufe-xml');
+    var $doctype = $('#evt-cufe-doctype');
+    var $dl      = $('#evt-cufe-dl');
+    var $reg     = $('#evt-cufe-reg');
+
+    var current  = null;               // { cufe, xmlText, filename }
+    var btnHtml  = $btn.html();
+    var regHtml  = '<i class="fas fa-cloud-upload-alt mr-1"></i> Registrar en Eventos RADIAN';
+
+    function showMsg(type, html) {
+        $msg.attr('class', 'alert alert-' + type + ' py-2 mb-2').html(html).show();
+    }
+    function money(n) {
+        if (n === null || n === undefined || n === '') return '';
+        var x = Number(n); if (isNaN(x)) return String(n);
+        return x.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function fieldRow(label, val) {
+        if (val === null || val === undefined || val === '') return '';
+        return '<tr><th style="width:38%; font-weight:600;">' + label + '</th><td>'
+             + $('<div>').text(val).html() + '</td></tr>';
+    }
+    function b64ToUtf8(b64) {
+        try {
+            var bin = atob(b64), bytes = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return new TextDecoder('utf-8').decode(bytes);
+        } catch (e) {
+            try { return decodeURIComponent(escape(atob(b64))); } catch (e2) { return atob(b64); }
+        }
+    }
+    // Busca recursivamente una clave (p. ej. XmlBytesBase64) en el objeto ResponseDian.
+    function findKey(obj, key) {
+        if (!obj || typeof obj !== 'object') return null;
+        if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+        for (var k in obj) {
+            var r = findKey(obj[k], key);
+            if (r !== null) return r;
+        }
+        return null;
+    }
+
+    // ---- Parseo UBL en el navegador (soporta AttachedDocument y namespaces) ----
+    function txt(el) { return el ? (el.textContent || '').trim() : ''; }
+    function firstNS(scope, name) {
+        var els = scope.getElementsByTagNameNS('*', name);
+        return els.length ? els[0] : null;
+    }
+    function directChild(root, name) {
+        var ch = root.children || [];
+        for (var i = 0; i < ch.length; i++) if (ch[i].localName === name) return ch[i];
+        return null;
+    }
+    function parseUbl(xmlStr) {
+        var out = { ok: false, xml: xmlStr };
+        try {
+            var doc = new DOMParser().parseFromString(xmlStr, 'application/xml');
+            if (doc.getElementsByTagName('parsererror').length) return out;
+            var root = doc.documentElement;
+            // Desenvolver AttachedDocument: la factura real viene en un cbc:Description.
+            if (root.localName === 'AttachedDocument') {
+                var descs = root.getElementsByTagNameNS('*', 'Description');
+                for (var i = 0; i < descs.length; i++) {
+                    var t = (descs[i].textContent || '');
+                    if (/<(Invoice|CreditNote|DebitNote)[ >]/.test(t) || t.indexOf('<?xml') > -1) {
+                        var inner = new DOMParser().parseFromString(t, 'application/xml');
+                        if (!inner.getElementsByTagName('parsererror').length) {
+                            doc = inner; root = inner.documentElement; out.xml = t.trim();
+                        }
+                        break;
+                    }
+                }
+            }
+            out.docType   = root.localName;
+            out.number    = txt(directChild(root, 'ID'));
+            out.cufe      = txt(directChild(root, 'UUID'));
+            out.issueDate = txt(directChild(root, 'IssueDate'));
+            var sup = firstNS(root, 'AccountingSupplierParty');
+            if (sup) { out.supplierName = txt(firstNS(sup, 'RegistrationName')) || txt(firstNS(sup, 'Name')); out.supplierNit = txt(firstNS(sup, 'CompanyID')); }
+            var cus = firstNS(root, 'AccountingCustomerParty');
+            if (cus) { out.customerName = txt(firstNS(cus, 'RegistrationName')) || txt(firstNS(cus, 'Name')); out.customerNit = txt(firstNS(cus, 'CompanyID')); }
+            var lmt = firstNS(root, 'LegalMonetaryTotal');
+            if (lmt) {
+                var pay = firstNS(lmt, 'PayableAmount');
+                out.subtotal = txt(firstNS(lmt, 'LineExtensionAmount'));
+                out.total    = txt(pay);
+                out.currency = pay ? pay.getAttribute('currencyID') : '';
+            }
+            if (!out.currency) out.currency = txt(directChild(root, 'DocumentCurrencyCode'));
+            out.ok = true;
+        } catch (e) {}
+        return out;
+    }
+
+    $form.on('submit', function (e) {
+        e.preventDefault();
+        var cufe = $.trim($input.val());
+        if (!cufe) return;
+        if (!apiToken) { showMsg('warning', 'La empresa ' + companyNit + ' no tiene api_token configurado.'); return; }
+
+        current = null;
+        $result.hide();
+        $msg.hide();
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Consultando&hellip;');
+
+        $.ajax({
+            url: xmlDocBase + '/' + encodeURIComponent(cufe),
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + apiToken, 'Accept': 'application/json' },
+            contentType: 'application/json',
+            data: JSON.stringify({ is_event: true })    // consulta el XML por CUFE (endpoint de eventos)
+        }).done(function (resp) {
+            $btn.prop('disabled', false).html(btnHtml);
+            if (!resp || !resp.success) {
+                showMsg('danger', (resp && (resp.message || resp.ResponseDian)) ? (resp.message || resp.ResponseDian) : 'No se pudo obtener el documento.');
+                return;
+            }
+            renderResult(cufe, resp);
+        }).fail(function (xhr) {
+            $btn.prop('disabled', false).html(btnHtml);
+            var r = xhr.responseJSON || {};
+            showMsg('danger', r.message || ('HTTP ' + xhr.status));
+        });
+    });
+
+    function renderResult(cufe, resp) {
+        var b64 = findKey(resp.ResponseDian, 'XmlBytesBase64');
+        if (!b64) { showMsg('danger', 'La respuesta de la DIAN no contiene el XML del documento.'); return; }
+
+        var rawXml = b64ToUtf8(String(b64));
+        var p = parseUbl(rawXml);
+
+        current = {
+            cufe: cufe,
+            xmlText: p.ok ? p.xml : rawXml,                 // factura desenvuelta (o el XML crudo)
+            filename: (((p.number || cufe) + '').replace(/[^A-Za-z0-9_\-]/g, '_') || 'documento') + '.xml'
+        };
+
+        $doctype.text(p.docType || '');
+        var html = '';
+        html += fieldRow('CUFE', p.cufe || cufe);
+        html += fieldRow('N&deg; Documento', p.number);
+        html += fieldRow('Fecha', p.issueDate);
+        html += fieldRow('NIT Emisor', p.supplierNit);
+        html += fieldRow('Emisor', p.supplierName);
+        html += fieldRow('NIT Receptor', p.customerNit);
+        html += fieldRow('Receptor', p.customerName);
+        html += fieldRow('Moneda', p.currency);
+        html += fieldRow('Subtotal', money(p.subtotal));
+        html += fieldRow('Total', money(p.total));
+        $fields.html(html || '<tr><td class="text-muted small">No se pudieron extraer los campos; revisa el XML abajo.</td></tr>');
+
+        $xml.text(current.xmlText);
+
+        // El botón de registrar siempre se ofrece; el backend valida si aplica
+        // (solo documentos recibidos por esta empresa se registran).
+        $reg.show().prop('disabled', false).html(regHtml);
+        $result.show();
+    }
+
+    // Descargar el XML del documento (UTF-8)
+    $dl.on('click', function () {
+        if (!current || !current.xmlText) return;
+        var blob = new Blob([current.xmlText], { type: 'application/xml' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = current.filename || 'documento.xml';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+    });
+
+    // Registrar en Eventos RADIAN (received_documents) vía load-document-by-cufe con save=true.
+    // El backend rechaza si el documento no fue recibido por esta empresa.
+    $reg.on('click', function () {
+        if (!current || !current.cufe) return;
+        $reg.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Registrando&hellip;');
+        $.ajax({
+            url: loadCufeUrl,
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + apiToken, 'Accept': 'application/json' },
+            contentType: 'application/json',
+            data: JSON.stringify({ cufe: current.cufe, save: true })
+        }).done(function (resp) {
+            if (resp && resp.success) {
+                $reg.hide();
+                showMsg('success', '<i class="fas fa-check mr-1"></i> ' + (resp.message || 'Registrado en Eventos RADIAN.')
+                    + ' Ve a la pesta&ntilde;a <strong>Listado</strong> para enviar los eventos.');
+            } else {
+                $reg.prop('disabled', false).html(regHtml);
+                showMsg('warning', (resp && resp.message) ? resp.message : 'No se pudo registrar el documento.');
+            }
+        }).fail(function (xhr) {
+            $reg.prop('disabled', false).html(regHtml);
+            var r = xhr.responseJSON || {};
+            showMsg('danger', r.message || ('HTTP ' + xhr.status));
+        });
     });
 });
 </script>

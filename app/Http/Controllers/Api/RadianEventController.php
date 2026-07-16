@@ -251,6 +251,11 @@ class RadianEventController extends Controller
                 return $this->getResponse(false, 'Debe enviar un arreglo "items" con al menos un CUFE.');
             }
 
+            // 'Received' (por defecto) valida que la empresa sea el adquiriente
+            // (para poder registrar eventos RADIAN). 'Sent' = documentos que la
+            // empresa emitió: son solo para el reporte, así que no se exige el match.
+            $tipo = $request->input('tipo') === 'Sent' ? 'Sent' : 'Received';
+
             // Tope defensivo por lote: el enriquecimiento hace 1 consulta SOAP a
             // la DIAN por CUFE, por eso el front lo llama por lotes pequeños.
             if (count($items) > 25) {
@@ -280,6 +285,12 @@ class RadianEventController extends Controller
                         $row['root'] = null;
                         $row['enrich_status'] = 'error';
                         $row['enrich_message'] = $built['message'];
+                    } elseif ($tipo === 'Sent') {
+                        // Enviados: solo reporte, no se valida el adquiriente.
+                        $row['dian'] = $built['data'];
+                        $row['root'] = $built['root'];
+                        $row['enrich_status'] = 'ok';
+                        $row['enrich_message'] = 'OK';
                     } else {
                         $row['dian'] = $built['data'];
                         $row['root'] = $built['root'];
@@ -360,17 +371,18 @@ class RadianEventController extends Controller
             // 2) Guarda el estado del job de extracción en caché.
             $jobId = (string) Str::uuid();
             $this->saveExtractJob($jobId, [
-                'company_id'    => $company->id,
-                'company_nit'   => $company->identification_number,
+                'company_id'        => $company->id,
+                'company_nit'       => $company->identification_number,
+                'tipo'              => $data['tipo'],     // Received | Sent (Sent = solo reporte)
                 'status'            => 'getting_cufes',   // getting_cufes | enriching | done | error
                 'worker_job_id'     => $workerJobId,
                 'worker_log_offset' => 0,
                 'cufes'             => null,
                 'cursor'            => 0,
-                'total'         => 0,
-                'rows'          => [],
-                'log'           => ['✅ Extracción iniciada', '🟡 Obteniendo CUFEs del catálogo DIAN…'],
-                'error'         => null,
+                'total'             => 0,
+                'rows'              => [],
+                'log'               => ['✅ Extracción iniciada', '🟡 Obteniendo CUFEs del catálogo DIAN…'],
+                'error'             => null,
             ]);
 
             return response()->json([
@@ -540,6 +552,12 @@ class RadianEventController extends Controller
                         $row['root'] = null;
                         $row['enrich_status'] = 'error';
                         $row['enrich_message'] = $built['message'];
+                    } elseif ($data['tipo'] === 'Sent') {
+                        // Enviados: solo reporte, no se valida el adquiriente.
+                        $row['dian'] = $built['data'];
+                        $row['root'] = $built['root'];
+                        $row['enrich_status'] = 'ok';
+                        $row['enrich_message'] = 'OK';
                     } else {
                         $row['dian'] = $built['data'];
                         $row['root'] = $built['root'];
@@ -638,6 +656,12 @@ class RadianEventController extends Controller
                     $row['root'] = null;
                     $row['enrich_status'] = 'error';
                     $row['enrich_message'] = $built['message'];
+                } elseif (($job['tipo'] ?? 'Received') === 'Sent') {
+                    // Enviados: solo reporte, no se valida el adquiriente.
+                    $row['dian'] = $built['data'];
+                    $row['root'] = $built['root'];
+                    $row['enrich_status'] = 'ok';
+                    $row['enrich_message'] = 'OK';
                 } else {
                     $row['dian'] = $built['data'];
                     $row['root'] = $built['root'];

@@ -32,7 +32,8 @@ extraídos y procesados** (no solo los CUFEs).
 Authorization: Bearer <api_token de la empresa>
 ```
 
-Aplica a: `POST /api/extractor/company` y `GET /api/extractor/company/jobs/{id}`.
+Aplica a: `POST /api/extractor/company`, `GET /api/extractor/company/jobs/{id}`,
+`POST /api/extractor/company/stream` y `POST /api/ubl2.1/xml/document/{cufe}`.
 
 ### B) API Key global (X-Api-Key)
 
@@ -54,6 +55,7 @@ es la variable `XML_QUERY_API_KEY` del `.env`. Si falta o no coincide: `401`.
 | `POST` | `/api/extractor/company/stream` | Bearer empresa | **JSON `{log, data}` al terminar** — un solo endpoint |
 | `POST` | `/api/extractor/company` | Bearer empresa | jobId (async, alternativa) |
 | `GET`  | `/api/extractor/company/jobs/{id}` | Bearer empresa | Avance + datos procesados |
+| `POST` | `/api/ubl2.1/xml/document/{cufe}` | Bearer empresa | XML (base64) de UN documento por CUFE (endpoint existente) |
 | `POST` | `/api/scrape` | X-Api-Key | Documentos completos `{log, data}` |
 | `GET`  | `/api/jobs/{id}` | X-Api-Key | Estado de un job del worker |
 | `POST` | `/api/cufes` | X-Api-Key | Solo la lista de CUFEs |
@@ -63,6 +65,14 @@ es la variable `XML_QUERY_API_KEY` del `.env`. Si falta o no coincide: `401`.
 >   llama una vez y devuelve el JSON `{ log, data }` cuando termina el proceso.
 > - **async + polling** (`/company` + `/company/jobs/{id}`): para procesos largos o
 >   detrás de un proxy con timeout corto; se llama e interroga por `jobId`.
+
+> **Campo `tipo` (`Received` | `Sent`)** — aplica a todos los flujos de extracción:
+> - **`Received`** (recibidos): documentos que le emitieron a la empresa. Se valida
+>   que la empresa sea el adquiriente; solo estos se pueden **registrar en Eventos
+>   RADIAN**.
+> - **`Sent`** (enviados): documentos que la empresa emitió. Son **solo para el
+>   reporte** (no aplican eventos RADIAN); no se valida el adquiriente, así que los
+>   documentos válidos vuelven con estado `ok`.
 
 ---
 
@@ -279,7 +289,71 @@ consultar cada pocos segundos; ninguna consulta tarda mucho).
 
 ---
 
-## 4. `POST /api/scrape` — extracción por token sin empresa (X-Api-Key)
+## 4. `POST /api/ubl2.1/xml/document/{cufe}` — XML de un documento por CUFE
+
+Endpoint **existente** del API. Consulta en la DIAN el XML de un documento por su
+**CUFE** (va en la URL) usando el certificado de la empresa autenticada. Devuelve la
+respuesta de la DIAN con el **XML en base64** (`XmlBytesBase64`). Es el que usa el
+tab **Consulta por CUFE** de la interfaz.
+
+### Autenticación
+`Authorization: Bearer <api_token de la empresa>`
+
+### Petición
+
+El CUFE va en la URL. En el body, `is_event: true` para consultar por el endpoint
+de eventos (documentos recibidos):
+
+```
+POST /api/ubl2.1/xml/document/41a77209dcc997ca657d4f858...
+```
+```json
+{ "is_event": true }
+```
+
+### Respuesta
+
+```json
+{
+  "success": true,
+  "message": "Consulta generada con éxito",
+  "ResponseDian": {
+    "Envelope": { "Body": { "GetXmlByDocumentKeyResponse": { "GetXmlByDocumentKeyResult": {
+      "Code": "100",
+      "XmlBytesBase64": "PD94bWwgdmVyc2lvbj0iMS4w..."   // <- el XML del documento, en base64
+    } } } }
+  },
+  "certificate_days_left": 123
+}
+```
+
+El XML va en `ResponseDian → Envelope → Body → GetXmlByDocumentKeyResponse →
+GetXmlByDocumentKeyResult → XmlBytesBase64`. Decodifícalo (base64) para obtener el
+XML UBL. Si el documento viene envuelto en un `AttachedDocument`, la factura real
+está embebida en un `cbc:Description`.
+
+### Ejemplo (cURL)
+
+```bash
+curl -X POST https://api.tu-dominio.com/api/ubl2.1/xml/document/41a77209... \
+  -H "Authorization: Bearer TOKEN_EMPRESA" -H "Content-Type: application/json" \
+  -d '{"is_event":true}'
+```
+
+### Registrar en Eventos RADIAN (opcional, tras la consulta)
+
+Solo para documentos **recibidos** por esta empresa (el backend valida el
+adquiriente y rechaza si no aplica):
+
+```bash
+curl -X POST https://api.tu-dominio.com/api/load-document-by-cufe \
+  -H "Authorization: Bearer TOKEN_EMPRESA" -H "Content-Type: application/json" \
+  -d '{"cufe":"41a77209...","save":true}'
+```
+
+---
+
+## 5. `POST /api/scrape` — extracción por token sin empresa (X-Api-Key)
 
 Alternativa **sin empresa ni certificado**: con el enlace `User/AuthToken`
 autentica la sesión del navegador y **descarga** los documentos del listado. Útil
@@ -326,7 +400,7 @@ GET /api/jobs/abc-123   (X-Api-Key)
 
 ---
 
-## 5. `POST /api/cufes` — solo la lista de CUFEs (X-Api-Key)
+## 6. `POST /api/cufes` — solo la lista de CUFEs (X-Api-Key)
 
 Rápido: obtiene únicamente los CUFEs del listado (no descarga XMLs ni los procesa).
 
