@@ -41,11 +41,16 @@ services:
 
     # Chrome/Puppeteer: el /dev/shm por defecto de Docker (64MB) hace crashear a
     # Chrome. Subirlo evita cuelgues. mem_limit acota el consumo del navegador.
+    # Headful (Xvfb) consume más RAM que headless -> 2g para evitar OOM (SIGKILL).
     shm_size: "1gb"
-    mem_limit: "1500m"
+    mem_limit: "2g"
 
     environment:
       - NODE_OPTIONS=--openssl-legacy-provider
+      # Anti-bot: el WAF de la DIAN (Azure) detecta Chrome headless. Corriendo
+      # headful bajo Xvfb (pantalla virtual) es mucho menos detectable. La imagen
+      # ya trae xvfb; con CHROME_HEADLESS=false server.js usa xvfb-run automáticamente.
+      - CHROME_HEADLESS=false
       # Si el worker exige API key en sus /api/*, definila aquí y en el API
       # (EXTRACTOR_API_KEY). Debe coincidir con API_SECRET_KEY del worker.
       # - API_SECRET_KEY=cambia-esta-clave
@@ -66,5 +71,5 @@ services:
 # variable EXTRACTOR_NETWORK; el script extractor-up.sh la detecta automáticamente.
 networks:
   api_net:
-    external:
-      name: ${EXTRACTOR_NETWORK:-apinet}
+    external: true
+    name: ${EXTRACTOR_NETWORK:-apinet}

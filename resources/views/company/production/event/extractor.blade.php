@@ -23,6 +23,10 @@
     $extractorCatalogBase = $extractorIsProd
         ? 'https://catalogo-vpfe.dian.gov.co/'
         : 'https://catalogo-vpfe-hab.dian.gov.co/';
+    // Escape para el atributo HTML5 pattern (regex de JavaScript, motor "v"):
+    // solo se escapan los metacaracteres de JS. NO usar preg_quote, porque escapa
+    // ":" y "-" con "\", que el motor "v" rechaza ("Invalid escape").
+    $extractorCatalogBaseJs = preg_replace('/[.*+?^${}()|[\]\\\\]/', '\\\\$0', $extractorCatalogBase);
 @endphp
 
 {{-- Toast flotante para la acción "Cargar por CUFE" --}}
@@ -112,7 +116,7 @@
                                     <label for="evt-extr-url">URL de consulta por Token DIAN</label>
                                     <input type="url" id="evt-extr-url" name="url" class="form-control"
                                            placeholder="{{ $extractorCatalogBase }}User/AuthToken?..."
-                                           pattern="^{{ preg_quote($extractorCatalogBase, '/') }}User/AuthToken.*"
+                                           pattern="^{{ $extractorCatalogBaseJs }}User/AuthToken.*"
                                            title="Debe ser un enlace User/AuthToken de DIAN {{ $extractorEnvName }} ({{ $extractorCatalogBase }}User/AuthToken?...)"
                                            required>
                                     <small class="form-text text-muted">
@@ -164,7 +168,7 @@
                                     <label for="evt-report-url">URL de consulta por Token DIAN</label>
                                     <input type="url" id="evt-report-url" name="url" class="form-control"
                                            placeholder="{{ $extractorCatalogBase }}User/AuthToken?..."
-                                           pattern="^{{ preg_quote($extractorCatalogBase, '/') }}User/AuthToken.*"
+                                           pattern="^{{ $extractorCatalogBaseJs }}User/AuthToken.*"
                                            title="Debe ser un enlace User/AuthToken de DIAN {{ $extractorEnvName }} ({{ $extractorCatalogBase }}User/AuthToken?...)"
                                            required>
                                     <small class="form-text text-muted">
