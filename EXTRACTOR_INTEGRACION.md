@@ -23,82 +23,103 @@ HTTP; el worker es un servicio aparte porque necesita un navegador real (Chrome)
 
 ## Elige tu escenario
 
-| Tu API corre en… | Usa el escenario |
-|------------------|------------------|
-| Docker (instalación nueva) | **A** — integrado en el `docker-compose.yml` |
-| Docker (ya instalado, no quieres tocar el compose) | **B** — worker aparte |
-| LAMP / bare-metal (sin Docker el API) | **C** — worker en Docker aparte |
+| Tu API corre en… | Qué hacer |
+|------------------|-----------|
+| **Docker** | **Editar el `docker-compose.yml` del propio API** (agregar el servicio `cufes-worker`) y reconstruir. |
+| **LAMP / bare-metal** | Levantar el worker aparte con **`docker-compose.extractor.yml`**. |
+
+> El `docker-compose.extractor.yml` es **solo para LAMP**. Si el API está en Docker,
+> NO se usa un compose aparte: se agrega el servicio al yml que ya tiene el API.
 
 ---
 
-## Escenario A — API en Docker (integrado)
+## Escenario 1 — API en Docker (editar su propio yml)
 
-El `docker-compose.yml.example` ya incluye el servicio `cufes-worker` en la red
-`apinet`. Para una instalación nueva:
+### Paso 1 — Traer el código y generar el `.env` del worker
 
 ```bash
-# 1. La red externa debe existir (una sola vez)
-docker network create apinet
-
-# 2. Levantar todo (API + worker juntos)
-docker compose up -d --build
+git pull                        # trae la carpeta extractcode/
+cd extractcode
+cp .env.example .env            # genera el .env del worker (viene con CHROME_HEADLESS=false, pausas anti-bloqueo, etc.)
+cd ..
 ```
 
-No hay que configurar `EXTRACTOR_URL`: el API usa por defecto
-`http://cufes-worker:3001` (definido en `config/services.php`), que resuelve por el
-nombre del servicio dentro de `apinet`.
+> El `.env` del worker está en `.gitignore`, así que en el servidor **no existe tras
+> un clone/pull** — hay que generarlo desde el ejemplo. Trae los valores por defecto
+> correctos (headful, delays anti-bloqueo de la DIAN). Ajusta ahí lo que necesites.
 
-Verifica:
+### Paso 2 — Agregar el servicio `cufes-worker` al yml del API
+
+Pega el bloque del servicio en el `docker-compose.yml` que ya usa tu API. **Ajusta
+2 líneas según tu instalación**, o el worker no quedará en la misma red que
+`php_api` / no encontrará el código:
+
+| Instalación | `networks:` del worker | `context:` del build |
+|-------------|------------------------|----------------------|
+| **Solo API** (compose dentro de la carpeta del API) | `apinet` | `./extractcode` |
+| **API + facturador** (compose en `/root`, código en `./apidian`) | `webnet` (o el nombre real que usen los otros servicios) | `./apidian/extractcode` |
+
+> Regla: el `networks:` del worker debe ser el **mismo nombre** que usan los demás
+> servicios en ESE yml (míralo en la sección `networks:` al final del archivo), y el
+> `context:` debe apuntar a donde esté la carpeta `extractcode/`.
+>
+> El bloque completo del servicio está en `docker-compose.yml.example` (servicio
+> `cufes-worker`).
+
+### Paso 3 — Reconstruir SOLO el worker
+
+Sin recrear los demás contenedores del API:
+
+```bash
+docker compose up -d --build cufes-worker
+```
+(Si tu archivo no es el `docker-compose.yml` por defecto, agrega `-f tu-archivo.yml`.)
+
+### Paso 4 — Verificar
+
 ```bash
 docker compose exec php_api curl -s http://cufes-worker:3001/api/jobs
 # -> {"success":true,"jobs":[]}
 ```
 
----
+No hace falta configurar `EXTRACTOR_URL`: el API usa por defecto
+`http://cufes-worker:3001` (en `config/services.php`), que resuelve por el nombre
+del servicio dentro de la red compartida.
 
-## Escenario B — API en Docker, worker APARTE
-
-Para un API ya instalado donde **no quieres modificar** el `docker-compose.yml`
-principal. Se usa el compose aparte `docker-compose.extractor.yml` + el script
-`extractor-up.sh`, que **detecta solo** la red en la que corre `php_api`
-(`proxynet`, `apinet`, o como se llame) y mete el worker ahí.
-
-```bash
-git pull                       # trae extractcode/, docker-compose.extractor.yml y extractor-up.sh
-chmod +x extractor-up.sh
-./extractor-up.sh              # detecta la red de php_api y levanta el worker en ella
-```
-
-El script verifica al final que `php_api` alcance a `http://cufes-worker:3001`.
-
-Comandos útiles:
-```bash
-./extractor-up.sh down         # detener
-./extractor-up.sh logs         # ver logs
-```
-
-Configura el `.env` del API (o déjalo con el default):
-```env
-EXTRACTOR_URL=http://cufes-worker:3001
-```
-```bash
-docker compose exec php_api php artisan config:clear
-```
+> **¿Antes lo levantaste con `docker-compose.extractor.yml`?** Bájalo primero (usa el
+> mismo `container_name` y puerto → conflicto):
+> ```bash
+> docker compose -f docker-compose.extractor.yml down
+> docker ps -a | grep cufes-worker      # no debe aparecer nada
+> ```
+> y luego haz el Paso 3.
 
 ---
 
-## Escenario C — API en LAMP / bare-metal
+## Escenario 2 — API en LAMP / bare-metal
 
 El API corre sin Docker, pero el worker igual va en Docker (necesita Chrome). Se
 publica el puerto en `localhost` y el API lo alcanza por ahí.
 
+### Paso 1 — Traer el código y generar el `.env` del worker
+
 ```bash
 git pull
-docker compose -f docker-compose.extractor.yml up -d --build
+cd extractcode
+cp .env.example .env            # genera el .env del worker (gitignored; no existe tras el pull)
+cd ..
 ```
 
-En el `docker-compose.extractor.yml` el puerto ya se publica como
-`127.0.0.1:3001:3001`. En el `.env` del API:
+### Paso 2 — Levantar el worker con el compose aparte
+
+```bash
+docker compose -f docker-compose.extractor.yml up -d --build
+```
+El puerto ya se publica como `127.0.0.1:3001:3001`.
+
+### Paso 3 — Apuntar el API al worker
+
+En el `.env` del API:
 ```env
 EXTRACTOR_URL=http://127.0.0.1:3001
 ```
@@ -106,7 +127,8 @@ EXTRACTOR_URL=http://127.0.0.1:3001
 php artisan config:clear
 ```
 
-Verifica:
+### Paso 4 — Verificar
+
 ```bash
 curl -s http://127.0.0.1:3001/api/jobs
 # -> {"success":true,"jobs":[]}
@@ -132,18 +154,16 @@ php artisan config:clear         # (Docker: docker compose exec php_api php arti
 
 ## Anti-bot de la DIAN: Chrome headful (importante)
 
-La DIAN bloquea Chrome **headless**. El worker debe correr **headful bajo Xvfb**.
-Se controla con la variable del worker `CHROME_HEADLESS=false`:
+La DIAN bloquea Chrome **headless**. El worker debe correr **headful bajo Xvfb**,
+controlado por la variable `CHROME_HEADLESS=false`. Esto ya viene cubierto por:
 
-- En `docker-compose.yml.example` y `docker-compose.extractor.yml` ya viene
-  `CHROME_HEADLESS=false`.
-- Si el worker toma su config de un `.env` propio (dentro de `extractcode/`),
-  asegúrate de que tenga `CHROME_HEADLESS=false`. Ese `.env` está en `.gitignore`,
-  así que en el servidor puede no existir: cópialo desde el ejemplo:
-  ```bash
-  cd extractcode && cp .env.example .env    # trae CHROME_HEADLESS=false por defecto
-  ```
-  y reconstruye el worker.
+- El `.env` del worker que generas en el Paso 1 (`cp .env.example .env` trae
+  `CHROME_HEADLESS=false`).
+- Y además el `docker-compose.yml.example` / `docker-compose.extractor.yml` lo
+  fijan en `environment`.
+
+Si en los logs ves `headless=true`, es que **falta el `.env`** (no lo generaste) o
+la variable no llegó: genera el `.env` y reconstruye el worker.
 
 > Aun con headful, la **IP del servidor** influye: los WAF marcan IPs de datacenter.
 > Si el bloqueo persiste, revisa el `_debug-bloqueo.png/.html` que el worker guarda,
@@ -173,9 +193,10 @@ Se controla con la variable del worker `CHROME_HEADLESS=false`:
 
 | Síntoma | Causa | Solución |
 |---------|-------|----------|
-| `Could not resolve host: cufes-worker` | El API y el worker están en **redes distintas** | Usa `extractor-up.sh` (detecta la red) o pon el worker en la misma red que `php_api`. |
+| `Could not resolve host: cufes-worker` | El worker quedó en una **red distinta** a `php_api` | En el bloque del worker, pon en `networks:` el **mismo nombre** que usan los demás servicios de ese yml (ver tabla del Paso 2) y recréalo. |
 | 404 con error de `RouteCollection.php` al probar conexión | `EXTRACTOR_URL` apunta al propio API (`localhost` dentro del contenedor = él mismo) | Usa `http://cufes-worker:3001` (Docker) y `config:clear`. |
-| El log dice `headless=true` y la DIAN bloquea | Falta `CHROME_HEADLESS=false` | Ponla en el compose o en el `.env` del worker y reconstruye. |
+| El log dice `headless=true` y la DIAN bloquea | Falta el `.env` del worker (`CHROME_HEADLESS=false`) | Genera el `.env` (`cd extractcode && cp .env.example .env`) y reconstruye el worker. |
+| El build de `cufes-worker` falla (no encuentra archivos) | `context:` mal apuntado a la carpeta `extractcode/` | Ajusta `context:` (`./extractcode` solo-API, `./apidian/extractcode` API+facturador). |
 | `Chrome terminó… SIGKILL` al final | OOM (poca RAM) | Sube `mem_limit` (2g) del worker. |
 | 504 al usar el reporte desde el navegador | Extracción larga en modo síncrono | Ya se usa el modo asíncrono/job; ver `API_EXTRACTOR.md`. |
 
@@ -184,6 +205,6 @@ Se controla con la variable del worker `CHROME_HEADLESS=false`:
 ## Referencias
 
 - **`API_EXTRACTOR.md`** — rutas del API para que los clientes consuman el extractor.
-- **`docker-compose.yml.example`** — instalación Docker con el worker integrado.
-- **`docker-compose.extractor.yml`** + **`extractor-up.sh`** — worker aparte (autodetección de red).
-- **`extractcode/`** — código del worker (Node/Puppeteer) y su `Dockerfile`.
+- **`docker-compose.yml.example`** — instalación Docker con el worker integrado (bloque `cufes-worker` listo para copiar).
+- **`docker-compose.extractor.yml`** — worker aparte, **solo para API en LAMP**.
+- **`extractcode/`** — código del worker (Node/Puppeteer), su `Dockerfile` y `.env.example`.

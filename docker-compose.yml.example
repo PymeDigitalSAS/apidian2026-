@@ -45,13 +45,10 @@ services:
     image: cufes-worker:latest
     container_name: cufes-worker
     restart: unless-stopped
-    # Headful (Xvfb) consume más RAM que headless -> 2g para evitar OOM (SIGKILL).
     shm_size: "1gb"
     mem_limit: "2g"
     environment:
       - NODE_OPTIONS=--openssl-legacy-provider
-      # Anti-bot: el WAF de la DIAN detecta Chrome headless. Con CHROME_HEADLESS=false
-      # el worker corre headful bajo Xvfb (la imagen ya trae xvfb), menos detectable.
       - CHROME_HEADLESS=false
     ports:
       - "127.0.0.1:3001:3001"
