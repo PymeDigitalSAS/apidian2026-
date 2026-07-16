@@ -38,7 +38,7 @@ HTTP; el worker es un servicio aparte porque necesita un navegador real (Chrome)
 ### Paso 1 — Traer el código y generar el `.env` del worker
 
 ```bash
-git pull                        # trae la carpeta extractcode/
+git pull origin master                        # trae la carpeta extractcode/
 cd extractcode
 cp .env.example .env            # genera el .env del worker (viene con CHROME_HEADLESS=false, pausas anti-bloqueo, etc.)
 cd ..
@@ -50,21 +50,51 @@ cd ..
 
 ### Paso 2 — Agregar el servicio `cufes-worker` al yml del API
 
-Pega el bloque del servicio en el `docker-compose.yml` que ya usa tu API. **Ajusta
-2 líneas según tu instalación**, o el worker no quedará en la misma red que
-`php_api` / no encontrará el código:
+Ubica el `docker-compose.yml` con el que se levantó el API y **posiciónate en su
+directorio** (todos los comandos `docker compose` de esta guía se corren desde ahí).
+Abre ese archivo y agrega el siguiente servicio dentro de `services:`. **Ajusta las
+2 líneas marcadas** según tu instalación (ver tabla abajo):
 
-| Instalación | `networks:` del worker | `context:` del build |
-|-------------|------------------------|----------------------|
+```yaml
+  cufes-worker:
+    build:
+      context: ./extractcode          # (1) AJUSTAR: ruta a la carpeta extractcode/
+      dockerfile: Dockerfile
+    image: cufes-worker:latest
+    container_name: cufes-worker
+    restart: unless-stopped
+    # Headful (Xvfb) consume más RAM que headless -> 2g para evitar OOM (SIGKILL).
+    shm_size: "1gb"
+    mem_limit: "2g"
+    environment:
+      - NODE_OPTIONS=--openssl-legacy-provider
+      # Anti-bot: la DIAN detecta Chrome headless. Con esto corre headful bajo Xvfb.
+      - CHROME_HEADLESS=false
+    ports:
+      - "127.0.0.1:3001:3001"
+    networks:
+      - apinet                        # (2) AJUSTAR: la MISMA red que usa php_api
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3001/api/jobs || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+```
+
+**Las 2 líneas a ajustar según tu instalación:**
+
+| Instalación | `networks:` (2) | `context:` (1) |
+|-------------|-----------------|----------------|
 | **Solo API** (compose dentro de la carpeta del API) | `apinet` | `./extractcode` |
-| **API + facturador** (compose en `/root`, código en `./apidian`) | `webnet` (o el nombre real que usen los otros servicios) | `./apidian/extractcode` |
+| **API + facturador** (compose en `/root`, código en `./apidian`) | `webnet` (o el nombre real que usen los otros servicios en el yml) | `./apidian/extractcode` |
 
-> Regla: el `networks:` del worker debe ser el **mismo nombre** que usan los demás
-> servicios en ESE yml (míralo en la sección `networks:` al final del archivo), y el
-> `context:` debe apuntar a donde esté la carpeta `extractcode/`.
+> Regla: `networks:` debe ser el **mismo nombre** que usan los demás servicios en ESE
+> yml, y `context:` debe apuntar a donde esté la carpeta `extractcode/`.
 >
-> El bloque completo del servicio está en `docker-compose.yml.example` (servicio
-> `cufes-worker`).
+> Si la red del API está declarada como `external`, no hace falta declararla de nuevo:
+> el worker se une a la que ya existe. (El bloque de referencia también está en
+> `docker-compose.yml.example`.)
 
 ### Paso 3 — Reconstruir SOLO el worker
 
@@ -100,6 +130,36 @@ del servicio dentro de la red compartida.
 
 El API corre sin Docker, pero el worker igual va en Docker (necesita Chrome). Se
 publica el puerto en `localhost` y el API lo alcanza por ahí.
+
+### Paso 0 — Instalar Docker (si el servidor no lo tiene)
+
+Como el API está en LAMP, es normal que el servidor **no tenga Docker**. Instálalo
+(Ubuntu/Debian; son los mismos comandos que usan los scripts de instalación del API):
+
+```bash
+apt-get -y update
+apt-get -y install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+apt-get -y update
+apt-get -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+systemctl start docker
+systemctl enable docker
+```
+
+Verifica:
+```bash
+docker --version
+docker compose version
+```
+
+> Si tu server ya trae solo el binario antiguo `docker-compose` (v1, con guión) en
+> vez del plugin `docker compose` (v2, con espacio), instálalo así y usa `docker-compose`
+> en lugar de `docker compose` en los pasos siguientes:
+> ```bash
+> curl -L "https://github.com/docker/compose/releases/download/1.28.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+> chmod +x /usr/local/bin/docker-compose
+> ```
 
 ### Paso 1 — Traer el código y generar el `.env` del worker
 
