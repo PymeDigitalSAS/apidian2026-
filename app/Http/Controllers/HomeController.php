@@ -63,6 +63,82 @@ class HomeController extends Controller
         return view('home', compact('companies', 'type_regimes', 'type_liabilities', 'municipalities', 'type_document_identifications'));
     }
 
+    /**
+     * Eliminar una empresa y TODOS sus datos relacionados.
+     * Solo para administradores de plataforma. Operación IRREVERSIBLE.
+     *
+     * Orden de borrado (respeta las FKs): primero los hijos sin ON DELETE
+     * CASCADE (RIPS, items, customers, pivot company_user, documentos por NIT),
+     * luego la empresa (que dispara el cascade de software/certificate/
+     * resolutions/sends) y por último el usuario dueño y sus logs.
+     */
+    public function destroyCompany(Company $company)
+    {
+        $user = auth()->user();
+        if (!$user || !method_exists($user, 'isPlatformAdmin') || !$user->isPlatformAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No autorizado. Solo un administrador de plataforma puede eliminar empresas.',
+            ], 403);
+        }
+
+        $nit = $company->identification_number;
+        $companyId = $company->id;
+        $ownerId = $company->user_id;
+
+        try {
+            \DB::transaction(function () use ($company, $companyId, $nit, $ownerId) {
+                // 1) Tablas RIPS (hijo -> padre; sin ON DELETE CASCADE)
+                foreach (['rips_documents', 'rips_appointments', 'rips_patients', 'rips_service_providers', 'rips_configurations'] as $t) {
+                    if (\Schema::hasTable($t) && \Schema::hasColumn($t, 'company_id')) {
+                        \DB::table($t)->where('company_id', $companyId)->delete();
+                    }
+                }
+
+                // 2) items / customers (companies_id; sin cascade)
+                foreach (['items', 'customers'] as $t) {
+                    if (\Schema::hasTable($t) && \Schema::hasColumn($t, 'companies_id')) {
+                        \DB::table($t)->where('companies_id', $companyId)->delete();
+                    }
+                }
+
+                // 3) Pivot company_user
+                if (\Schema::hasTable('company_user')) {
+                    \DB::table('company_user')->where('company_id', $companyId)->delete();
+                }
+
+                // 4) Documentos de la empresa (keyed por identification_number / customer)
+                Document::where('identification_number', $nit)->delete();
+                if (\Schema::hasTable('received_documents')) {
+                    \DB::table('received_documents')->where('customer', $nit)->delete();
+                }
+                if (\Schema::hasTable('document_payrolls') && \Schema::hasColumn('document_payrolls', 'identification_number')) {
+                    \DB::table('document_payrolls')->where('identification_number', $nit)->delete();
+                }
+
+                // 5) Empresa -> ON DELETE CASCADE de software, certificate, resolutions, sends
+                $company->delete();
+
+                // 6) Usuario dueño + sus logs (solo si no posee otra empresa)
+                if ($ownerId && !Company::where('user_id', $ownerId)->exists()) {
+                    \App\Log::where('user_id', $ownerId)->delete();
+                    User::where('id', $ownerId)->delete();
+                }
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => "Empresa {$nit} eliminada correctamente junto con sus documentos y registros.",
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('destroyCompany ' . $nit . ': ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo eliminar la empresa: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function tools()
     {
         return view('tools');

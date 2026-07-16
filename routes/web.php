@@ -98,11 +98,14 @@ Route::group(['middleware' => ['auth', 'company.web.access']], function() {
     Route::get('/extractor', 'ExtractorController@index')->name('extractor.index');
     Route::post('/extractor/test', 'ExtractorController@testConnection')->name('extractor.test');
     Route::post('/extractor/extract', 'ExtractorController@extract')->name('extractor.extract');
+    Route::post('/extractor/cufes', 'ExtractorController@cufes')->name('extractor.cufes');
     Route::post('/extractor/extract-cert', 'ExtractorController@extractWithCertificate')->name('extractor.extract-cert');
     Route::get('/extractor/job/{id}', 'ExtractorController@jobStatus')->name('extractor.job');
     Route::get('/extractor/download/{path}', 'ExtractorController@download')->where('path', '.*')->name('extractor.download');
 
     Route::get('/company/{company}', 'HomeController@company')->name('company');
+    // Eliminar empresa y todos sus datos (solo admin de plataforma). Irreversible.
+    Route::post('/company/{company}/delete', 'HomeController@destroyCompany')->name('company.destroy');
     Route::get('/company/{company}/document/{cufe}', 'HomeController@getXml')->name('getXml');
     Route::get('/company/{company}/events', 'HomeController@events')->name('company.events');
     Route::get('/company/{company}/payrolls', 'HomeController@payrolls')->name('company.payrolls');

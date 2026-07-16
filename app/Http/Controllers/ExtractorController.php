@@ -161,6 +161,88 @@ class ExtractorController extends Controller
         }
     }
 
+    /**
+     * Obtener los CUFEs de un rango de fechas desde el extractor (POST /api/cufes),
+     * de forma síncrona (sin descargar ZIP). Devuelve la lista de CUFEs con su
+     * metadata para luego enriquecerlos por lotes vía /api/cufes/enrich.
+     */
+    public function cufes(Request $request)
+    {
+        $request->validate([
+            'url'            => 'required|url',
+            'tipo'           => 'required|in:Sent,Received',
+            'fechaDesde'     => 'required|date_format:Y-m-d',
+            'fechaHasta'     => 'required|date_format:Y-m-d',
+            'excluirEstados' => 'nullable|string',
+        ]);
+
+        $extractorUrl = config('services.extractor.url');
+        $apiKey = config('services.extractor.api_key');
+        $timeout = config('services.extractor.timeout', 120);
+
+        if (empty($extractorUrl)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'EXTRACTOR_URL no está configurada en el .env',
+            ], 422);
+        }
+
+        try {
+            $client = new Client([
+                'base_uri' => rtrim($extractorUrl, '/') . '/',
+                // La consulta de CUFEs puede tardar en rangos amplios; damos margen.
+                'timeout'  => max((int) $timeout, 300),
+                'verify'   => false,
+            ]);
+
+            $headers = ['Accept' => 'application/json'];
+            if (!empty($apiKey)) {
+                $headers['X-Api-Key'] = $apiKey;
+            }
+
+            $payload = [
+                'url'        => $request->input('url'),
+                'tipo'       => $request->input('tipo'),
+                'fechaDesde' => $request->input('fechaDesde'),
+                'fechaHasta' => $request->input('fechaHasta'),
+            ];
+            if ($request->filled('excluirEstados')) {
+                $payload['excluirEstados'] = $request->input('excluirEstados');
+            }
+
+            $response = $client->post('api/cufes', [
+                'headers' => $headers,
+                'json'    => $payload,
+            ]);
+
+            $body = json_decode((string) $response->getBody(), true) ?: [];
+            $data = is_array($body['data'] ?? null) ? $body['data'] : [];
+
+            return response()->json([
+                'success' => $body['success'] ?? (count($data) > 0),
+                'partial' => $body['partial'] ?? false,
+                'total'   => $body['total'] ?? count($data),
+                'message' => $body['message'] ?? '',
+                'folder'  => $body['folder'] ?? null,
+                'log'     => $body['log'] ?? [],
+                'data'    => $data,
+            ]);
+        } catch (ConnectException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo conectar al extractor: ' . $e->getMessage(),
+            ], 502);
+        } catch (RequestException $e) {
+            return $this->handleExtractorException($e, 'cufes');
+        } catch (\Throwable $e) {
+            Log::error('ExtractorController@cufes: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error inesperado: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function extractWithCertificate(Request $request)
     {
         $request->validate([
