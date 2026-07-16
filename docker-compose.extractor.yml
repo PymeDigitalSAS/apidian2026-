@@ -10,11 +10,20 @@
 #   Parar:      docker compose -f docker-compose.extractor.yml down
 #
 # CÓMO LO ALCANZA EL API (según dónde corra el API):
-#   • API en Docker (misma red apinet):  EXTRACTOR_URL=http://cufes-worker:3001
-#   • API bare-metal (LAMP):             EXTRACTOR_URL=http://127.0.0.1:3001
+#   • API en Docker (misma red):  EXTRACTOR_URL=http://cufes-worker:3001
+#   • API bare-metal (LAMP):      EXTRACTOR_URL=http://127.0.0.1:3001
 #
-# Requisito: la red externa apinet debe existir (la misma del API):
-#   docker network create apinet   # una sola vez, si no existe
+# RED DE DOCKER (autodetección):
+# El worker debe estar en la MISMA red que el contenedor php_api. Según la
+# instalación, esa red puede llamarse distinto:
+#   • Instalación API + facturador (script combinado):  proxynet
+#   • Instalación solo API:                              apinet
+# Por eso el nombre de la red es una VARIABLE (EXTRACTOR_NETWORK). Lo más simple
+# es levantar con el script que la detecta solo:
+#   ./extractor-up.sh
+# ...que averigua la red de php_api y la pasa. Si prefieres a mano:
+#   EXTRACTOR_NETWORK=proxynet docker compose -f docker-compose.extractor.yml up -d --build
+# (Si no la defines, usa "apinet" por defecto.)
 # ============================================================
 services:
   cufes-worker:
@@ -44,7 +53,7 @@ services:
     # Misma red externa que el API -> el contenedor php_api puede llamar a
     # http://cufes-worker:3001 por nombre de servicio.
     networks:
-      - apinet
+      - api_net
 
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3001/api/jobs || exit 1"]
@@ -53,7 +62,9 @@ services:
       retries: 3
       start_period: 25s
 
+# Red externa del API (proxynet o apinet según la instalación). Se resuelve por la
+# variable EXTRACTOR_NETWORK; el script extractor-up.sh la detecta automáticamente.
 networks:
-  apinet:
+  api_net:
     external:
-      name: apinet
+      name: ${EXTRACTOR_NETWORK:-apinet}
