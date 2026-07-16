@@ -8,8 +8,11 @@ use App\Traits\DocumentTrait;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\XmlDocumentRequest;
 use App\Services\CufeReportExporter;
+use App\Services\CufesExtractorClient;
 use App\Services\UblDocumentParser;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 class RadianEventController extends Controller
 {
@@ -304,6 +307,374 @@ class RadianEventController extends Controller
         } catch (\Exception $e) {
             return $this->getResponse(false, "Error al enriquecer CUFEs: {$e->getMessage()}");
         }
+    }
+
+    // ============================================================
+    // Extracción por token AUTENTICADA con el token de la empresa.
+    // El cliente NO envía certificado: se usa el que la empresa ya tiene
+    // configurado. Flujo asíncrono (jobId + polling): el enriquecimiento con el
+    // certificado se hace por lotes durante cada consulta de estado, así ninguna
+    // petición queda abierta mucho tiempo (sin depender de un worker de cola).
+    // ============================================================
+
+    /** Prefijo y TTL de los jobs de extracción guardados en caché. */
+    private const EXTRACT_JOB_PREFIX = 'extractor_job:';
+    private const EXTRACT_JOB_TTL = 7200;        // 2 horas
+    private const EXTRACT_BATCH = 5;             // CUFEs enriquecidos por consulta
+
+    /**
+     * POST /api/extractor/company — inicia la extracción usando el certificado
+     * de la empresa autenticada (token Bearer). Devuelve un jobId al instante.
+     *
+     * Body: { url, tipo, fechaDesde, fechaHasta, excluirEstados? }
+     * Respuesta: { success, jobId, statusUrl }
+     */
+    public function startCompanyExtraction(Request $request, CufesExtractorClient $extractor)
+    {
+        try {
+            $company = auth()->user()->company;
+
+            if ($company->state == false) {
+                return response()->json($this->getResponse(false, 'La empresa se encuentra INACTIVA para consultar documentos electrónicos.'), 422);
+            }
+            if (!$company->software) {
+                return response()->json($this->getResponse(false, 'La empresa no tiene configurado el software de facturación.'), 422);
+            }
+            if (!$company->certificate) {
+                return response()->json($this->getResponse(false, 'La empresa no tiene un certificado (.p12) configurado.'), 422);
+            }
+
+            $data = $request->validate([
+                'url'            => 'required|url',
+                'tipo'           => 'required|in:Sent,Received',
+                'fechaDesde'     => 'required|date_format:Y-m-d',
+                'fechaHasta'     => 'required|date_format:Y-m-d',
+                'excluirEstados' => 'nullable|string',
+            ]);
+
+            // 1) Arranca el job de CUFEs en el worker (async, respuesta inmediata).
+            $workerJobId = $extractor->submitCufesJob(
+                $data['url'], $data['tipo'], $data['fechaDesde'], $data['fechaHasta'], $data['excluirEstados'] ?? null
+            );
+
+            // 2) Guarda el estado del job de extracción en caché.
+            $jobId = (string) Str::uuid();
+            $this->saveExtractJob($jobId, [
+                'company_id'    => $company->id,
+                'company_nit'   => $company->identification_number,
+                'status'            => 'getting_cufes',   // getting_cufes | enriching | done | error
+                'worker_job_id'     => $workerJobId,
+                'worker_log_offset' => 0,
+                'cufes'             => null,
+                'cursor'            => 0,
+                'total'         => 0,
+                'rows'          => [],
+                'log'           => ['✅ Extracción iniciada', '🟡 Obteniendo CUFEs del catálogo DIAN…'],
+                'error'         => null,
+            ]);
+
+            return response()->json([
+                'success'   => true,
+                'jobId'     => $jobId,
+                'statusUrl' => url('/api/extractor/company/jobs/' . $jobId),
+                'message'   => 'Extracción iniciada. Consulte statusUrl para el avance y el resultado.',
+            ], 202);
+
+        } catch (\Throwable $e) {
+            return response()->json($this->getResponse(false, 'No se pudo iniciar la extracción: ' . $e->getMessage()), 502);
+        }
+    }
+
+    /**
+     * GET /api/extractor/company/jobs/{id} — avance y resultado del job.
+     * Hace avanzar la máquina de estados en cada consulta:
+     *   getting_cufes -> (worker listo) -> enriching -> (por lotes) -> done.
+     *
+     * Respuesta: { success, status, stage, log, total, processed, data }
+     *   status: running | done | error   |   data: solo cuando status='done'.
+     */
+    public function companyExtractionStatus(Request $request, string $id, CufesExtractorClient $extractor)
+    {
+        $company = auth()->user()->company;
+        $job = $this->loadExtractJob($id);
+
+        // 404 si no existe/expiró o no pertenece a la empresa autenticada.
+        if (!$job || (int) ($job['company_id'] ?? 0) !== (int) $company->id) {
+            return response()->json($this->getResponse(false, 'Job no encontrado o expirado. Vuelva a iniciar la extracción.'), 404);
+        }
+
+        try {
+            if ($job['status'] === 'getting_cufes') {
+                $job = $this->advanceGettingCufes($job, $extractor);
+            } elseif ($job['status'] === 'enriching') {
+                $job = $this->advanceEnriching($job, $company);
+            }
+        } catch (\Throwable $e) {
+            $job['status'] = 'error';
+            $job['error']  = $e->getMessage();
+            $job['log'][]  = '❌ ' . $e->getMessage();
+        }
+
+        $this->saveExtractJob($id, $job);
+
+        $status = in_array($job['status'], ['done', 'error'], true) ? $job['status'] : 'running';
+        $stage  = $job['status'];   // getting_cufes | enriching | done | error
+
+        $payload = [
+            'success'   => $job['status'] !== 'error',
+            'status'    => $status,
+            'stage'     => $stage,
+            'total'     => (int) $job['total'],
+            'processed' => (int) $job['cursor'],
+            'log'       => $job['log'],
+        ];
+
+        if ($job['status'] === 'done') {
+            $exporter = new CufeReportExporter();
+            $payload['data'] = $exporter->toArray($job['rows']);
+        } elseif ($job['status'] === 'error') {
+            $payload['message'] = $job['error'];
+        }
+
+        return response()->json($payload);
+    }
+
+    /**
+     * POST /api/extractor/company/stream — extracción con token de empresa en UN
+     * SOLO endpoint. Hace todo el proceso (obtiene los CUFEs con el navegador y
+     * consulta cada XML con el certificado de la empresa) y devuelve el JSON
+     * { log, data } cuando TERMINA. No es en vivo: el cliente recibe la respuesta
+     * completa al final, como el extractor original.
+     *
+     * Respuesta: { "log":[ ...líneas del proceso... ], "data":[ ...documentos... ] }
+     */
+    public function streamCompanyExtraction(Request $request, CufesExtractorClient $extractor)
+    {
+        $company = auth()->user()->company;
+
+        if ($company->state == false) {
+            return response()->json($this->getResponse(false, 'La empresa se encuentra INACTIVA para consultar documentos electrónicos.'), 422);
+        }
+        if (!$company->software) {
+            return response()->json($this->getResponse(false, 'La empresa no tiene configurado el software de facturación.'), 422);
+        }
+        if (!$company->certificate) {
+            return response()->json($this->getResponse(false, 'La empresa no tiene un certificado (.p12) configurado.'), 422);
+        }
+
+        $data = $request->validate([
+            'url'            => 'required|url',
+            'tipo'           => 'required|in:Sent,Received',
+            'fechaDesde'     => 'required|date_format:Y-m-d',
+            'fechaHasta'     => 'required|date_format:Y-m-d',
+            'excluirEstados' => 'nullable|string',
+        ]);
+
+        @set_time_limit(0);
+
+        $log = [];
+        $add = function (string $line) use (&$log) {
+            $log[] = str_replace(["\r", "\n"], ' ', $line);
+        };
+
+        try {
+            $add('✅ Extracción iniciada');
+            $add('🟡 Obteniendo CUFEs del catálogo DIAN…');
+
+            // 1) CUFEs vía el worker (job async + espera hasta que termine).
+            $workerJobId = $extractor->submitCufesJob(
+                $data['url'], $data['tipo'], $data['fechaDesde'], $data['fechaHasta'], $data['excluirEstados'] ?? null
+            );
+
+            $seen = 0;
+            $cufes = null;
+            for ($i = 0; $i < 300; $i++) {   // ~10 min de techo
+                $wj   = $extractor->getCufesJob($workerJobId);
+                $wlog = is_array($wj['log'] ?? null) ? $wj['log'] : [];
+                for ($k = $seen; $k < count($wlog); $k++) {
+                    $add($wlog[$k]);
+                }
+                $seen = count($wlog);
+
+                $st = $wj['status'] ?? 'running';
+                if ($st === 'error') {
+                    $add('❌ ' . ($wj['error'] ?? 'El extractor falló obteniendo los CUFEs.'));
+                    return response()->json(['log' => $log, 'data' => []]);
+                }
+                if ($st === 'done') {
+                    $cufes = is_array($wj['data'] ?? null) ? $wj['data'] : [];
+                    break;
+                }
+                sleep(2);
+            }
+
+            if ($cufes === null) {
+                $add('❌ Tiempo de espera agotado obteniendo los CUFEs.');
+                return response()->json(['log' => $log, 'data' => []]);
+            }
+
+            if (empty($cufes)) {
+                $add('ℹ️ Sin CUFEs en el rango indicado.');
+                return response()->json(['log' => $log, 'data' => []]);
+            }
+
+            $total = count($cufes);
+            $add("🟢 CUFEs obtenidos: {$total}. Consultando la DIAN por cada uno…");
+
+            // 2) Enriquecer cada CUFE con el certificado de la empresa.
+            $rows = [];
+            $n = 0;
+            foreach ($cufes as $item) {
+                $n++;
+                $item = is_array($item) ? $item : ['cufe' => $item];
+                $cufe = $item['cufe'] ?? null;
+                $row  = $item;
+
+                try {
+                    if (!$cufe) {
+                        throw new \RuntimeException('El item no contiene CUFE.');
+                    }
+                    $built = $this->buildDocumentByCufe($company, $cufe);
+                    if (!$built['success']) {
+                        $row['dian'] = null;
+                        $row['root'] = null;
+                        $row['enrich_status'] = 'error';
+                        $row['enrich_message'] = $built['message'];
+                    } else {
+                        $row['dian'] = $built['data'];
+                        $row['root'] = $built['root'];
+                        $row['enrich_status'] = $built['customer_match'] ? 'ok' : 'mismatch';
+                        $row['enrich_message'] = $built['customer_match']
+                            ? 'OK'
+                            : 'El adquiriente no corresponde al NIT ' . $company->identification_number . '.';
+                    }
+                } catch (\Throwable $e) {
+                    $row['dian'] = null;
+                    $row['root'] = null;
+                    $row['enrich_status'] = 'error';
+                    $row['enrich_message'] = $e->getMessage();
+                }
+
+                $rows[] = $row;
+                $add("⬇️ Procesado {$n}/{$total} [" . $row['enrich_status'] . ']');
+            }
+
+            $add('✅ Proceso terminado');
+
+            $exporter = new CufeReportExporter();
+            return response()->json(['log' => $log, 'data' => $exporter->toArray($rows)]);
+        } catch (\Throwable $e) {
+            $add('❌ ' . $e->getMessage());
+            return response()->json(['log' => $log, 'data' => []]);
+        }
+    }
+
+    /** Consulta el job del worker; al terminar pasa a enriquecer. */
+    private function advanceGettingCufes(array $job, CufesExtractorClient $extractor): array
+    {
+        $wj = $extractor->getCufesJob($job['worker_job_id']);
+        $wstatus = $wj['status'] ?? 'running';
+
+        // Copia al log del job las líneas NUEVAS del worker (pasos del navegador),
+        // así el polling muestra el avance en vivo, no solo "obteniendo CUFEs…".
+        $wlog = is_array($wj['log'] ?? null) ? $wj['log'] : [];
+        $off  = (int) ($job['worker_log_offset'] ?? 0);
+        for ($k = $off; $k < count($wlog); $k++) {
+            $job['log'][] = $wlog[$k];
+        }
+        $job['worker_log_offset'] = count($wlog);
+
+        if ($wstatus === 'running') {
+            return $job; // sigue obteniendo CUFEs
+        }
+
+        if ($wstatus === 'error') {
+            $job['status'] = 'error';
+            $job['error']  = $wj['error'] ?? 'El extractor falló obteniendo los CUFEs.';
+            $job['log'][]  = '❌ ' . $job['error'];
+            return $job;
+        }
+
+        // done (o parcial con datos)
+        $cufes = is_array($wj['data'] ?? null) ? $wj['data'] : [];
+        if (empty($cufes)) {
+            $job['status'] = 'done';
+            $job['total']  = 0;
+            $job['log'][]  = 'ℹ️ Sin CUFEs en el rango indicado.';
+            return $job;
+        }
+
+        $job['cufes']  = $cufes;
+        $job['total']  = count($cufes);
+        $job['status'] = 'enriching';
+        $job['log'][]  = '🟢 CUFEs obtenidos: ' . count($cufes) . '. Consultando la DIAN por cada uno…';
+        return $job;
+    }
+
+    /** Enriquece el siguiente lote de CUFEs con el certificado de la empresa. */
+    private function advanceEnriching(array $job, $company): array
+    {
+        $cufes = $job['cufes'] ?? [];
+        $start = (int) $job['cursor'];
+        $slice = array_slice($cufes, $start, self::EXTRACT_BATCH);
+
+        foreach ($slice as $item) {
+            $item = is_array($item) ? $item : ['cufe' => $item];
+            $cufe = $item['cufe'] ?? null;
+            $row  = $item;
+
+            if (!$cufe) {
+                $row['dian'] = null;
+                $row['enrich_status'] = 'error';
+                $row['enrich_message'] = 'El item no contiene CUFE.';
+                $job['rows'][] = $row;
+                continue;
+            }
+
+            try {
+                $built = $this->buildDocumentByCufe($company, $cufe);
+                if (!$built['success']) {
+                    $row['dian'] = null;
+                    $row['root'] = null;
+                    $row['enrich_status'] = 'error';
+                    $row['enrich_message'] = $built['message'];
+                } else {
+                    $row['dian'] = $built['data'];
+                    $row['root'] = $built['root'];
+                    $row['enrich_status'] = $built['customer_match'] ? 'ok' : 'mismatch';
+                    $row['enrich_message'] = $built['customer_match']
+                        ? 'OK'
+                        : 'El adquiriente no corresponde al NIT ' . $company->identification_number . '.';
+                }
+            } catch (\Throwable $e) {
+                $row['dian'] = null;
+                $row['root'] = null;
+                $row['enrich_status'] = 'error';
+                $row['enrich_message'] = $e->getMessage();
+            }
+
+            $job['rows'][] = $row;
+        }
+
+        $job['cursor'] = $start + count($slice);
+        $job['log'][]  = "⬇️ Procesados {$job['cursor']}/{$job['total']} documento(s)…";
+
+        if ($job['cursor'] >= $job['total']) {
+            $job['status'] = 'done';
+            $job['log'][]  = '✅ Proceso terminado';
+        }
+
+        return $job;
+    }
+
+    private function saveExtractJob(string $id, array $job): void
+    {
+        Cache::put(self::EXTRACT_JOB_PREFIX . $id, $job, self::EXTRACT_JOB_TTL);
+    }
+
+    private function loadExtractJob(string $id): ?array
+    {
+        return Cache::get(self::EXTRACT_JOB_PREFIX . $id);
     }
 
     /**

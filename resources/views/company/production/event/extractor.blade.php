@@ -71,12 +71,6 @@
                 <code>php artisan config:clear</code>. Mientras no se configure, las acciones de
                 prueba y extracci&oacute;n permanecer&aacute;n deshabilitadas.
             </div>
-        @else
-            <div class="alert alert-info py-2 mb-3" style="font-size:.9rem;">
-                <i class="fas fa-info-circle mr-1"></i>
-                Consulta facturas <strong>recibidas</strong> en la DIAN y carga sus datos por CUFE
-                para enviar eventos RADIAN sobre ellas.
-            </div>
         @endif
 
         <div id="evt-extr-conn-result" class="mt-2 mb-3" style="display:none;"></div>
@@ -88,13 +82,8 @@
             <div class="card-body">
                 <ul class="nav nav-tabs mb-3" id="evtExtractorTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link active" id="evt-tab-url" data-toggle="tab" href="#evt-pane-url" role="tab">
-                            <i class="fas fa-link mr-1"></i> Consulta por Token
-                        </a>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link" id="evt-tab-report" data-toggle="tab" href="#evt-pane-report" role="tab">
-                            <i class="fas fa-file-excel mr-1"></i> Reporte por CUFEs
+                        <a class="nav-link active" id="evt-tab-report" data-toggle="tab" href="#evt-pane-report" role="tab">
+                            <i class="fas fa-file-excel mr-1"></i> Extracci&oacute;n por token
                         </a>
                     </li>
                     {{-- Sub-tab "Por Certificado" oculto: aún no disponible. --}}
@@ -107,51 +96,8 @@
                 </ul>
 
                 <div class="tab-content">
-                    <div class="tab-pane fade show active" id="evt-pane-url" role="tabpanel">
-                        <form id="evt-extract-form">
-                            @csrf
-                            <input type="hidden" name="tipo" value="Received">
-                            <div class="row">
-                                <div class="form-group col-md-12">
-                                    <label for="evt-extr-url">URL de consulta por Token DIAN</label>
-                                    <input type="url" id="evt-extr-url" name="url" class="form-control"
-                                           placeholder="{{ $extractorCatalogBase }}User/AuthToken?..."
-                                           pattern="^{{ $extractorCatalogBaseJs }}User/AuthToken.*"
-                                           title="Debe ser un enlace User/AuthToken de DIAN {{ $extractorEnvName }} ({{ $extractorCatalogBase }}User/AuthToken?...)"
-                                           required>
-                                    <small class="form-text text-muted">
-                                        Pega el enlace <code>User/AuthToken</code> emitido por DIAN.
-                                    </small>
-                                </div>
-                                <div class="form-group col-md-6">
-                                    <label for="evt-extr-fecha-desde">Fecha desde</label>
-                                    <input type="date" id="evt-extr-fecha-desde" name="fechaDesde" class="form-control" value="{{ $defaultFechaDesde }}" required>
-                                </div>
-                                <div class="form-group col-md-6">
-                                    <label for="evt-extr-fecha-hasta">Fecha hasta</label>
-                                    <input type="date" id="evt-extr-fecha-hasta" name="fechaHasta" class="form-control" value="{{ $defaultFechaHasta }}" required>
-                                </div>
-                            </div>
-                            <button type="submit" id="evt-btn-extract" class="btn btn-primary"
-                                    @if(!$extractorConfigured) disabled title="EXTRACTOR_URL no está configurada en .env" @endif>
-                                <i class="fas fa-play mr-1"></i> Iniciar extracci&oacute;n
-                            </button>
-                            <span class="text-muted ml-2" style="font-size:.85rem;">
-                                Esta operaci&oacute;n puede tardar varios minutos.
-                            </span>
-                        </form>
-                    </div>
-
-                    {{-- ================= Reporte por CUFEs ================= --}}
-                    <div class="tab-pane fade" id="evt-pane-report" role="tabpanel">
-                        <div class="alert alert-info py-2 mb-3" style="font-size:.9rem;">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Obtiene los <strong>CUFEs</strong> del rango (sin descargar ZIP) y luego consulta
-                            cada uno en la DIAN para armar un reporte descargable en <strong>Excel</strong> o <strong>JSON</strong>,
-                            con detalle de <strong>l&iacute;neas de producto e impuestos</strong>
-                            (Excel de 2 hojas: <em>Resumen</em> y <em>L&iacute;neas</em>).
-                        </div>
-
+                    {{-- ================= Extracción por token ================= --}}
+                    <div class="tab-pane fade show active" id="evt-pane-report" role="tabpanel">
                         @if(!$extractorApiToken)
                             <div class="alert alert-warning py-2 mb-3" style="font-size:.9rem;">
                                 <i class="fas fa-exclamation-triangle mr-1"></i>
@@ -173,6 +119,11 @@
                                            required>
                                     <small class="form-text text-muted">
                                         Pega el enlace <code>User/AuthToken</code> emitido por DIAN.
+                                    </small>
+                                    <small class="form-text text-warning">
+                                        <i class="fas fa-exclamation-circle mr-1"></i>
+                                        El token debe corresponder al mismo ambiente
+                                        (<strong>{!! $extractorEnvName !!}</strong>) que los eventos RADIAN de esta empresa.
                                     </small>
                                 </div>
                                 <div class="form-group col-md-6">

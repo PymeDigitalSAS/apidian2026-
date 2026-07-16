@@ -69,6 +69,12 @@ Route::prefix('/ubl2.1')->group(function () {
 Route::post('/cufes', 'Api\CufesReportController@cufes');
 Route::post('/xml-by-cufes', 'Api\CufesReportController@byToken');
 
+// Flujo completo por TOKEN (sin certificado), espejo del /api/scrape del worker:
+// descarga los documentos del listado DIAN y los parsea. Devuelve { log, data }
+// con la misma estructura del extractor. Soporta async:true + polling /api/jobs/{id}.
+Route::post('/scrape', 'Api\CufesReportController@scrape');
+Route::get('/jobs/{id}', 'Api\CufesReportController@job');
+
 Route::middleware(['auth:api', 'storage.context'])->group(function () {
 
     Route::get('reload-pdf/{identification}/{file}/{cufe}', 'Api\DownloadController@reloadPdf');
@@ -85,6 +91,13 @@ Route::middleware(['auth:api', 'storage.context'])->group(function () {
     // generar el reporte descargable (XLSX / JSON).
     Route::post('cufes/enrich', 'Api\RadianEventController@enrichCufes');
     Route::post('cufes/report', 'Api\RadianEventController@cufesReport');
+
+    // Extracción por token AUTENTICADA (token de empresa -> certificado propio).
+    //  - stream: UN endpoint que emite el log en vivo (SSE) + JSON final (como el extractor).
+    //  - async : POST devuelve jobId; GET consulta avance/resultado (datos procesados).
+    Route::post('extractor/company/stream', 'Api\RadianEventController@streamCompanyExtraction');
+    Route::post('extractor/company', 'Api\RadianEventController@startCompanyExtraction');
+    Route::get('extractor/company/jobs/{id}', 'Api\RadianEventController@companyExtractionStatus');
 
     Route::get('/customer/{document}/{nit}', 'Api\CustomerController@getAcquirer');
 

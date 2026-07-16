@@ -7,6 +7,9 @@ use App\Services\CufeReportExporter;
 use App\Services\CufesExtractorClient;
 use App\Services\DianXmlQueryService;
 use App\Services\UblDocumentParser;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Http\Request;
 
 /**
@@ -169,5 +172,123 @@ class CufesReportController extends Controller
             'message' => "Reporte generado: {$ok}/" . count($rows) . " documento(s) con XML.",
             'data'    => $exporter->toArray($rows),
         ]);
+    }
+
+    /**
+     * POST /api/scrape — flujo completo del extractor por método TOKEN (sin
+     * certificado). Es un espejo del /api/scrape del worker: descarga los
+     * documentos del listado DIAN y los parsea, devolviendo la misma estructura.
+     *
+     *   Request:  { url, tipo, fechaDesde, fechaHasta, excluirEstados?, async? }
+     *   Response (sync):  { partial, log:[...], data:[ {TipoDocumento, CUFE,
+     *                       "Sub Total", TaxBreakdown, LineItems, ...}, ... ] }
+     *   Response (async): { success, jobId, statusUrl }  -> consultar GET /api/jobs/{id}
+     *
+     * OJO: la descarga en la DIAN es lenta (pausas anti-bloqueo por documento),
+     * así que para rangos con varios documentos usa async:true + polling del job;
+     * en modo síncrono el proxy/servidor puede cortar por timeout.
+     * Protegido con X-Api-Key (XML_QUERY_API_KEY).
+     */
+    public function scrape(Request $request)
+    {
+        if (($auth = $this->authorizeApiKey($request)) !== true) {
+            return $auth;
+        }
+
+        $data = $request->validate([
+            'url'            => 'required|url',
+            'tipo'           => 'required|in:Sent,Received',
+            'fechaDesde'     => 'required|date_format:Y-m-d',
+            'fechaHasta'     => 'required|date_format:Y-m-d',
+            'excluirEstados' => 'nullable|string',
+            'async'          => 'nullable|boolean',
+        ]);
+
+        $base = config('services.extractor.url');
+        if (empty($base)) {
+            return response()->json(['success' => false, 'message' => 'EXTRACTOR_URL no está configurada en el .env.'], 422);
+        }
+
+        $isAsync = filter_var($request->input('async', false), FILTER_VALIDATE_BOOLEAN);
+
+        try {
+            $client = new Client([
+                'base_uri' => rtrim($base, '/') . '/',
+                // async: solo espera el 202 con jobId. sync: espera toda la extracción.
+                'timeout'  => $isAsync ? 20 : max((int) config('services.extractor.timeout', 120), 900),
+                'verify'   => false,
+            ]);
+
+            $headers = ['Accept' => 'application/json'];
+            $apiKey = config('services.extractor.api_key');
+            if (!empty($apiKey)) {
+                $headers['X-Api-Key'] = $apiKey;
+            }
+
+            $payload = [
+                'url'        => $data['url'],
+                'tipo'       => $data['tipo'],
+                'fechaDesde' => $data['fechaDesde'],
+                'fechaHasta' => $data['fechaHasta'],
+                'async'      => $isAsync,
+            ];
+            if (!empty($data['excluirEstados'])) {
+                $payload['excluirEstados'] = $data['excluirEstados'];
+            }
+
+            $resp = $client->post('api/scrape', ['headers' => $headers, 'json' => $payload]);
+
+            // Se devuelve la respuesta del worker tal cual (misma estructura del extractor).
+            return response()->json(json_decode((string) $resp->getBody(), true) ?: [], $resp->getStatusCode());
+        } catch (ConnectException $e) {
+            return response()->json(['success' => false, 'message' => 'No se pudo conectar al extractor: ' . $e->getMessage()], 502);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Error consultando el extractor: ' . $e->getMessage()], 502);
+        }
+    }
+
+    /**
+     * GET /api/jobs/{id} — estado/resultado de un job asíncrono del extractor
+     * (espejo del /api/jobs/:id del worker). Cuando status='done' devuelve
+     * { status, log, data:[...] } con la misma estructura que el modo síncrono.
+     * Protegido con X-Api-Key (XML_QUERY_API_KEY).
+     */
+    public function job(Request $request, string $id)
+    {
+        if (($auth = $this->authorizeApiKey($request)) !== true) {
+            return $auth;
+        }
+
+        $base = config('services.extractor.url');
+        if (empty($base)) {
+            return response()->json(['success' => false, 'message' => 'EXTRACTOR_URL no está configurada en el .env.'], 422);
+        }
+
+        try {
+            $client = new Client([
+                'base_uri' => rtrim($base, '/') . '/',
+                'timeout'  => 20,
+                'verify'   => false,
+            ]);
+
+            $headers = ['Accept' => 'application/json'];
+            $apiKey = config('services.extractor.api_key');
+            if (!empty($apiKey)) {
+                $headers['X-Api-Key'] = $apiKey;
+            }
+
+            $resp = $client->get('api/jobs/' . rawurlencode($id), ['headers' => $headers]);
+
+            return response()->json(json_decode((string) $resp->getBody(), true) ?: [], $resp->getStatusCode());
+        } catch (ClientException $e) {
+            // 404 = job expirado/inexistente: se reenvía el estado del worker.
+            $code = $e->getResponse() ? $e->getResponse()->getStatusCode() : 502;
+            $body = $e->getResponse() ? json_decode((string) $e->getResponse()->getBody(), true) : null;
+            return response()->json($body ?: ['success' => false, 'message' => 'Job no encontrado o expirado.'], $code);
+        } catch (ConnectException $e) {
+            return response()->json(['success' => false, 'message' => 'No se pudo conectar al extractor: ' . $e->getMessage()], 502);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'Error consultando el job: ' . $e->getMessage()], 502);
+        }
     }
 }
