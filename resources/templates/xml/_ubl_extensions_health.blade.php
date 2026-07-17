@@ -5,7 +5,7 @@
                 <Name>Responsable</Name>
                 <Value>url www.minsalud.gov.co</Value>
                 <Name>Tipo, identificador:año del acto administrativo</Name>
-                <Value>Resolución 506:2021</Value>
+                <Value>Resolución 948:2026</Value>
                 <Interoperabilidad>
                     <Group schemeName="Sector Salud">
                         {{-- Health Users  --}}
