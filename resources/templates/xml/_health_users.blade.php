@@ -1,4 +1,12 @@
-@foreach ($healthUsers as $key => $healthUser)
+@php
+    $healthUsersList = collect($healthUsers ?? []);
+    $healthUser = $healthUsersList->first();
+    $totalCoPayment = $healthUsersList->sum(fn ($u) => floatval($u->co_payment));
+    $totalModeratingFee = $healthUsersList->sum(fn ($u) => floatval($u->moderating_fee));
+    $totalSharedPayment = $healthUsersList->sum(fn ($u) => floatval($u->shared_payment));
+    $totalAdvancePayment = $healthUsersList->sum(fn ($u) => floatval($u->advance_payment));
+@endphp
+@if($healthUser)
     <Collection schemeName="Usuario">
         <AdditionalInformation>
             <Name>CODIGO_PRESTADOR</Name>
@@ -28,19 +36,19 @@
         @endif
         <AdditionalInformation>
             <Name>COPAGO</Name>
-            <Value>{{preg_replace("/[\r\n|\n|\r]+/", "", $healthUser->co_payment)}}</Value>
+            <Value>{{number_format($totalCoPayment, 2, '.', '')}}</Value>
         </AdditionalInformation>
         <AdditionalInformation>
             <Name>CUOTA_MODERADORA</Name>
-            <Value>{{preg_replace("/[\r\n|\n|\r]+/", "", $healthUser->moderating_fee)}}</Value>
+            <Value>{{number_format($totalModeratingFee, 2, '.', '')}}</Value>
         </AdditionalInformation>
         <AdditionalInformation>
             <Name>PAGOS_COMPARTIDOS</Name>
-            <Value>{{preg_replace("/[\r\n|\n|\r]+/", "", $healthUser->shared_payment)}}</Value>
+            <Value>{{number_format($totalSharedPayment, 2, '.', '')}}</Value>
         </AdditionalInformation>
         <AdditionalInformation>
             <Name>ANTICIPO</Name>
-            <Value>{{preg_replace("/[\r\n|\n|\r]+/", "", $healthUser->advance_payment)}}</Value>
+            <Value>{{number_format($totalAdvancePayment, 2, '.', '')}}</Value>
         </AdditionalInformation>
     </Collection>
-@endforeach
+@endif

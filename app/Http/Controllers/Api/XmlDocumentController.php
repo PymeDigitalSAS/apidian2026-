@@ -67,37 +67,29 @@ class XmlDocumentController extends Controller
 
         if ($request->GuardarEn){
             $R = $getXml->signToSend($request->GuardarEn.'\\Req-XmlDocument.xml')->getResponseToObject($request->GuardarEn.'\\Rpta-XmlDocument.xml');
-            if($R->Envelope->Body->GetXmlByDocumentKeyResponse->GetXmlByDocumentKeyResult->Code == "100")
-                return [
-                    'success' => true,
-                    'message' => 'Consulta generada con éxito',
-                    'ResponseDian' => $R,
-                    'certificate_days_left' => $certificate_days_left,
-                ];
-            else
-                return [
-                    'success' => false,
-                    'message' => 'Consulta generada con éxito',
-                    'ResponseDian' => $R->Envelope->Body->GetXmlByDocumentKeyResponse->GetXmlByDocumentKeyResult->Message,
-                    'certificate_days_left' => $certificate_days_left,
-                ];
         }
         else{
             $R = $getXml->signToSend()->getResponseToObject();
-            if($R->Envelope->Body->GetXmlByDocumentKeyResponse->GetXmlByDocumentKeyResult->Code == "100")
-                return [
-                    'success' => true,
-                    'message' => 'Consulta generada con éxito',
-                    'ResponseDian' => $R,
-                    'certificate_days_left' => $certificate_days_left,
-                ];
-            else
-                return [
-                    'success' => false,
-                    'message' => 'Consulta generada con éxito',
-                    'ResponseDian' => $R->Envelope->Body->GetXmlByDocumentKeyResponse->GetXmlByDocumentKeyResult->Message,
-                    'certificate_days_left' => $certificate_days_left,
-                ];
         }
+
+        // Acceso null-safe: si la DIAN devuelve un Fault SOAP, la ruta
+        // GetXmlByDocumentKeyResponse no existe y el acceso directo revienta.
+        $result = $R->Envelope->Body->GetXmlByDocumentKeyResponse->GetXmlByDocumentKeyResult ?? null;
+
+        if (($result->Code ?? null) == "100")
+            return [
+                'success' => true,
+                'message' => 'Consulta generada con éxito',
+                'ResponseDian' => $R,
+                'certificate_days_left' => $certificate_days_left,
+            ];
+
+        return [
+            'success' => false,
+            'message' => 'La DIAN rechazó la consulta del documento.',
+            // Razón del rechazo: Message del resultado o, si vino un Fault SOAP, su detalle.
+            'ResponseDian' => $result->Message ?? ($R->Envelope->Body->Fault ?? null),
+            'certificate_days_left' => $certificate_days_left,
+        ];
     }
 }

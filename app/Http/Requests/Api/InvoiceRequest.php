@@ -435,6 +435,44 @@ class InvoiceRequest extends FormRequest
                     );
                 }
             }
+
+            // El XML emite ANTICIPO como la sumatoria de advance_payment de todos los usuarios;
+            // el Ministerio cruza ese valor contra el PrepaidPayment concepto 04 del cuerpo de
+            // la factura, asi que ambos deben coincidir desde el request.
+            $usersAdvance = 0;
+            foreach ($users as $user) {
+                if (is_array($user) && is_numeric($user['advance_payment'] ?? null)) {
+                    $usersAdvance += (float) $user['advance_payment'];
+                }
+            }
+            // trim(): los codes del catalogo traen \r al final (seed desde CSV). Si el catalogo
+            // no tiene el concepto 04 no hay forma de identificar anticipos: se omite el cruce.
+            $anticipoTypeId = (int) optional(\App\PrepaidPaymentType::all()->first(fn ($t) => trim($t->code) === '04'))->id;
+            $prepaids = $this->input('prepaid_payments');
+            if (!is_array($prepaids)) {
+                $prepaids = [];
+            }
+            if (is_array($this->input('prepaid_payment'))) {
+                $prepaids[] = $this->input('prepaid_payment');
+            }
+            $invoiceAdvance = 0;
+            foreach ($prepaids as $prepaid) {
+                if (is_array($prepaid)
+                    && (int) ($prepaid['prepaid_payment_type_id'] ?? 0) === $anticipoTypeId
+                    && is_numeric($prepaid['paidamount'] ?? null)) {
+                    $invoiceAdvance += (float) $prepaid['paidamount'];
+                }
+            }
+            if ($anticipoTypeId > 0 && abs($usersAdvance - $invoiceAdvance) > 0.005) {
+                $validator->errors()->add(
+                    'health_fields.users_info',
+                    sprintf(
+                        'El ANTICIPO consolidado de users_info (advance_payment suma %.2f) no coincide con el anticipo del cuerpo de la factura (PrepaidPayment concepto 04 suma %.2f). Ambos deben informar el mismo valor.',
+                        $usersAdvance,
+                        $invoiceAdvance
+                    )
+                );
+            }
         });
     }
 
