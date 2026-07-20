@@ -293,8 +293,12 @@ consultar cada pocos segundos; ninguna consulta tarda mucho).
 
 Endpoint **existente** del API. Consulta en la DIAN el XML de un documento por su
 **CUFE** (va en la URL) usando el certificado de la empresa autenticada. Devuelve la
-respuesta de la DIAN con el **XML en base64** (`XmlBytesBase64`). Es el que usa el
-tab **Consulta por CUFE** de la interfaz.
+respuesta de la DIAN con el **XML en base64** (`XmlBytesBase64`).
+
+> El tab **Consulta por CUFE** de la interfaz usa `POST /api/cufes/enrich` con
+> `items: [{cufe}]` e `include_xml: true`, que en una sola consulta devuelve los
+> datos estructurados (`dian`) y el XML (`xml_b64`). Este endpoint sigue disponible
+> si solo se necesita el XML crudo.
 
 ### Autenticación
 `Authorization: Bearer <api_token de la empresa>`

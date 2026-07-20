@@ -82,13 +82,13 @@
             <div class="card-body">
                 <ul class="nav nav-tabs mb-3" id="evtExtractorTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link active" id="evt-tab-report" data-toggle="tab" href="#evt-pane-report" role="tab">
-                            <i class="fas fa-file-excel mr-1"></i> Extracci&oacute;n por token
+                        <a class="nav-link active" id="evt-tab-cufe" data-toggle="tab" href="#evt-pane-cufe" role="tab">
+                            <i class="fas fa-file-code mr-1"></i> Consulta por CUFE
                         </a>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link" id="evt-tab-cufe" data-toggle="tab" href="#evt-pane-cufe" role="tab">
-                            <i class="fas fa-file-code mr-1"></i> Consulta por CUFE
+                        <a class="nav-link" id="evt-tab-report" data-toggle="tab" href="#evt-pane-report" role="tab">
+                            <i class="fas fa-file-excel mr-1"></i> Extracci&oacute;n por token
                         </a>
                     </li>
                     {{-- Sub-tab "Por Certificado" oculto: aún no disponible. --}}
@@ -101,8 +101,104 @@
                 </ul>
 
                 <div class="tab-content">
+                    {{-- ================= Consulta por CUFE ================= --}}
+                    <div class="tab-pane fade show active" id="evt-pane-cufe" role="tabpanel">
+                        @if(!$extractorApiToken)
+                            <div class="alert alert-warning py-2 mb-3" style="font-size:.9rem;">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>
+                                La empresa <strong>{{ $company->identification_number }}</strong> no tiene
+                                <code>api_token</code>; esta consulta lo requiere. Genere uno antes de usarla.
+                            </div>
+                        @endif
+
+                        <div class="alert alert-info py-2 mb-3" style="font-size:.9rem;">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Ingresa el <strong>CUFE</strong> de un documento: el API lo consulta en la DIAN con el
+                            certificado de esta empresa, muestra sus datos, y permite <strong>descargar el XML</strong>
+                            y <strong>registrarlo en Eventos RADIAN</strong>.
+                        </div>
+
+                        <form id="evt-cufe-form">
+                            @csrf
+                            <div class="form-group">
+                                <label for="evt-cufe-input">CUFE del documento</label>
+                                <div class="input-group">
+                                    <input type="text" id="evt-cufe-input" name="cufe" class="form-control"
+                                           placeholder="Pega aqu&iacute; el CUFE del documento&hellip;" autocomplete="off" required>
+                                    <div class="input-group-append">
+                                        <button type="submit" id="evt-cufe-btn" class="btn btn-primary"
+                                                @if(!$extractorApiToken) disabled title="Requiere api_token de la empresa" @endif>
+                                            <i class="fas fa-search mr-1"></i> Consultar
+                                        </button>
+                                    </div>
+                                </div>
+                                <small class="form-text text-warning">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    El CUFE debe ser del mismo ambiente (<strong>{!! $extractorEnvName !!}</strong>) que esta empresa.
+                                </small>
+                            </div>
+                        </form>
+
+                        <div id="evt-cufe-msg" class="mb-2" style="display:none;"></div>
+
+                        <div id="evt-cufe-result" style="display:none;">
+                            <div class="card mb-3">
+                                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                    <strong><i class="fas fa-file-invoice mr-1"></i> Documento</strong>
+                                    <span id="evt-cufe-doctype" class="badge badge-info"></span>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0">
+                                            <tbody id="evt-cufe-fields"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="card-footer py-2">
+                                    <button type="button" id="evt-cufe-dl" class="btn btn-outline-secondary btn-sm mr-2">
+                                        <i class="fas fa-download mr-1"></i> Descargar XML
+                                    </button>
+                                    <button type="button" id="evt-cufe-dl-json" class="btn btn-outline-secondary btn-sm mr-2">
+                                        <i class="fas fa-file-code mr-1"></i> Descargar JSON
+                                    </button>
+                                    <button type="button" id="evt-cufe-reg" class="btn btn-primary btn-sm" style="display:none;">
+                                        <i class="fas fa-cloud-upload-alt mr-1"></i> Registrar en Eventos RADIAN
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="card mb-3">
+                                <div class="card-header py-2">
+                                    <a data-toggle="collapse" href="#evt-cufe-xml-wrap" style="text-decoration:none;">
+                                        <strong><i class="fas fa-code mr-1"></i> XML</strong>
+                                        <small class="text-muted ml-2">(clic para ver / ocultar)</small>
+                                    </a>
+                                </div>
+                                <div id="evt-cufe-xml-wrap" class="collapse">
+                                    <div class="card-body p-0">
+                                        <pre id="evt-cufe-xml" class="mb-0 p-2" style="max-height:320px; overflow:auto; font-size:.75rem; white-space:pre-wrap; word-break:break-all;"></pre>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mb-3">
+                                <div class="card-header py-2">
+                                    <a data-toggle="collapse" href="#evt-cufe-json-wrap" style="text-decoration:none;">
+                                        <strong><i class="fas fa-file-code mr-1"></i> JSON</strong>
+                                        <small class="text-muted ml-2">(clic para ver / ocultar &mdash; datos del documento, mismo formato del reporte por token)</small>
+                                    </a>
+                                </div>
+                                <div id="evt-cufe-json-wrap" class="collapse">
+                                    <div class="card-body p-0">
+                                        <pre id="evt-cufe-json" class="mb-0 p-2" style="max-height:320px; overflow:auto; font-size:.75rem; white-space:pre-wrap; word-break:break-all;"></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {{-- ================= Extracción por token ================= --}}
-                    <div class="tab-pane fade show active" id="evt-pane-report" role="tabpanel">
+                    <div class="tab-pane fade" id="evt-pane-report" role="tabpanel">
                         @if(!$extractorApiToken)
                             <div class="alert alert-warning py-2 mb-3" style="font-size:.9rem;">
                                 <i class="fas fa-exclamation-triangle mr-1"></i>
@@ -219,85 +315,6 @@
                                             </thead>
                                             <tbody id="evt-report-tbody"></tbody>
                                         </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- ================= Consulta por CUFE ================= --}}
-                    <div class="tab-pane fade" id="evt-pane-cufe" role="tabpanel">
-                        @if(!$extractorApiToken)
-                            <div class="alert alert-warning py-2 mb-3" style="font-size:.9rem;">
-                                <i class="fas fa-exclamation-triangle mr-1"></i>
-                                La empresa <strong>{{ $company->identification_number }}</strong> no tiene
-                                <code>api_token</code>; esta consulta lo requiere. Genere uno antes de usarla.
-                            </div>
-                        @endif
-
-                        <div class="alert alert-info py-2 mb-3" style="font-size:.9rem;">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Ingresa el <strong>CUFE</strong> de un documento: el API lo consulta en la DIAN con el
-                            certificado de esta empresa, muestra sus datos, y permite <strong>descargar el XML</strong>
-                            y <strong>registrarlo en Eventos RADIAN</strong>.
-                        </div>
-
-                        <form id="evt-cufe-form">
-                            @csrf
-                            <div class="form-group">
-                                <label for="evt-cufe-input">CUFE del documento</label>
-                                <div class="input-group">
-                                    <input type="text" id="evt-cufe-input" name="cufe" class="form-control"
-                                           placeholder="Pega aqu&iacute; el CUFE del documento&hellip;" autocomplete="off" required>
-                                    <div class="input-group-append">
-                                        <button type="submit" id="evt-cufe-btn" class="btn btn-primary"
-                                                @if(!$extractorApiToken) disabled title="Requiere api_token de la empresa" @endif>
-                                            <i class="fas fa-search mr-1"></i> Consultar
-                                        </button>
-                                    </div>
-                                </div>
-                                <small class="form-text text-warning">
-                                    <i class="fas fa-exclamation-circle mr-1"></i>
-                                    El CUFE debe ser del mismo ambiente (<strong>{!! $extractorEnvName !!}</strong>) que esta empresa.
-                                </small>
-                            </div>
-                        </form>
-
-                        <div id="evt-cufe-msg" class="mb-2" style="display:none;"></div>
-
-                        <div id="evt-cufe-result" style="display:none;">
-                            <div class="card mb-3">
-                                <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                                    <strong><i class="fas fa-file-invoice mr-1"></i> Documento</strong>
-                                    <span id="evt-cufe-doctype" class="badge badge-info"></span>
-                                </div>
-                                <div class="card-body py-2">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm mb-0">
-                                            <tbody id="evt-cufe-fields"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                                <div class="card-footer py-2">
-                                    <button type="button" id="evt-cufe-dl" class="btn btn-outline-secondary btn-sm mr-2">
-                                        <i class="fas fa-download mr-1"></i> Descargar XML
-                                    </button>
-                                    <button type="button" id="evt-cufe-reg" class="btn btn-primary btn-sm" style="display:none;">
-                                        <i class="fas fa-cloud-upload-alt mr-1"></i> Registrar en Eventos RADIAN
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="card mb-3">
-                                <div class="card-header py-2">
-                                    <a data-toggle="collapse" href="#evt-cufe-xml-wrap" style="text-decoration:none;">
-                                        <strong><i class="fas fa-code mr-1"></i> XML</strong>
-                                        <small class="text-muted ml-2">(clic para ver / ocultar)</small>
-                                    </a>
-                                </div>
-                                <div id="evt-cufe-xml-wrap" class="collapse">
-                                    <div class="card-body p-0">
-                                        <pre id="evt-cufe-xml" class="mb-0 p-2" style="max-height:320px; overflow:auto; font-size:.75rem; white-space:pre-wrap; word-break:break-all;"></pre>
                                     </div>
                                 </div>
                             </div>
@@ -1259,8 +1276,10 @@ $(function () {
 $(function () {
     var apiToken    = @json($extractorApiToken);
     var companyNit  = @json($company->identification_number);
-    // Endpoint EXISTENTE: POST /api/ubl2.1/xml/document/{cufe} (auth token empresa).
-    var xmlDocBase  = '{{ url('/api/ubl2.1/xml/document') }}';
+    // Mismo backend que el reporte "Extracción por token": enrich devuelve los
+    // datos estructurados (dian) + XML, y report genera el JSON con ese formato.
+    var enrichCufeUrl = '{{ url('/api/cufes/enrich') }}';
+    var reportCufeUrl = '{{ url('/api/cufes/report') }}';
     var loadCufeUrl = '{{ url('/api/load-document-by-cufe') }}';
 
     var $form    = $('#evt-cufe-form');
@@ -1270,11 +1289,13 @@ $(function () {
     var $result  = $('#evt-cufe-result');
     var $fields  = $('#evt-cufe-fields');
     var $xml     = $('#evt-cufe-xml');
+    var $json    = $('#evt-cufe-json');
     var $doctype = $('#evt-cufe-doctype');
     var $dl      = $('#evt-cufe-dl');
+    var $dlJson  = $('#evt-cufe-dl-json');
     var $reg     = $('#evt-cufe-reg');
 
-    var current  = null;               // { cufe, xmlText, filename }
+    var current  = null;               // { cufe, xmlText, jsonText, filename, filenameJson }
     var btnHtml  = $btn.html();
     var regHtml  = '<i class="fas fa-cloud-upload-alt mr-1"></i> Registrar en Eventos RADIAN';
 
@@ -1300,17 +1321,6 @@ $(function () {
             try { return decodeURIComponent(escape(atob(b64))); } catch (e2) { return atob(b64); }
         }
     }
-    // Busca recursivamente una clave (p. ej. XmlBytesBase64) en el objeto ResponseDian.
-    function findKey(obj, key) {
-        if (!obj || typeof obj !== 'object') return null;
-        if (obj[key] !== undefined && obj[key] !== null) return obj[key];
-        for (var k in obj) {
-            var r = findKey(obj[k], key);
-            if (r !== null) return r;
-        }
-        return null;
-    }
-
     // ---- Parseo UBL en el navegador (soporta AttachedDocument y namespaces) ----
     function txt(el) { return el ? (el.textContent || '').trim() : ''; }
     function firstNS(scope, name) {
@@ -1375,18 +1385,27 @@ $(function () {
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Consultando&hellip;');
 
         $.ajax({
-            url: xmlDocBase + '/' + encodeURIComponent(cufe),
+            url: enrichCufeUrl,
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + apiToken, 'Accept': 'application/json' },
             contentType: 'application/json',
-            data: JSON.stringify({ is_event: true })    // consulta el XML por CUFE (endpoint de eventos)
+            // include_xml: una sola consulta a la DIAN trae datos estructurados + XML
+            data: JSON.stringify({ items: [{ cufe: cufe }], tipo: 'Received', include_xml: true })
         }).done(function (resp) {
             $btn.prop('disabled', false).html(btnHtml);
-            if (!resp || !resp.success) {
-                showMsg('danger', (resp && (resp.message || resp.ResponseDian)) ? (resp.message || resp.ResponseDian) : 'No se pudo obtener el documento.');
+            var row = (resp && resp.success && Array.isArray(resp.rows) && resp.rows.length) ? resp.rows[0] : null;
+            if (!row) {
+                showMsg('danger', (resp && resp.message) ? resp.message : 'No se pudo obtener el documento.');
                 return;
             }
-            renderResult(cufe, resp);
+            if (row.enrich_status === 'error' || !row.dian) {
+                showMsg('danger', row.enrich_message || 'No se pudo obtener el documento.');
+                return;
+            }
+            if (row.enrich_status === 'mismatch') {
+                showMsg('warning', row.enrich_message || 'El adquiriente del documento no corresponde a esta empresa.');
+            }
+            renderResult(cufe, row);
         }).fail(function (xhr) {
             $btn.prop('disabled', false).html(btnHtml);
             var r = xhr.responseJSON || {};
@@ -1394,34 +1413,73 @@ $(function () {
         });
     });
 
-    function renderResult(cufe, resp) {
-        var b64 = findKey(resp.ResponseDian, 'XmlBytesBase64');
-        if (!b64) { showMsg('danger', 'La respuesta de la DIAN no contiene el XML del documento.'); return; }
+    function renderResult(cufe, row) {
+        var d = row.dian || {};
 
-        var rawXml = b64ToUtf8(String(b64));
-        var p = parseUbl(rawXml);
+        // XML: viene en base64 desde enrich (include_xml). Se desenvuelve el
+        // AttachedDocument solo para mostrarlo/descargarlo, igual que antes.
+        var rawXml  = row.xml_b64 ? b64ToUtf8(String(row.xml_b64)) : '';
+        var p       = rawXml ? parseUbl(rawXml) : { ok: false };
+        var xmlText = (p.ok && p.xml) ? p.xml : rawXml;
+
+        var baseName = ((((d.prefix || '') + (d.number || '')) || cufe) + '').replace(/[^A-Za-z0-9_\-]/g, '_') || 'documento';
 
         current = {
             cufe: cufe,
-            xmlText: p.ok ? p.xml : rawXml,                 // factura desenvuelta (o el XML crudo)
-            filename: (((p.number || cufe) + '').replace(/[^A-Za-z0-9_\-]/g, '_') || 'documento') + '.xml'
+            xmlText: xmlText,
+            jsonText: null,
+            filename: baseName + '.xml',
+            filenameJson: baseName + '.json'
         };
 
-        $doctype.text(p.docType || '');
+        $doctype.text(d.doc_type || '');
         var html = '';
-        html += fieldRow('CUFE', p.cufe || cufe);
-        html += fieldRow('N&deg; Documento', p.number);
-        html += fieldRow('Fecha', p.issueDate);
-        html += fieldRow('NIT Emisor', p.supplierNit);
-        html += fieldRow('Emisor', p.supplierName);
-        html += fieldRow('NIT Receptor', p.customerNit);
-        html += fieldRow('Receptor', p.customerName);
-        html += fieldRow('Moneda', p.currency);
-        html += fieldRow('Subtotal', money(p.subtotal));
-        html += fieldRow('Total', money(p.total));
+        html += fieldRow('CUFE', d.cufe || cufe);
+        html += fieldRow('Prefijo', d.prefix);
+        html += fieldRow('N&deg; Documento', d.number);
+        html += fieldRow('Fecha', d.date_issue);
+        html += fieldRow('Vencimiento', d.due_date);
+        html += fieldRow('NIT Emisor', d.identification_number);
+        html += fieldRow('Emisor', d.name_seller);
+        html += fieldRow('NIT Receptor', d.customer);
+        html += fieldRow('Receptor', d.customer_name);
+        html += fieldRow('Moneda', d.currency);
+        html += fieldRow('Subtotal', money(d.subtotal));
+        html += fieldRow('Impuestos', money(d.total_tax));
+        html += fieldRow('Retenciones', money(d.retention_total));
+        html += fieldRow('Total', money(d.total));
         $fields.html(html || '<tr><td class="text-muted small">No se pudieron extraer los campos; revisa el XML abajo.</td></tr>');
 
-        $xml.text(current.xmlText);
+        $xml.text(xmlText || 'La respuesta no incluyó el XML del documento.');
+        $dl.prop('disabled', !xmlText);
+
+        // JSON en el MISMO formato del reporte "Extracción por token"
+        // (CufeReportExporter): se pide al endpoint del reporte con esta fila.
+        $json.text('Generando JSON…');
+        $dlJson.prop('disabled', true);
+        var rowForReport = $.extend({}, row);
+        delete rowForReport.xml_b64;                      // no re-enviar el XML en base64
+        fetch(reportCufeUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + apiToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ rows: [rowForReport], format: 'json', filenameBase: baseName })
+        }).then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.text();
+        }).then(function (text) {
+            current.jsonText = text;
+            $json.text(text);
+            $dlJson.prop('disabled', false);
+        }).catch(function () {
+            // Fallback: mostrar el detalle estructurado tal cual lo devolvió enrich.
+            current.jsonText = JSON.stringify({ total: 1, data: [rowForReport] }, null, 2);
+            $json.text(current.jsonText);
+            $dlJson.prop('disabled', false);
+        });
 
         // El botón de registrar siempre se ofrece; el backend valida si aplica
         // (solo documentos recibidos por esta empresa se registran).
@@ -1437,6 +1495,18 @@ $(function () {
         var a = document.createElement('a');
         a.href = url;
         a.download = current.filename || 'documento.xml';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+    });
+
+    // Descargar el JSON del documento (XML parseado)
+    $dlJson.on('click', function () {
+        if (!current || !current.jsonText) return;
+        var blob = new Blob([current.jsonText], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = current.filenameJson || 'documento.json';
         document.body.appendChild(a); a.click(); a.remove();
         URL.revokeObjectURL(url);
     });

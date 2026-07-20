@@ -20,16 +20,10 @@ Estamos enfocados en crear herramientas y soluciones para desarrolladores de sof
 - ### Despliegue con Docker
   * Ubuntu 20.04 , 22.04 y 24.04 | sólo API | sin dominio | proceso manual
      * [Pasos aquí](https://git.buho.la/-/snippets/31)
-- ### Despliegue con Docker | Extractor DIAN
-  * Ubuntu 20.04 , 22.04 y 24.04 | sin dominio | ejecución de script.
-  * Opciones de instalación:
-    * **API + Extractor** — instala ambos en una sola ejecución, sobre un mismo servidor con Docker.
-      * [Pasos aquí](https://git.buho.la/facturalatam/co-apidian2026/-/snippets/73)
-    * **Sólo Extractor** — instala únicamente el Extractor DIAN, para conectarlo a un API existente.
-      * [Pasos aquí](https://git.buho.la/facturalatam/co-apidian2026/-/snippets/74)
-  * Notas:
-    * En VPS solo está disponible el **Modo 1** del extractor (extracción por URL). El **Modo 2** (certificado) requiere GUI y NO funciona en este entorno.
-    * Si el extractor define `API_SECRET_KEY` en su `.env`, configure también la clave correspondiente en el `.env` del API antes de consumir sus endpoints.
+- ### Extractor DIAN (Factura de compras)
+  * La documentación del extractor está incluida en este repositorio, en la carpeta `docs/`:
+    * **Despliegue e integración** — cómo conectar el worker del extractor a una instalación del API (Docker o LAMP): [docs/EXTRACTOR_INTEGRACION.md](docs/EXTRACTOR_INTEGRACION.md)
+    * **API del extractor** — rutas, autenticación y ejemplos para consumirlo desde sistemas externos: [docs/API_EXTRACTOR.md](docs/API_EXTRACTOR.md)
 - ### CPanel
   * [Ver manual aquí](https://git.buho.la/facturalatam/co-apidian2026/-/snippets/48)
 - ### Migracion Api2025 a Api2026 windows:

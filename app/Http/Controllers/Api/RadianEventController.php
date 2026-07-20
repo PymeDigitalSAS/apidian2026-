@@ -256,6 +256,11 @@ class RadianEventController extends Controller
             // empresa emitió: son solo para el reporte, así que no se exige el match.
             $tipo = $request->input('tipo') === 'Sent' ? 'Sent' : 'Received';
 
+            // Si el cliente pide el XML (p. ej. "Consulta por CUFE"), se incluye
+            // en base64 por fila; así una sola consulta a la DIAN devuelve tanto
+            // los datos estructurados como el XML del documento.
+            $includeXml = filter_var($request->input('include_xml', false), FILTER_VALIDATE_BOOLEAN);
+
             // Tope defensivo por lote: el enriquecimiento hace 1 consulta SOAP a
             // la DIAN por CUFE, por eso el front lo llama por lotes pequeños.
             if (count($items) > 25) {
@@ -298,6 +303,10 @@ class RadianEventController extends Controller
                         $row['enrich_message'] = $built['customer_match']
                             ? 'OK'
                             : 'El adquiriente del documento no corresponde al NIT ' . $company->identification_number . '.';
+                    }
+
+                    if ($includeXml && !empty($built['xml'])) {
+                        $row['xml_b64'] = base64_encode($built['xml']);
                     }
                 } catch (\Throwable $e) {
                     $row['dian'] = null;
@@ -766,7 +775,7 @@ class RadianEventController extends Controller
      *
      * @param  \App\Company $company
      * @param  string       $cufe
-     * @return array{success:bool, message:string, data:?\stdClass, customer_match:bool, root:?string}
+     * @return array{success:bool, message:string, data:?\stdClass, customer_match:bool, root:?string, xml:?string}
      */
     protected function buildDocumentByCufe($company, $cufe): array
     {
@@ -777,12 +786,12 @@ class RadianEventController extends Controller
         $r = $xmlDIAN->document(new XmlDocumentRequest($send), $cufe);
 
         if (!isset($r['success']) || !$r['success']) {
-            $msg = 'No se pudo obtener el documento de la DIAN.';
-            if (isset($r['ResponseDian']) && is_string($r['ResponseDian'])) {
-                $msg = $r['ResponseDian'];
-            } elseif (isset($r['message'])) {
-                $msg = $r['message'];
-            }
+            // Razón real del fallo: primero el texto de ResponseDian (Message de
+            // la DIAN o Fault SOAP; puede llegar como string u objeto anidado),
+            // luego el message del controlador, y por último un genérico.
+            $msg = $this->extractDianText($r['ResponseDian'] ?? null)
+                ?? (isset($r['message']) && is_string($r['message']) && trim($r['message']) !== '' ? $r['message'] : null)
+                ?? 'No se pudo obtener el documento de la DIAN.';
 
             return [
                 'success' => false,
@@ -790,6 +799,7 @@ class RadianEventController extends Controller
                 'data' => null,
                 'customer_match' => false,
                 'root' => null,
+                'xml' => null,
             ];
         }
 
@@ -806,6 +816,7 @@ class RadianEventController extends Controller
                 'data' => null,
                 'customer_match' => false,
                 'root' => null,
+                'xml' => null,
             ];
         }
 
@@ -857,7 +868,56 @@ class RadianEventController extends Controller
             'data' => $doc,
             'customer_match' => $customer_match,
             'root' => $parsed['doc_type'],
+            'xml' => $xml,
         ];
+    }
+
+    /**
+     * Extraer el primer texto legible de la respuesta DIAN.
+     *
+     * El cliente SOAP (xmlToObject) devuelve el nodo Message como string solo si
+     * es texto simple; si trae atributos, viene vacío o es un Fault, llega como
+     * stdClass anidado. Se recorre en profundidad buscando el primer string no
+     * vacío, ignorando '_attributes'.
+     *
+     * @param  mixed $node
+     * @return string|null
+     */
+    protected function extractDianText($node): ?string
+    {
+        if (is_string($node)) {
+            $node = trim($node);
+            return $node !== '' ? $node : null;
+        }
+
+        if (is_object($node)) {
+            $node = (array) $node;
+        }
+
+        if (is_array($node)) {
+            // Preferir las claves que suelen llevar el mensaje (incluido Fault SOAP),
+            // para no devolver códigos como "s:Sender" antes que la razón.
+            foreach (['Reason', 'Text', 'faultstring', 'Message', '_value', 'string'] as $preferred) {
+                if (array_key_exists($preferred, $node)) {
+                    $text = $this->extractDianText($node[$preferred]);
+                    if ($text !== null) {
+                        return $text;
+                    }
+                }
+            }
+
+            foreach ($node as $key => $value) {
+                if ($key === '_attributes') {
+                    continue;
+                }
+                $text = $this->extractDianText($value);
+                if ($text !== null) {
+                    return $text;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
