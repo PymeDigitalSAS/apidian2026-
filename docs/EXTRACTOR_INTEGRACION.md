@@ -105,16 +105,31 @@ docker compose up -d --build cufes-worker
 ```
 (Si tu archivo no es el `docker-compose.yml` por defecto, agrega `-f tu-archivo.yml`.)
 
-### Paso 4 — Verificar
+### Paso 4 — Apuntar el API al worker y limpiar caché
+
+En el `.env` del API agrega (o ajusta) la variable:
+
+```env
+EXTRACTOR_URL=http://cufes-worker:3001
+```
+
+y luego limpia la caché de configuración del API para que tome el valor:
+
+```bash
+php artisan config:clear
+php artisan cache:clear
+```
+
+> `http://cufes-worker:3001` resuelve por el nombre del servicio dentro de la red
+> compartida de Docker (es también el valor por defecto en `config/services.php`,
+> pero conviene dejarlo explícito en el `.env`).
+
+### Paso 5 — Verificar
 
 ```bash
 docker compose exec php_api curl -s http://cufes-worker:3001/api/jobs
 # -> {"success":true,"jobs":[]}
 ```
-
-No hace falta configurar `EXTRACTOR_URL`: el API usa por defecto
-`http://cufes-worker:3001` (en `config/services.php`), que resuelve por el nombre
-del servicio dentro de la red compartida.
 
 > **¿Antes lo levantaste con `docker-compose.extractor.yml`?** Bájalo primero (usa el
 > mismo `container_name` y puerto → conflicto):
@@ -177,7 +192,7 @@ docker compose -f docker-compose.extractor.yml up -d --build
 ```
 El puerto ya se publica como `127.0.0.1:3001:3001`.
 
-### Paso 3 — Apuntar el API al worker
+### Paso 3 — Apuntar el API al worker y limpiar caché
 
 En el `.env` del API:
 ```env
@@ -185,6 +200,7 @@ EXTRACTOR_URL=http://127.0.0.1:3001
 ```
 ```bash
 php artisan config:clear
+php artisan cache:clear
 ```
 
 ### Paso 4 — Verificar
