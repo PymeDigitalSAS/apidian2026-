@@ -860,6 +860,9 @@ $(function () {
     var accumulatedRows = [];
     var filenameBase = 'reporte_cufes';
     var btnOriginalHtml = $btn.html();
+    // true mientras se consulta la DIAN por lotes; oculta el botón de registro
+    // masivo para que no se registre un listado a medias.
+    var enrichRunning = false;
     // Tipo de listado seleccionado. 'Received' = recibidos (permite eventos RADIAN);
     // 'Sent' = enviados (solo reporte, sin registrar eventos).
     var currentReportTipo = 'Received';
@@ -962,15 +965,17 @@ $(function () {
         $count.text(accumulatedRows.length);
         $tableWrap.show();
 
-        // "Registrar en Eventos RADIAN" solo aplica a documentos RECIBIDOS.
+        // "Registrar en Eventos RADIAN" solo aplica a documentos RECIBIDOS y
+        // se ofrece cuando el proceso terminó (no sobre un listado a medias).
         var pendingOk = accumulatedRows.filter(function (r) {
             return r.enrich_status === 'ok' && !r.registered && !r.already_registered;
         }).length;
-        if (apiToken && currentReportTipo === 'Received' && pendingOk > 0) { $regAll.show(); } else { $regAll.hide(); }
+        if (apiToken && currentReportTipo === 'Received' && pendingOk > 0 && !enrichRunning) { $regAll.show(); } else { $regAll.hide(); }
     }
 
     function resetOutput() {
         accumulatedRows = [];
+        enrichRunning = false;
         $out.show();
         $msg.text('');
         setBadge('starting');
@@ -989,15 +994,18 @@ $(function () {
         $btn.prop('disabled', false).html(btnOriginalHtml);
     }
 
-    // Enriquecer los items en lotes secuenciales.
+    // Enriquecer los items en lotes secuenciales. La tabla se re-renderiza tras
+    // cada lote para mostrar los documentos ya procesados sin esperar al final.
     function enrichInBatches(items) {
         var total = items.length;
         var i = 0;
+        enrichRunning = true;
         setBadge('enrich');
         setBar(0, true);
 
         function next() {
             if (i >= total) {
+                enrichRunning = false;
                 if (accumulatedRows.length === 0) {
                     finishRun('empty');
                     $msg.text('No se obtuvieron filas.');
@@ -1032,6 +1040,7 @@ $(function () {
                 i += batch.length;
                 updateCounts(i, total);
                 setBar(i / total * 100, true);
+                renderPreview();
                 next();
             }).fail(function (xhr) {
                 var resp = xhr.responseJSON || {};
@@ -1044,6 +1053,7 @@ $(function () {
                 i += batch.length;
                 updateCounts(i, total);
                 setBar(i / total * 100, true);
+                renderPreview();
                 next();
             });
         }
