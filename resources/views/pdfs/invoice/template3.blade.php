@@ -449,10 +449,28 @@
                     <th>Nro Lineas</th>
                     <td>{{$ItemNro}}</td>
                 </tr>
-                <tr>
-                    <th>Base</th>
-                    <td>{{number_format($request->legal_monetary_totals['line_extension_amount'], 2)}}</td>
-                </tr>
+                @php
+                    $aiuBase = 0;
+                    foreach ($request->invoice_lines as $aiuLine) {
+                        if (isset($aiuLine['code']) && in_array($aiuLine['code'], ['ADMINIST', 'IMPREVIS', 'UTILIDAD']))
+                            $aiuBase += (float) $aiuLine['line_extension_amount'];
+                    }
+                @endphp
+                @if($aiuBase > 0)
+                    <tr>
+                        <th>Base servicio</th>
+                        <td>{{number_format($request->legal_monetary_totals['line_extension_amount'] - $aiuBase, 2)}}</td>
+                    </tr>
+                    <tr>
+                        <th>Base AIU</th>
+                        <td>{{number_format($aiuBase, 2)}}</td>
+                    </tr>
+                @else
+                    <tr>
+                        <th>Base</th>
+                        <td>{{number_format($request->legal_monetary_totals['line_extension_amount'], 2)}}</td>
+                    </tr>
+                @endif
                 <tr>
                     <th>Impuestos</th>
                     <td>{{number_format($TotalImpuestos, 2)}}</td>

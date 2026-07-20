@@ -6,6 +6,11 @@
     $t11lmt = $request->legal_monetary_totals ?? [];
     $t11descuento = (float) ($t11lmt['allowance_total_amount'] ?? 0);
     $t11cargos = (float) ($t11lmt['charge_total_amount'] ?? 0);
+    // base AIU: suma de las lineas Administracion/Imprevisto/Utilidad
+    $t11aiu = 0;
+    foreach ($request->invoice_lines ?? [] as $t11line) {
+        if (in_array($t11line['code'] ?? '', ['ADMINIST', 'IMPREVIS', 'UTILIDAD'])) $t11aiu += (float) ($t11line['line_extension_amount'] ?? 0);
+    }
 @endphp
 <body>
     @if(isset($request->head_note))
@@ -188,10 +193,21 @@
             <td style="width: 55%;"></td>
             <td style="width: 45%; vertical-align: top; padding: 0;">
                 <table width="100%" cellpadding="3" style="font-size: 9px; background-color: #fafafa;">
-                    <tr>
-                        <td>Subtotal</td>
-                        <td style="text-align: right;">{{$t11m($t11lmt['tax_exclusive_amount'] ?? 0)}}</td>
-                    </tr>
+                    @if($t11aiu > 0)
+                        <tr>
+                            <td>Base servicio</td>
+                            <td style="text-align: right;">{{$t11m(($t11lmt['tax_exclusive_amount'] ?? 0) - $t11aiu)}}</td>
+                        </tr>
+                        <tr>
+                            <td>Base AIU</td>
+                            <td style="text-align: right;">{{$t11m($t11aiu)}}</td>
+                        </tr>
+                    @else
+                        <tr>
+                            <td>Subtotal</td>
+                            <td style="text-align: right;">{{$t11m($t11lmt['tax_exclusive_amount'] ?? 0)}}</td>
+                        </tr>
+                    @endif
                     @if($t11descuento > 0)
                         <tr>
                             <td>Descuentos (-)</td>
