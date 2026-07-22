@@ -149,10 +149,14 @@ class ResumeController extends Controller
             ];
         }
 
-        $i = Document::where('state_document_id', 1)->where('identification_number', $company->identification_number)->where('type_document_id', 1)->whereDate('date_issue', '>=', $desde)->whereDate('date_issue', '<=', $hasta)->get();
-        $c = Document::where('state_document_id', 1)->where('identification_number', $company->identification_number)->where('type_document_id', 4)->whereDate('date_issue', '>=', $desde)->whereDate('date_issue', '<=', $hasta)->get();
-        $d = Document::where('state_document_id', 1)->where('identification_number', $company->identification_number)->where('type_document_id', 5)->whereDate('date_issue', '>=', $desde)->whereDate('date_issue', '<=', $hasta)->get();
-        $p = Document::where('state_document_id', 1)->where('identification_number', $company->identification_number)->where('type_document_id', 15)->whereDate('date_issue', '>=', $desde)->whereDate('date_issue', '<=', $hasta)->get();
+        // Con ?rejected=1 se devuelven SOLO los documentos rechazados (estado 0).
+        // El facturador sincroniza en dos pasadas: primero aceptadas, luego rechazadas.
+        $states = request()->query('rejected') ? [0] : [1];
+
+        $i = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 1)->whereDate('date_issue', '>=', $desde)->whereDate('date_issue', '<=', $hasta)->orderBy('id')->get();
+        $c = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 4)->whereDate('date_issue', '>=', $desde)->whereDate('date_issue', '<=', $hasta)->orderBy('id')->get();
+        $d = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 5)->whereDate('date_issue', '>=', $desde)->whereDate('date_issue', '<=', $hasta)->orderBy('id')->get();
+        $p = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 15)->whereDate('date_issue', '>=', $desde)->whereDate('date_issue', '<=', $hasta)->orderBy('id')->get();
 
         $invoice = (object)[
             'type_document_id' => 1,
@@ -207,10 +211,14 @@ class ResumeController extends Controller
 
         $perPage = 100;
 
-        $i = Document::where('state_document_id', 1)->where('identification_number', $company->identification_number)->where('type_document_id', 1)->skip(($page - 1) * $perPage)->take($perPage)->oldest()->get();
-        $c = Document::where('state_document_id', 1)->where('identification_number', $company->identification_number)->where('type_document_id', 4)->skip(($page - 1) * $perPage)->take($perPage)->oldest()->get();
-        $d = Document::where('state_document_id', 1)->where('identification_number', $company->identification_number)->where('type_document_id', 5)->skip(($page - 1) * $perPage)->take($perPage)->oldest()->get();
-        $p = Document::where('state_document_id', 1)->where('identification_number', $company->identification_number)->where('type_document_id', 15)->skip(($page - 1) * $perPage)->take($perPage)->oldest()->get();
+        // Con ?rejected=1 se devuelven SOLO los documentos rechazados (estado 0).
+        // El facturador sincroniza en dos pasadas: primero aceptadas, luego rechazadas.
+        $states = request()->query('rejected') ? [0] : [1];
+
+        $i = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 1)->oldest()->skip(($page - 1) * $perPage)->take($perPage)->get();
+        $c = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 4)->oldest()->skip(($page - 1) * $perPage)->take($perPage)->get();
+        $d = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 5)->oldest()->skip(($page - 1) * $perPage)->take($perPage)->get();
+        $p = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 15)->oldest()->skip(($page - 1) * $perPage)->take($perPage)->get();
 
         $invoice = (object)[
             'name' => 'Factura de Venta Nacional',

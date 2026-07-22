@@ -6,6 +6,11 @@
     $t12lmt = $request->legal_monetary_totals ?? [];
     $t12descuento = (float) ($t12lmt['allowance_total_amount'] ?? 0);
     $t12cargos = (float) ($t12lmt['charge_total_amount'] ?? 0);
+    // base AIU: suma de las lineas Administracion/Imprevisto/Utilidad
+    $t12aiu = 0;
+    foreach ($request->invoice_lines ?? [] as $t12line) {
+        if (in_array($t12line['code'] ?? '', ['ADMINIST', 'IMPREVIS', 'UTILIDAD'])) $t12aiu += (float) ($t12line['line_extension_amount'] ?? 0);
+    }
     // ENVIAR A: usar tercero de entrega si viene, si no el cliente
     $t12ship = $request->deliveryparty ?? null;
 @endphp
@@ -151,10 +156,21 @@
             </td>
             <td style="width: 50%; vertical-align: top; padding: 0;">
                 <table width="100%" cellpadding="4" style="border-collapse: collapse;">
-                    <tr>
-                        <td style="background-color: #DDEBF7; width: 55%;">SUBTOTAL</td>
-                        <td style="background-color: #DDEBF7; text-align: right;">{{$t12n($t12lmt['tax_exclusive_amount'] ?? 0)}}</td>
-                    </tr>
+                    @if($t12aiu > 0)
+                        <tr>
+                            <td style="background-color: #DDEBF7; width: 55%;">BASE SERVICIO</td>
+                            <td style="background-color: #DDEBF7; text-align: right;">{{$t12n(($t12lmt['tax_exclusive_amount'] ?? 0) - $t12aiu)}}</td>
+                        </tr>
+                        <tr>
+                            <td style="background-color: #DDEBF7;">BASE AIU</td>
+                            <td style="background-color: #DDEBF7; text-align: right;">{{$t12n($t12aiu)}}</td>
+                        </tr>
+                    @else
+                        <tr>
+                            <td style="background-color: #DDEBF7; width: 55%;">SUBTOTAL</td>
+                            <td style="background-color: #DDEBF7; text-align: right;">{{$t12n($t12lmt['tax_exclusive_amount'] ?? 0)}}</td>
+                        </tr>
+                    @endif
                     @if($t12descuento > 0)
                         <tr>
                             <td style="border: 0.5px solid #DDEBF7;">Descuentos (-)</td>

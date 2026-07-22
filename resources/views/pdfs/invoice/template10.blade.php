@@ -7,6 +7,11 @@
     $t10lmt = $request->legal_monetary_totals ?? [];
     $t10descuento = (float) ($t10lmt['allowance_total_amount'] ?? 0);
     $t10cargos = (float) ($t10lmt['charge_total_amount'] ?? 0);
+    // base AIU: suma de las lineas Administracion/Imprevisto/Utilidad
+    $t10aiu = 0;
+    foreach ($request->invoice_lines ?? [] as $t10line) {
+        if (in_array($t10line['code'] ?? '', ['ADMINIST', 'IMPREVIS', 'UTILIDAD'])) $t10aiu += (float) ($t10line['line_extension_amount'] ?? 0);
+    }
 @endphp
 <body>
     @if(isset($request->head_note))
@@ -183,10 +188,21 @@
             </td>
             <td style="width: 45%; vertical-align: top; padding: 0;">
                 <table width="100%" cellpadding="4" style="font-size: 9px;">
-                    <tr>
-                        <td style="border-bottom: 0.5px solid #dddddd;">Total (sin imp.)</td>
-                        <td style="border-bottom: 0.5px solid #dddddd; text-align: right;">{{$t10n($t10lmt['tax_exclusive_amount'] ?? 0)}}</td>
-                    </tr>
+                    @if($t10aiu > 0)
+                        <tr>
+                            <td style="border-bottom: 0.5px solid #dddddd;">Base servicio</td>
+                            <td style="border-bottom: 0.5px solid #dddddd; text-align: right;">{{$t10n(($t10lmt['tax_exclusive_amount'] ?? 0) - $t10aiu)}}</td>
+                        </tr>
+                        <tr>
+                            <td style="border-bottom: 0.5px solid #dddddd;">Base AIU</td>
+                            <td style="border-bottom: 0.5px solid #dddddd; text-align: right;">{{$t10n($t10aiu)}}</td>
+                        </tr>
+                    @else
+                        <tr>
+                            <td style="border-bottom: 0.5px solid #dddddd;">Total (sin imp.)</td>
+                            <td style="border-bottom: 0.5px solid #dddddd; text-align: right;">{{$t10n($t10lmt['tax_exclusive_amount'] ?? 0)}}</td>
+                        </tr>
+                    @endif
                     @if($t10descuento > 0)
                         <tr>
                             <td style="border-bottom: 0.5px solid #dddddd;">Descuentos (-)</td>
