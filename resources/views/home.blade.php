@@ -1167,17 +1167,34 @@ $(document).ready(function () {
         }
 
         function fallbackCopy(text) {
-            var $temp = $('<input>');
-            $('body').append($temp);
-            $temp.val(text).select();
-            document.execCommand('copy');
-            $temp.remove();
-            new PNotify({
-                text: 'Token copiado al portapapeles',
-                type: 'success',
-                addclass: 'notification-success',
-                delay: 2000
-            });
+            // Seleccionar el propio input del token (está dentro del modal;
+            // un input temporal en el body pierde el foco por el enforceFocus del modal)
+            var input = document.getElementById('company-token-input');
+            input.focus();
+            input.select();
+            input.setSelectionRange(0, input.value.length);
+            var ok = false;
+            try {
+                ok = document.execCommand('copy');
+            } catch (e) {
+                ok = false;
+            }
+            if (ok) {
+                new PNotify({
+                    text: 'Token copiado al portapapeles',
+                    type: 'success',
+                    addclass: 'notification-success',
+                    delay: 2000
+                });
+            } else {
+                // dejar el token seleccionado para copiarlo manualmente con Ctrl+C
+                new PNotify({
+                    text: 'No se pudo copiar automáticamente. El token quedó seleccionado: presione Ctrl+C',
+                    type: 'error',
+                    addclass: 'notification-danger',
+                    delay: 4000
+                });
+            }
         }
     });
 
