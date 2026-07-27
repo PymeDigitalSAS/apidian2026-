@@ -8,11 +8,11 @@ Estamos enfocados en crear herramientas y soluciones para desarrolladores de sof
 
 - ###  Despliegue en local (Windows)
   * Video de instalación. [Aquí](https://www.youtube.com/watch?v=9Ds2DR3QLGY)
-  * [Pasos aquí](https://git.buho.la/facturalatam/co-apidian2026/-/blob/master/Comandos%20Instalacion%20API%202025%20Windows.txt)
+  * [Pasos aquí](docs/Comandos%20Instalacion%20API%202025%20Windows.md)
 - ### Despliegue en linux
   *  Exclusivo para Ubuntu **20.04** | entorno LAMP | ejecucion de comandos de forma manual.
      * [Video aquí](https://www.youtube.com/watch?v=rEgrHADjsCY)
-     * [Comandos aquí](https://git.buho.la/facturalatam/co-apidian2026/-/blob/master/Comandos%20Instalacion%20API%202025%20Linux%20Ubuntu%2020.txt?ref_type=heads)
+     * [Comandos aquí](docs/Comandos%20Instalacion%20API%202025%20Linux%20Ubuntu%2020.md)
   * Exclusivo para Ubuntu **20.04** | Entorno LAMP | ejecución de script.
      * [Pasos y script aquí](https://git.buho.la/facturalatam/co-apidian2026/-/snippets/47)
   * Linux | Entorno **Docker** | *Aporte de usuario de la comunidad*
@@ -34,7 +34,7 @@ Estamos enfocados en crear herramientas y soluciones para desarrolladores de sof
 ## 2. Actualización
 
 - Actualizar repositorio de gitlab de una versión antigua a la actual. [Video aquí](https://www.youtube.com/watch?v=6lwLKQCYvNY)
-- Comandos para actualizar repositorio **Pto. 1** y comandos para actualizar **Pto.2**. [Aquí](https://git.buho.la/facturalatam/co-apidian2026/-/blob/master/Proceso%20de%20actualizacion%20APIDIAN.txt?ref_type=heads)
+- Comandos para actualizar repositorio **Pto. 1** y comandos para actualizar **Pto.2**. [Aquí](docs/Proceso%20de%20actualizacion%20APIDIAN.md)
 
 ## 3. Ejemplos para la API / Collection POSTMAN
 
@@ -53,11 +53,16 @@ Estamos enfocados en crear herramientas y soluciones para desarrolladores de sof
 ## 6.- Cómo pasar a producción
 * Ver video explicativo [Aquí](https://www.youtube.com/watch?v=gBtd4XqwWtg)
 
+## Errores frecuentes
+
+* Soluciones a los problemas más comunes de instalación y operación del API. [Ver manual aquí](docs/Errores%20frecuentes%20APIDIAN.md)
+
 ## APP
 * Aplicación movil en formato web [visitar URL](https://facturalatam.com/app/)
 
 ## Extras
 
+* Para habilitar la carga de **Fichas RUT** al crear empresas (autocompleta el formulario desde el PDF del RUT): [ver manual aquí](docs/Configurar%20PDF%20Fichas%20RUT.md)
 * Para deshabilitar registro de nuevas empresas por API:
   * ubicarse en la raiz del proyecto
   * editar el archivo .env (*utilizar nano o un editor en consola*)

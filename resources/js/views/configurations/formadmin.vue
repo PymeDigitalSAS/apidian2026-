@@ -603,11 +603,8 @@
                     </form>
                 </div>
                 <div class="col-md-12 text-center mt-4">
-                    <el-button size="medium" type="primary" :loading="loading_submit" @click="saveResolution(false)">
+                    <el-button size="medium" type="primary" :loading="loading_submit" @click="saveResolution">
                         Siguiente (factura JSON opcional)
-                    </el-button>
-                    <el-button size="medium" type="success" :loading="loading_submit" @click="saveResolution(true)">
-                        <i class="el-icon-check"></i> Terminar
                     </el-button>
                 </div>
             </div>
@@ -1556,7 +1553,7 @@
                         // si la consulta falla solo se omite el aviso, no bloquea el wizard
                     });
             },
-            saveResolution(finish = false) {
+            saveResolution() {
                 if (!this.validateResolutionFields()) {
                     const allErrors = Object.values(this.errors).flat().join('\n');
                     this.$message.warning(allErrors || 'Complete los campos obligatorios.');
@@ -1569,16 +1566,7 @@
                         if (response.data.success) {
                             this.responseResolution = response.data;
                             this.$message.success(response.data.message);
-                            const ncPromise = this.saveCreditNoteResolution();
-                            if (finish) {
-                                // Marcar todos los pasos como completados y cerrar el wizard
-                                // (esperando a que termine la creación de la resolución NC)
-                                ncPromise.then(() => {
-                                    this.active = 5;
-                                    setTimeout(() => this.closeWizard(), 800);
-                                });
-                                return;
-                            }
+                            this.saveCreditNoteResolution();
                             // Pre-rellenar prefix y resolution_number en el JSON de factura
                             try {
                                 const parsed = JSON.parse(this.invoice.json || '{}');

@@ -73,8 +73,8 @@ chmod -R 777 storage bootstrap/cache vendor/mpdf/mpdf
 php artisan config:cache && php artisan cache:clear
 php artisan storage:link
 php artisan migrate --seed
-chmod 700 urn_on.sh
-./urn_on.sh
+# Las plantillas "urn" ya se aplican automáticamente con composer install/update.
+# Solo si necesita re-aplicarlas manualmente: php urn_on.php
 
 cd /etc/apache2/sites-available/
 touch api.conf

@@ -74,6 +74,21 @@ Si aparecen conflictos:
 
     composer clear-cache
     composer self-update 2.8.0
+
+    # [Solo Windows/Laragon] Si el self-update falla con:
+    #     rename(...composer-temp.phar, ...composer.phar): Acceso denegado (code: 5)
+    # NO es un problema de permisos (ejecutar la consola como administrador no lo
+    # soluciona): Windows no permite sobrescribir composer.phar porque es el archivo
+    # que está en ejecución en ese momento (y a veces el antivirus retiene el phar
+    # recién descargado). La versión nueva ya quedó descargada como composer-temp.phar
+    # en la misma carpeta. Solución (en C:\laragon\bin\composer):
+    #     ren composer.phar composer-viejo.phar
+    #     ren composer-temp.phar composer.phar
+    #     composer -V     (debe mostrar 2.8.0; luego puede borrar composer-viejo.phar)
+    # Si composer-temp.phar no existiera, descargar el phar directo:
+    #     php -r "copy('https://getcomposer.org/download/2.8.0/composer.phar','C:/laragon/bin/composer/composer.phar');"
+    # En Linux/VPS esto no ocurre (el sistema permite reemplazar archivos en uso).
+
     rm composer.lock
     composer install
 
@@ -84,8 +99,8 @@ Luego:
     chmod -R 777 bootstrap/cache
     chmod -R 777 vendor/mpdf/mpdf
     php artisan config:cache && php artisan config:clear && php artisan cache:clear
-    chmod 700 urn_on.sh
-    ./urn_on.sh
+    # Las plantillas "urn" ya se aplican automáticamente con composer install/update.
+    # Solo si necesita re-aplicarlas manualmente: php urn_on.php
 
 Nota (Docker)
 Se debera ajustar tambien el archivo docker-compose.yml y buscar el campo php_api, Debe tener esta estructura:
@@ -124,14 +139,16 @@ Luego:
     php artisan migrate --seed
     composer clear-cache
     composer self-update 2.8.0
+    # [Solo Windows/Laragon] Si sale "rename(...): Acceso denegado (code: 5)",
+    # ver la nota del punto 1.5 (renombrar composer.phar y composer-temp.phar).
     rm composer.lock
     composer install
     chmod -R 777 storage
     chmod -R 777 bootstrap/cache
     chmod -R 777 vendor/mpdf/mpdf
     php artisan config:cache && php artisan config:clear && php artisan cache:clear
-    chmod 700 urn_on.sh
-    ./urn_on.sh
+    # Las plantillas "urn" ya se aplican automáticamente con composer install/update.
+    # Solo si necesita re-aplicarlas manualmente: php urn_on.php
 
 ===========================================
 3) ACTUALIZACIÓN RÁPIDA (SI NO CAMBIÓ LA VERSIÓN DEL API)
