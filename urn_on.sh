@@ -1,2 +1,4 @@
-cp resources/templates/xml/urn/*.* resources/templates/xml
-cp vendor/ubl21dian/torresoftware/src/XAdES/urn/*.* vendor/ubl21dian/torresoftware/src/XAdES
+#!/bin/sh
+# Este paso ahora se ejecuta automaticamente con "composer install" / "composer update".
+# Se conserva este script solo por compatibilidad.
+php "$(dirname "$0")/urn_on.php"

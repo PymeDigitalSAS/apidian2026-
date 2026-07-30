@@ -1,2 +1,4 @@
-COPY resources\templates\xml\urn\*.* resources\templates\xml /Y
-COPY vendor\ubl21dian\torresoftware\src\XAdES\urn\*.* vendor\ubl21dian\torresoftware\src\XAdES /Y
+@echo off
+REM Este paso ahora se ejecuta automaticamente con "composer install" / "composer update".
+REM Se conserva este .bat solo por compatibilidad. En PowerShell ejecutar: .\urn_on.bat
+php "%~dp0urn_on.php"
