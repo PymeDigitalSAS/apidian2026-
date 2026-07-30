@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use App\Traits\DocumentTrait;
 use App\Http\Controllers\Controller;
 use ubl21dian\XAdES\SignAttachedDocument;
+use ubl21dian\Templates\SOAP\GetXmlByDocumentKey;
 use App\Services\StorageService;
 
 /**
@@ -101,37 +102,60 @@ class RegenerateAttachedDocumentController extends Controller
                 : $signedPrefix;
             $basePath = "public/{$company->identification_number}";
 
+            // OJO: si existe otro documento con el mismo prefijo y número (p. ej.
+            // un reenvío que quedó rechazado), los archivos FES/Rpta en disco
+            // fueron sobrescritos por ese último envío y ya no corresponden a
+            // este documento (o traen el XmlBase64Bytes vacío). Por eso cada
+            // fuente se valida contra el CUFE y, si falla, se recupera de la BD
+            // (response_api / response_dian) o de la DIAN (GetXmlByDocumentKey).
+            $cufecude = $invoice_doc->cufe;
+
             // 3. XML firmado (signedxml) del documento (factura, nota, doc. soporte...)
+            $signedxml = null;
             $signedPath = "{$basePath}/{$invoice_doc->xml}";
-            if (!StorageService::existsAuto($signedPath)) {
-                return [
-                    'success' => false,
-                    'message' => "No se encontró el XML firmado del documento ({$invoice_doc->xml}). No es posible regenerar el adjunto.",
-                ];
+            if (StorageService::existsAuto($signedPath)) {
+                $candidate = StorageService::getAuto($signedPath);
+                if ($this->belongsToDocument($candidate, $cufecude))
+                    $signedxml = $candidate;
             }
-            $signedxml = StorageService::getAuto($signedPath);
+            if (!$signedxml)
+                $signedxml = $this->signedXmlFromDb($invoice_doc);
 
             // 4. Respuesta de la DIAN (Rpta{PREFIJO}) -> ApplicationResponse + nombre del adjunto
+            $xmlFileName = null;
+            $appresponsexml = null;
             $rptaFile = "Rpta{$rptaPrefix}-{$consecutive}.xml";
             $rptaPath = "{$basePath}/{$rptaFile}";
-            if (!StorageService::existsAuto($rptaPath)) {
-                return [
-                    'success' => false,
-                    'message' => "No se encontró la respuesta de la DIAN almacenada ({$rptaFile}). No es posible regenerar el adjunto.",
-                ];
+            if (StorageService::existsAuto($rptaPath)) {
+                $rptaContent = StorageService::getAuto($rptaPath);
+                $xmlFileNameTag = $this->getTag($rptaContent, 'XmlFileName');
+                $appResponseTag = $this->getTag($rptaContent, 'XmlBase64Bytes');
+                if ($xmlFileNameTag && $appResponseTag && trim($appResponseTag->nodeValue) !== '') {
+                    $decoded = base64_decode($appResponseTag->nodeValue);
+                    if ($this->belongsToDocument($decoded, $cufecude)) {
+                        $xmlFileName = $xmlFileNameTag->nodeValue;
+                        $appresponsexml = $decoded;
+                    }
+                }
             }
-            $rptaContent = StorageService::getAuto($rptaPath);
+            if (!$appresponsexml)
+                list($xmlFileName, $appresponsexml) = $this->applicationResponseFromDb($invoice_doc);
 
-            $xmlFileNameTag = $this->getTag($rptaContent, 'XmlFileName');
-            $appResponseTag = $this->getTag($rptaContent, 'XmlBase64Bytes');
-            if (!$xmlFileNameTag || !$appResponseTag) {
+            // Último recurso: pedir a la DIAN el AttachedDocument por CUFE y
+            // extraer de ahí lo que siga faltando (típico en notas y doc.
+            // soporte, que no guardan respaldo en BD).
+            if (!$signedxml || !$appresponsexml) {
+                list($dianSigned, $dianAppResponse) = $this->fetchFromDian($company, $cufecude);
+                $signedxml = $signedxml ?: $dianSigned;
+                $appresponsexml = $appresponsexml ?: $dianAppResponse;
+            }
+
+            if (!$signedxml || !$appresponsexml) {
                 return [
                     'success' => false,
-                    'message' => 'La respuesta de la DIAN almacenada no contiene el ApplicationResponse esperado (XmlFileName / XmlBase64Bytes).',
+                    'message' => "Los archivos {$invoice_doc->xml} / {$rptaFile} no corresponden a este documento o están incompletos (probablemente fueron sobrescritos por otro envío con el mismo prefijo y número), y no fue posible recuperarlos de la base de datos ni de la DIAN. No es posible regenerar el adjunto.",
                 ];
             }
-            $xmlFileName = $xmlFileNameTag->nodeValue;
-            $appresponsexml = base64_decode($appResponseTag->nodeValue);
 
             // 5. Fecha y hora de validación desde el ApplicationResponse
             $ar = new \DOMDocument;
@@ -166,14 +190,18 @@ class RegenerateAttachedDocumentController extends Controller
             $date = $fechavalidacion;
             $time = preg_replace('/[+-]\d{2}:\d{2}$/', '', $horavalidacion);
 
-            // 9. CUFE/CUDE y tipo de documento AttachedDocument (code 89)
-            $cufecude = $invoice_doc->cufe;
+            // 9. Tipo de documento AttachedDocument (code 89)
             $typeDocument = TypeDocument::findOrFail(7);
 
-            // 10. Nombre del adjunto: mismo que generó la emisión (fv/nc/nd... -> ad)
-            $filename = str_replace('ttr', 'ad', str_replace('pos', 'ad', str_replace('ads', 'ad',
-                        str_replace('dse', 'ad', str_replace('ni', 'ad', str_replace('nd', 'ad',
-                        str_replace('nc', 'ad', str_replace('fv', 'ad', $xmlFileName))))))));
+            // 10. Nombre del adjunto: mismo que generó la emisión (fv/nc/nd... -> ad).
+            //     Si no se pudo recuperar el XmlFileName (adjunto reconstruido
+            //     desde la DIAN), se usa un nombre equivalente con el consecutivo.
+            if ($xmlFileName)
+                $filename = str_replace('ttr', 'ad', str_replace('pos', 'ad', str_replace('ads', 'ad',
+                            str_replace('dse', 'ad', str_replace('ni', 'ad', str_replace('nd', 'ad',
+                            str_replace('nc', 'ad', str_replace('fv', 'ad', $xmlFileName))))))));
+            else
+                $filename = 'ad-' . strtolower($rptaPrefix) . '-' . $consecutive;
             if (!empty($requestData['atacheddocument_name_prefix']))
                 $filename = $requestData['atacheddocument_name_prefix'] . $filename;
 
@@ -289,5 +317,149 @@ class RegenerateAttachedDocumentController extends Controller
         $customer->company = new Company($customerAll->toArray());
 
         return $customer;
+    }
+
+    /**
+     * Verifica que un XML pertenezca al documento comparando el CUFE/CUDE.
+     * Protege contra archivos sobrescritos por otro documento con el mismo
+     * prefijo y número (p. ej. un reenvío que quedó rechazado).
+     *
+     * @param string|false|null $xml
+     * @param string|null $cufe
+     * @return bool
+     */
+    protected function belongsToDocument($xml, $cufe)
+    {
+        if (empty($xml))
+            return false;
+
+        // Sin CUFE registrado no hay contra qué validar; se acepta el archivo.
+        if (empty($cufe))
+            return true;
+
+        return stripos($xml, $cufe) !== false;
+    }
+
+    /**
+     * XML firmado desde el response_api guardado en la BD (clave invoicexml).
+     * Solo las facturas lo guardan, y únicamente si la configuración
+     * save_response_dian_to_db está activa.
+     *
+     * @param \App\Document $invoice_doc
+     * @return string|null
+     */
+    protected function signedXmlFromDb($invoice_doc)
+    {
+        $response = json_decode($invoice_doc->response_api ?? '', true);
+        if (!is_array($response) || empty($response['invoicexml']) || !is_string($response['invoicexml']))
+            return null;
+
+        $xml = base64_decode($response['invoicexml']);
+
+        return $this->belongsToDocument($xml, $invoice_doc->cufe) ? $xml : null;
+    }
+
+    /**
+     * ApplicationResponse (XmlFileName + XML decodificado) desde el
+     * response_dian guardado en la BD para este documento.
+     *
+     * @param \App\Document $invoice_doc
+     * @return array [xmlFileName|null, appresponsexml|null]
+     */
+    protected function applicationResponseFromDb($invoice_doc)
+    {
+        $response = json_decode($invoice_doc->response_dian ?? '', true);
+        if (!is_array($response))
+            return [null, null];
+
+        $xmlFileName = $this->findKeyRecursive($response, 'XmlFileName');
+        $xmlBase64 = $this->findKeyRecursive($response, 'XmlBase64Bytes');
+        if (!is_string($xmlBase64) || trim($xmlBase64) === '')
+            return [null, null];
+
+        $decoded = base64_decode($xmlBase64);
+        if (!$this->belongsToDocument($decoded, $invoice_doc->cufe))
+            return [null, null];
+
+        return [is_string($xmlFileName) ? $xmlFileName : null, $decoded];
+    }
+
+    /**
+     * Busca una clave en cualquier nivel del arreglo. La ruta exacta dentro del
+     * SOAP varía según el servicio con que se envió el documento (SendBillSync,
+     * SendTestSetAsync, GetStatus...), por eso se busca de forma recursiva.
+     *
+     * @param array $data
+     * @param string $key
+     * @return mixed|null
+     */
+    protected function findKeyRecursive(array $data, $key)
+    {
+        if (array_key_exists($key, $data))
+            return $data[$key];
+
+        foreach ($data as $value) {
+            if (is_array($value)) {
+                $found = $this->findKeyRecursive($value, $key);
+                if ($found !== null)
+                    return $found;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Último recurso: pide a la DIAN el AttachedDocument por CUFE
+     * (GetXmlByDocumentKey, con el certificado de la empresa) y extrae el XML
+     * firmado y el ApplicationResponse de los nodos Description (CDATA).
+     *
+     * @param \App\Company $company
+     * @param string|null $cufe
+     * @return array [signedxml|null, appresponsexml|null]
+     */
+    protected function fetchFromDian($company, $cufe)
+    {
+        if (empty($cufe))
+            return [null, null];
+
+        try {
+            $getXml = new GetXmlByDocumentKey($company->certificate->path, $company->certificate->password, $company->software->url);
+            $getXml->trackId = $cufe;
+            $r = $getXml->signToSend()->getResponseToObject();
+
+            $result = $r->Envelope->Body->GetXmlByDocumentKeyResponse->GetXmlByDocumentKeyResult ?? null;
+            $bytes = $result->XmlBytesBase64 ?? null;
+            if (($result->Code ?? null) != '100' || empty($bytes))
+                return [null, null];
+
+            // XmlBytesBase64 puede venir como string o como objeto {_value: ...};
+            // base64_decode no estricto ignora las comillas del json_encode.
+            $attached = base64_decode(is_string($bytes) ? $bytes : json_encode($bytes));
+            if (empty($attached))
+                return [null, null];
+
+            $dom = new \DOMDocument();
+            libxml_use_internal_errors(true);
+            $ok = $dom->loadXML($attached, LIBXML_NOCDATA);
+            libxml_clear_errors();
+            if (!$ok)
+                return [null, null];
+
+            $signedxml = null;
+            $appresponsexml = null;
+            foreach ($dom->getElementsByTagName('Description') as $desc) {
+                $inner = trim((string) $desc->nodeValue);
+                if (!$signedxml && preg_match('/<(Invoice|CreditNote|DebitNote)[\s>]/', $inner))
+                    $signedxml = $inner;
+                elseif (!$appresponsexml && preg_match('/<ApplicationResponse[\s>]/', $inner))
+                    $appresponsexml = $inner;
+            }
+
+            return [$signedxml, $appresponsexml];
+        } catch (\Throwable $e) {
+            \Log::warning('RegenerateAttachedDocument: fallback GetXmlByDocumentKey falló: ' . $e->getMessage());
+            return [null, null];
+        }
     }
 }
