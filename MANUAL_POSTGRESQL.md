@@ -107,7 +107,34 @@ php artisan tinker --execute="echo DB::connection()->getDriverName(), ' / ', App
 Debe imprimir `pgsql / 33 departamentos`. Luego probar login y emitir un
 documento de prueba en ambiente de habilitación.
 
-## 7. Desarrollo local: Postgres con Docker (opcional)
+## 7. Postgres con Docker
+
+### 7a. Stack dockerizado completo (VPS / producción)
+
+El repo incluye `docker-compose.postgres.yml.example`: el mismo stack de
+`docker-compose.yml.example` pero con PostgreSQL 16 en lugar de MariaDB.
+
+```bash
+cp docker-compose.postgres.yml.example docker-compose.yml
+# .env: DB_CONNECTION=pgsql, DB_HOST=postgres, DB_PORT=5432,
+#       DB_DATABASE=db_api, DB_USERNAME=user_api, DB_PASSWORD=<clave>
+docker network create apinet   # si no existe
+docker compose build           # el Dockerfile ya compila pdo_pgsql/pgsql
+docker compose up -d
+docker compose exec php_api php artisan config:clear
+docker compose exec php_api php artisan migrate --seed
+```
+
+Notas:
+- No necesita `docker/init.sql`: la imagen oficial de Postgres crea el
+  usuario y la base desde las variables `POSTGRES_*` del compose.
+- El puerto 5432 queda publicado solo en `127.0.0.1` del servidor; para un
+  cliente gráfico desde tu máquina usar túnel SSH:
+  `ssh -L 5432:127.0.0.1:5432 usuario@vps`.
+- Los datos viven en el volumen `api_pgdata` (sobreviven a recrear el
+  contenedor; se borran solo con `docker volume rm`).
+
+### 7b. Solo la base para desarrollo local (opcional)
 
 ```bash
 docker run -d --name pg-apidian \
@@ -119,7 +146,8 @@ docker run -d --name pg-apidian \
 
 HeidiSQL, DBeaver o pgAdmin sirven como cliente gráfico (en HeidiSQL elegir
 tipo de red "PostgreSQL (TCP/IP)"). Nota: en Postgres cada conexión entra a
-una sola base; las tablas están dentro del esquema `public`.
+una sola base; las tablas están dentro del esquema `public` (expandir ese
+nodo y refrescar con F5 tras migrar).
 
 ## 8. Archivos que soportan la compatibilidad dual
 
