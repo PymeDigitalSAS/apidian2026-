@@ -8,6 +8,7 @@ use DateTime;
 use App\TypeDocument;
 use App\Customer;
 use App\TypeCurrency;
+use App\Helpers\SqlDialect;
 
 
 class Document extends Model
@@ -245,8 +246,9 @@ class Document extends Model
                     break;
                 case 'client':
                     $query->where(function ($q) use ($search) {
-                        $q->whereRaw("JSON_UNQUOTE(client->'$.name') LIKE ?", ["%$search%"])
-                            ->orWhereRaw("JSON_UNQUOTE(client->'$.identification_number') LIKE ?", ["%$search%"]);
+                        $like = SqlDialect::likeOp();
+                        $q->whereRaw(SqlDialect::jsonText('client', 'name') . " $like ?", ["%$search%"])
+                            ->orWhereRaw(SqlDialect::jsonText('client', 'identification_number') . " $like ?", ["%$search%"]);
                     });
                     break;
                 case 'type':

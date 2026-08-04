@@ -17,10 +17,11 @@ class SetDefaultDocumentTemplatesForNewCompanies extends Migration
      */
     public function up()
     {
-        DB::statement('ALTER TABLE `companies` ALTER COLUMN `graphic_representation_template` SET DEFAULT 12');
-        DB::statement('ALTER TABLE `companies` ALTER COLUMN `eqdocs_template` SET DEFAULT 2');
-        DB::statement('ALTER TABLE `companies` ALTER COLUMN `support_document_template` SET DEFAULT 2');
-        DB::statement('ALTER TABLE `companies` ALTER COLUMN `payroll_template` SET DEFAULT 2');
+        // Sin backticks: sintaxis valida tanto en MySQL/MariaDB como en PostgreSQL
+        DB::statement('ALTER TABLE companies ALTER COLUMN graphic_representation_template SET DEFAULT 12');
+        DB::statement('ALTER TABLE companies ALTER COLUMN eqdocs_template SET DEFAULT 2');
+        DB::statement('ALTER TABLE companies ALTER COLUMN support_document_template SET DEFAULT 2');
+        DB::statement('ALTER TABLE companies ALTER COLUMN payroll_template SET DEFAULT 2');
     }
 
     /**
@@ -32,9 +33,9 @@ class SetDefaultDocumentTemplatesForNewCompanies extends Migration
     {
         // Facturas vuelve a su default original (2); las columnas por tipo
         // vuelven a quedar sin default (nullable).
-        DB::statement('ALTER TABLE `companies` ALTER COLUMN `graphic_representation_template` SET DEFAULT 2');
-        DB::statement('ALTER TABLE `companies` ALTER COLUMN `eqdocs_template` DROP DEFAULT');
-        DB::statement('ALTER TABLE `companies` ALTER COLUMN `support_document_template` DROP DEFAULT');
-        DB::statement('ALTER TABLE `companies` ALTER COLUMN `payroll_template` DROP DEFAULT');
+        DB::statement('ALTER TABLE companies ALTER COLUMN graphic_representation_template SET DEFAULT 2');
+        DB::statement('ALTER TABLE companies ALTER COLUMN eqdocs_template DROP DEFAULT');
+        DB::statement('ALTER TABLE companies ALTER COLUMN support_document_template DROP DEFAULT');
+        DB::statement('ALTER TABLE companies ALTER COLUMN payroll_template DROP DEFAULT');
     }
 }

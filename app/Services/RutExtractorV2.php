@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Department;
+use App\Helpers\SqlDialect;
 use App\Municipality;
 use App\TypeDocumentIdentification;
 use App\TypeLiability;
@@ -278,9 +279,9 @@ class RutExtractorV2
                     $fields['municipality_code'] = $munCode;
                     $fields['municipality_text'] = $munName;
 
-                    $dep = Department::whereRaw("LPAD(CAST(code AS CHAR), 2, '0') = ?", [$depCode])->first();
+                    $dep = Department::whereRaw('LPAD(' . SqlDialect::castChar('code') . ", 2, '0') = ?", [$depCode])->first();
                     if (!$dep) {
-                        $dep = Department::where('name', 'like', $depName)->first();
+                        $dep = Department::whereRaw('UPPER(name) LIKE UPPER(?)', [$depName])->first();
                     }
 
                     if ($dep) {
@@ -288,7 +289,7 @@ class RutExtractorV2
 
                         $mun = Municipality::where('department_id', $dep->id)
                             ->where(function ($q) use ($munCode) {
-                                $q->whereRaw("LPAD(CAST(code AS CHAR), 5, '0') = ?", [$munCode])
+                                $q->whereRaw('LPAD(' . SqlDialect::castChar('code') . ", 5, '0') = ?", [$munCode])
                                     ->orWhere('code', $munCode)
                                     ->orWhere('code', ltrim($munCode, '0'))
                                     ->orWhere('code', substr($munCode, 2));
@@ -296,7 +297,7 @@ class RutExtractorV2
                             ->first();
                         if (!$mun) {
                             $mun = Municipality::where('department_id', $dep->id)
-                                ->where('name', 'like', $munName)
+                                ->whereRaw('UPPER(name) LIKE UPPER(?)', [$munName])
                                 ->first();
                         }
 
@@ -484,8 +485,12 @@ class RutExtractorV2
      */
     private static function lookupByCode(string $model, string $code)
     {
+        $cr   = SqlDialect::chr(13);
+        $lf   = SqlDialect::chr(10);
+        $code_text = SqlDialect::castChar('code');
+
         return $model::whereRaw(
-            "TRIM(REPLACE(REPLACE(code, CHAR(13), ''), CHAR(10), '')) = ?",
+            "TRIM(REPLACE(REPLACE($code_text, $cr, ''), $lf, '')) = ?",
             [$code]
         )->first();
     }

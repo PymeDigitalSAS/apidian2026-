@@ -36,9 +36,11 @@ class RipsAppointment extends Model
 
     public function scopeFilter($query, $search, $month = null)
     {
-        // Filter by month
-        if ($month) {
-            $query->whereRaw('DATE_FORMAT(date, "%Y-%m") = ?', [$month]);
+        // Filter by month (rango de fechas: portable entre MySQL y PostgreSQL)
+        if ($month && preg_match('/^\d{4}-\d{2}$/', $month)) {
+            $start = \Illuminate\Support\Carbon::parse($month . '-01');
+            $query->where('date', '>=', $start->toDateString())
+                  ->where('date', '<', $start->copy()->addMonth()->toDateString());
         }
 
         if ($search) {

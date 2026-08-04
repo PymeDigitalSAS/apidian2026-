@@ -35,7 +35,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        DB::setDefaultConnection('mysql');
+        // La conexion por defecto la define DB_CONNECTION en el .env
+        // (antes habia un DB::setDefaultConnection('mysql') hardcodeado que
+        // impedia cambiar de motor via .env).
         Schema::defaultStringLength(191);
 
         // Monitoreo: acumula el tiempo de cada consulta de la petición en curso

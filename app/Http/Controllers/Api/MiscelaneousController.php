@@ -7,6 +7,7 @@ use App\Company;
 use App\Resolution;
 use App\Document;
 use App\DocumentPayroll;
+use App\Helpers\SqlDialect;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\JoinPDFsRequest;
 use App\Http\Requests\Api\NextConsecutiveRequest;
@@ -39,7 +40,7 @@ class MiscelaneousController extends Controller
                     ->where('type_document_id', $request->type_document_id)
                     ->where('state_document_id', 1)
                     ->where('prefix', $resolution->prefix)
-                    ->orderByRaw('CAST(consecutive AS UNSIGNED) DESC')
+                    ->orderByRaw(SqlDialect::castInt('consecutive') . ' DESC')
                     ->first();
                 return [
                     'success' => true,
@@ -53,7 +54,7 @@ class MiscelaneousController extends Controller
                     ->where('type_document_id', $request->type_document_id)
                     ->where('state_document_id', 1)
                     ->where('prefix', $resolution->prefix)
-                    ->orderByRaw('CAST(number AS UNSIGNED) DESC')
+                    ->orderByRaw(SqlDialect::castInt('number') . ' DESC')
                     ->first();
                 return [
                     'success' => true,

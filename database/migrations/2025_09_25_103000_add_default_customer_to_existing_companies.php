@@ -20,13 +20,17 @@ class AddDefaultCustomerToExistingCompanies extends Migration
         // Primero modificar la estructura de la tabla
         // Algunos clientes tienen FK documents_customer_foreign -> customers.identification_number
         // MySQL bloquea DROP PRIMARY KEY si existe esa FK, por eso la eliminamos antes si existe
+        // DATABASE() es de MySQL; en PostgreSQL el ambito equivalente en
+        // information_schema es el esquema actual (current_schema())
+        $schema_fn = \App\Helpers\SqlDialect::isPgsql() ? 'current_schema()' : 'DATABASE()';
+
         $fkExists = DB::select("
             SELECT COUNT(*) as cnt
-            FROM information_schema.TABLE_CONSTRAINTS
-            WHERE CONSTRAINT_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'documents'
-              AND CONSTRAINT_NAME = 'documents_customer_foreign'
-              AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+            FROM information_schema.table_constraints
+            WHERE constraint_schema = {$schema_fn}
+              AND table_name = 'documents'
+              AND constraint_name = 'documents_customer_foreign'
+              AND constraint_type = 'FOREIGN KEY'
         ");
 
         if ($fkExists[0]->cnt > 0) {

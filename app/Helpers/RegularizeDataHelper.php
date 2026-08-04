@@ -57,6 +57,13 @@ class RegularizeDataHelper
      */
     public static function loadCsvFile($table, $columns, $path_file, $ignore = false)
     {
+        // LOAD DATA es exclusivo de MySQL/MariaDB; en otros motores
+        // (PostgreSQL) se inserta directo desde PHP sin intentar el exec,
+        // para no abortar la transaccion activa con un error de sintaxis.
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return self::insertCsvWithPhp($table, $columns, $path_file, $ignore);
+        }
+
         try {
             $keyword = $ignore ? ' IGNORE' : '';
             DB::connection()
@@ -115,6 +122,35 @@ class RegularizeDataHelper
 
         if (count($rows) > 0) {
             self::insertRows($table, $rows, $ignore);
+        }
+
+        self::syncPgSequence($table);
+    }
+
+
+    /**
+     * En PostgreSQL la secuencia del id NO avanza cuando se insertan ids
+     * explicitos (los CSV traen la columna id), a diferencia del
+     * AUTO_INCREMENT de MySQL. Sin esto, el siguiente INSERT sin id
+     * intenta usar id=1 y falla con "duplicate key".
+     */
+    protected static function syncPgSequence($table)
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        $has_id = DB::selectOne(
+            "SELECT 1 AS x FROM information_schema.columns WHERE table_name = ? AND column_name = 'id'",
+            [$table]
+        );
+        if (!$has_id) {
+            return;
+        }
+
+        $seq = DB::selectOne("SELECT pg_get_serial_sequence(?, 'id') AS seq", [$table]);
+        if ($seq && $seq->seq) {
+            DB::statement("SELECT setval('{$seq->seq}', (SELECT COALESCE(MAX(id), 0) + 1 FROM {$table}), false)");
         }
     }
 

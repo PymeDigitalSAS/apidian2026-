@@ -30,6 +30,7 @@ use ubl21dian\Templates\SOAP\SendBillAsync;
 use ubl21dian\Templates\SOAP\SendBillSync;
 use ubl21dian\Templates\SOAP\SendTestSetAsync;
 use App\Services\StorageService;
+use App\Helpers\SqlDialect;
 use Carbon\Carbon;
 use DateTime;
 use DB;
@@ -1107,12 +1108,12 @@ class InvoiceController extends Controller
                     $maxValue = DB::table('documents')->where('identification_number', $company->identification_number)
                                                       ->where('type_document_id', $type)
                                                       ->where('prefix', $resolution->prefix)
-                                                      ->where('state_document_id', 1)->max(DB::raw('CAST(number AS UNSIGNED)'));
+                                                      ->where('state_document_id', 1)->max(DB::raw(SqlDialect::castInt('number')));
             else
                     $maxValue = DB::table('documents')->where('identification_number', $company->identification_number)
                                                       ->where('type_document_id', $type)
                                                       ->where('prefix', $resolution->prefix)
-                                                      ->max(DB::raw('CAST(number AS UNSIGNED)'));
+                                                      ->max(DB::raw(SqlDialect::castInt('number')));
             return [
                 'number' => ($maxValue) ? ((int)$maxValue + 1) : (int)$resolution->from,
                 'success' => true,

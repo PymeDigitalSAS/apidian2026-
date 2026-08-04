@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\SqlDialect;
 use App\MonitoringSnapshot;
 use App\MonitoringSlowRequest;
 use App\Services\SystemMonitorService;
@@ -68,10 +69,11 @@ class MonitoringController extends Controller
 
         $rows = MonitoringSnapshot::where('created_at', '>=', now()->subHours($hours))
             ->selectRaw('MIN(created_at) as t')
-            ->selectRaw('ROUND(AVG(cpu_percent), 1) as cpu')
-            ->selectRaw('ROUND(AVG(mem_percent), 1) as mem')
-            ->selectRaw('ROUND(AVG(disk_percent), 1) as disk')
-            ->groupByRaw('FLOOR(UNIX_TIMESTAMP(created_at) / ?)', [$bucket])
+            // CAST a DECIMAL: en PostgreSQL ROUND(x, n) no acepta double precision
+            ->selectRaw('ROUND(CAST(AVG(cpu_percent) AS DECIMAL(20,6)), 1) as cpu')
+            ->selectRaw('ROUND(CAST(AVG(mem_percent) AS DECIMAL(20,6)), 1) as mem')
+            ->selectRaw('ROUND(CAST(AVG(disk_percent) AS DECIMAL(20,6)), 1) as disk')
+            ->groupByRaw('FLOOR(' . SqlDialect::epoch('created_at') . ' / ?)', [$bucket])
             ->orderByRaw('MIN(created_at)')
             ->get();
 
