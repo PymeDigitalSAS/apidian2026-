@@ -5,7 +5,10 @@ RUN apt-get update && \
 
 # Soporte PostgreSQL (la imagen base solo trae pdo_mysql). Permite usar
 # docker-compose.postgres.yml.example sin cambiar de imagen.
-RUN apt-get -y install libpq-dev && \
+# El apt-get update va en la MISMA capa: si se reutiliza la cache de una
+# capa anterior, sus indices de paquetes viejos dan 404 en los mirrors.
+RUN apt-get update && \
+    apt-get -y install libpq-dev && \
     docker-php-ext-install pdo_pgsql pgsql
 
 # Corrige la propiedad de storage/ y bootstrap/cache en cada arranque, de modo
