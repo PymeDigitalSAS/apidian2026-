@@ -541,7 +541,7 @@ class ProductionController extends Controller
                 // \Log::error('Token de usuario principal no encontrado', ['company_id' => $company->id]);
                 return response()->json(['error' => 'No se encontró el token del usuario principal.']);
             }
-            $baseUrl = rtrim(config('app.url'), '/');
+            $baseUrl = $this->apiBaseUrl();
             $client = new Client(['base_uri' => $baseUrl]);
             $headers = [
                 'Authorization' => 'Bearer ' . $token,
@@ -1154,9 +1154,29 @@ class ProductionController extends Controller
         return back()->with('error', 'Petición inválida.');
     }
 
-    private function consultarZipKey($zipKey, $token)
+    /**
+     * URL base para las llamadas internas a la propia API.
+     *
+     * Si APP_URL trae el puerto por defecto (típicamente https://dominio:80 cuando
+     * el .env arma la URL con ${APP_PORT}), Guzzle intenta TLS contra el puerto 80
+     * y falla con "cURL error 35: wrong version number". Se elimina el puerto en
+     * ese caso para que mande el esquema.
+     */
+    private function apiBaseUrl()
     {
         $baseUrl = rtrim(config('app.url'), '/');
+        $parts = parse_url($baseUrl);
+
+        if (!empty($parts['port']) && in_array((int) $parts['port'], [80, 443], true)) {
+            $baseUrl = preg_replace('/:' . $parts['port'] . '(?=\/|$)/', '', $baseUrl);
+        }
+
+        return $baseUrl;
+    }
+
+    private function consultarZipKey($zipKey, $token)
+    {
+        $baseUrl = $this->apiBaseUrl();
         $client = new Client(['base_uri' => $baseUrl]);
         $headers = [
             'Authorization' => 'Bearer ' . $token,
@@ -1199,7 +1219,7 @@ class ProductionController extends Controller
         if (!$token || !$IDSoftware) {
             return response()->json(['error' => 'Token o IDSoftware no disponible'], 400);
         }
-        $baseUrl = rtrim(config('app.url'), '/');
+        $baseUrl = $this->apiBaseUrl();
         $client = new Client(['base_uri' => $baseUrl]);
 
         try {
