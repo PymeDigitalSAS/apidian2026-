@@ -454,7 +454,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
                     <br>
                     <span class="text-muted">Factura Electrónica</span>
-                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['invoice']])
+                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['invoice'], 'type' => 'invoice'])
                 </div>
                 <div class="mt-auto pb-1">
                     <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">
@@ -539,7 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
                     <br>
                     <span class="text-muted">Nómina Electrónica</span>
-                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['payroll']])
+                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['payroll'], 'type' => 'payroll'])
                 </div>
                 <div class="mt-auto pb-1">
                     <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">
@@ -622,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
                     <br>
                     <span class="text-muted">Documento Soporte</span>
-                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['support']])
+                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['support'], 'type' => 'support'])
                 </div>
                 <div class="mt-auto pb-1">
                     <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">
@@ -707,7 +707,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
                     <br>
                     <span class="text-muted">Eventos RADIAN</span>
-                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['event']])
+                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['event'], 'type' => 'event'])
                 </div>
                 <div class="mt-auto pb-1">
                     <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">
@@ -772,7 +772,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
                     <br>
                     <span class="text-muted">Documentos Equivalentes (POS)</span>
-                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['pos']])
+                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['pos'], 'type' => 'pos'])
                 </div>
                 <div class="mt-auto pb-1">
                     <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">

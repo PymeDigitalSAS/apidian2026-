@@ -4,7 +4,15 @@
         <br>
         <span class="text-muted">Seleccione el tipo de documento</span>
         @if(isset($company))
-            @include('company.production._environment_badge', ['company' => $company, 'type' => $type ?? 'invoice'])
+            @if(isset($type))
+                @include('company.production._environment_badge', ['company' => $company, 'type' => $type])
+            @else
+                {{-- Listado mixto (todos los tipos): un badge por tipo, porque cada uno
+                     tiene su propia columna de ambiente y su propia URL de envio. --}}
+                @foreach(['invoice' => 'Facturas', 'pos' => 'POS', 'support' => 'Soporte'] as $envTabType => $envTabLabel)
+                    @include('company.production._environment_badge', ['company' => $company, 'type' => $envTabType, 'label' => $envTabLabel])
+                @endforeach
+            @endif
         @endif
     </div>
     <div class="mt-auto pb-1">
