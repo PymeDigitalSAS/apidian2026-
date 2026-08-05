@@ -73,7 +73,9 @@ trait DocumentTrait
         }
 
         if ($countryName && empty($customerAll['country_id'])) {
-            $country = Country::where('name', 'like', "%{$countryName}%")->first();
+            // fold(): en PostgreSQL LIKE distingue mayusculas y acentos
+            // (MySQL no); el nombre viene del XML/JSON con formato libre.
+            $country = Country::whereRaw(\App\Helpers\SqlDialect::fold('name') . ' LIKE ' . \App\Helpers\SqlDialect::fold('?'), ["%{$countryName}%"])->first();
             if ($country) {
                 $customerAll['country_id'] = $country->id;
             }
@@ -84,14 +86,15 @@ trait DocumentTrait
 
         if ($isColombia && $municipalityName && empty($customerAll['municipality_id'])) {
             if ($stateName) {
+                $fold = fn ($expr) => \App\Helpers\SqlDialect::fold($expr);
                 $municipality = Municipality::join('departments', 'municipalities.department_id', '=', 'departments.id')
                     ->select('municipalities.*')
-                    ->where('municipalities.name', 'like', "%{$municipalityName}%")
-                    ->where('departments.name',    'like', "%{$stateName}%")
+                    ->whereRaw($fold('municipalities.name') . ' LIKE ' . $fold('?'), ["%{$municipalityName}%"])
+                    ->whereRaw($fold('departments.name') . ' LIKE ' . $fold('?'), ["%{$stateName}%"])
                     ->orderBy('municipalities.name')
                     ->first();
             } else {
-                $municipality = Municipality::where('name', 'like', "%{$municipalityName}%")
+                $municipality = Municipality::whereRaw(\App\Helpers\SqlDialect::fold('name') . ' LIKE ' . \App\Helpers\SqlDialect::fold('?'), ["%{$municipalityName}%"])
                     ->orderBy('name')
                     ->first();
             }
@@ -1492,26 +1495,44 @@ trait DocumentTrait
         $date = now();
         $prefix = (is_null($typeDocumentID)) ? $resolution->type_document->prefix : TypeDocument::findOrFail($typeDocumentID)->prefix;
 
-        try {
-            return DB::transaction(function() use ($company, $date, $typeDocumentID, $resolution, $prefix, $extension) {
+        // Reintento ante clave duplicada: en PostgreSQL el SELECT FOR UPDATE no
+        // bloquea filas inexistentes (no hay gap-lock como en InnoDB), asi que
+        // dos peticiones simultaneas del mismo (year, type_document_id) pueden
+        // pasar ambas el firstOrCreate; la segunda choca con el unique de sends
+        // y aborta su transaccion. Al reintentar, la fila ya existe y se
+        // bloquea normalmente.
+        $lastException = null;
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            try {
+                return DB::transaction(function() use ($company, $date, $typeDocumentID, $resolution, $prefix, $extension) {
 
-                $send = $company->send()->lockForUpdate()->firstOrCreate([
-                    'year' => $date->format('Y'),
-                    'type_document_id' => $typeDocumentID ?? $resolution->type_document_id,
-                ]);
+                    $send = $company->send()->lockForUpdate()->firstOrCreate([
+                        'year' => $date->format('Y'),
+                        'type_document_id' => $typeDocumentID ?? $resolution->type_document_id,
+                    ]);
 
-                $current = $send->next_consecutive ?? 1;
+                    $current = $send->next_consecutive ?? 1;
 
-                $send->next_consecutive = $current + 1;
-                $send->save();
+                    $send->next_consecutive = $current + 1;
+                    $send->save();
 
-                return "{$prefix}{$this->stuffedString($company->identification_number)}{$this->ppp}{$date->format('y')}{$this->stuffedString($current, 8)}{$extension}";
-            });
-
-        } catch (\Exception $e) {
-            \Log::error("Error en getFileName: " . $e->getMessage());
-            throw new \Exception("Error generando nombre de archivo: " . $e->getMessage());
+                    return "{$prefix}{$this->stuffedString($company->identification_number)}{$this->ppp}{$date->format('y')}{$this->stuffedString($current, 8)}{$extension}";
+                });
+            } catch (\Illuminate\Database\QueryException $e) {
+                $lastException = $e;
+                // 23000 = integridad MySQL, 23505 = unique violation PostgreSQL
+                $isDuplicate = in_array((string) $e->getCode(), ['23000', '23505'], true);
+                if (!$isDuplicate || $attempt === 3) {
+                    break;
+                }
+            } catch (\Exception $e) {
+                $lastException = $e;
+                break;
+            }
         }
+
+        \Log::error("Error en getFileName: " . $lastException->getMessage());
+        throw new \Exception("Error generando nombre de archivo: " . $lastException->getMessage());
     }
 
     /**
@@ -1662,7 +1683,9 @@ trait DocumentTrait
 
         // type regimes
 
-        $typeregime = TypeRegime::where('id', '!=', '')->get();
+        // antes: where('id', '!=', '') — truco MySQL para "todos" que en
+        // PostgreSQL revienta ('' no castea a bigint)
+        $typeregime = TypeRegime::get();
         foreach($typeregime as $regime){
             switch($regime->id){
                 case '1':
@@ -1742,7 +1765,8 @@ trait DocumentTrait
 
         // taxes
 
-        $taxes = Tax::where('id', '!=', '')->get();
+        // antes: where('id', '!=', '') — mismo truco MySQL incompatible con PostgreSQL
+        $taxes = Tax::get();
         foreach($taxes as $tax){
             switch($tax->id){
                 case '1':
@@ -1760,7 +1784,10 @@ trait DocumentTrait
 
         // type_documents
 
-        $type_documents = TypeDocument::where('id', '==', '3')->get();
+        // antes: where('id', '==', '3') — operador invalido que Laravel convertia
+        // en id = '==' (en MySQL casteaba a id = 0 y nunca actualizaba; en
+        // PostgreSQL revienta). El dato ya viene correcto del CSV de catalogos.
+        $type_documents = TypeDocument::where('id', 3)->get();
         foreach($type_documents as $type_document){
             switch($type_document->id){
                 case '3':

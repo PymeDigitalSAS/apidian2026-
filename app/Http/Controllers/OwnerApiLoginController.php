@@ -69,7 +69,7 @@ class OwnerApiLoginController extends Controller
 
     public function OwnerPayrolls()
     {
-        $documents = DocumentPayroll::where('state_document_id', '=', 1)->paginate(20);
+        $documents = DocumentPayroll::where('state_document_id', '=', 1)->orderBy('id')->paginate(20);
 //        $documents = $documents->load('type_document');
         return view('ownerpayrolls', compact('documents'));
     }
@@ -122,12 +122,13 @@ class OwnerApiLoginController extends Controller
             break;
         }
         if($request->searchfield == "Seleccione campo para filtrar.")
-            $documents = Document::where('state_document_id', 1)->paginate(20);
+            $documents = Document::where('state_document_id', 1)->orderBy('id')->paginate(20);
         else
             if($field == 'type_document_id')
-                $documents = Document::where($field, '=', $type_document_id)->where('number', 'like', '%'.$number.'%')->where('state_document_id', 1)->paginate(20);
+                $documents = Document::where($field, '=', $type_document_id)->where('number', 'like', '%'.$number.'%')->where('state_document_id', 1)->orderBy('id')->paginate(20);
             else
-                $documents = Document::where($field, 'like', '%'.$request->searchvalue.'%')->where('state_document_id', 1)->paginate(20);
+                // CAST: algunos campos no son texto (fechas/numeros) y en PostgreSQL LIKE requiere texto ($field sale de un switch controlado, no del request)
+                $documents = Document::whereRaw(\App\Helpers\SqlDialect::castChar($field) . " LIKE ?", ['%'.$request->searchvalue.'%'])->where('state_document_id', 1)->orderBy('id')->paginate(20);
 //        $documents = $documents->load('type_document');
         return view('homeowner', compact('documents'));
     }
@@ -160,12 +161,13 @@ class OwnerApiLoginController extends Controller
             break;
         }
         if($request->searchfield == "Seleccione campo para filtrar.")
-            $documents = DocumentPayroll::where('state_document_id', 1)->paginate(20);
+            $documents = DocumentPayroll::where('state_document_id', 1)->orderBy('id')->paginate(20);
         else
             if($field == 'type_document_id')
-                $documents = DocumentPayroll::where($field, '=', $type_document_id)->where('consecutive', 'like', '%'.$number.'%')->where('state_document_id', 1)->paginate(20);
+                $documents = DocumentPayroll::where($field, '=', $type_document_id)->where('consecutive', 'like', '%'.$number.'%')->where('state_document_id', 1)->orderBy('id')->paginate(20);
             else
-                $documents = DocumentPayroll::where($field, 'like', '%'.$request->searchvalue.'%')->where('state_document_id', 1)->paginate(20);
+                // CAST: date_issue/identification_number no son texto y en PostgreSQL LIKE requiere texto ($field sale de un switch controlado, no del request)
+                $documents = DocumentPayroll::whereRaw(\App\Helpers\SqlDialect::castChar($field) . " LIKE ?", ['%'.$request->searchvalue.'%'])->where('state_document_id', 1)->orderBy('id')->paginate(20);
 //        $documents = $documents->load('type_document');
         return view('ownerpayrolls', compact('documents'));
     }
@@ -181,7 +183,7 @@ class OwnerApiLoginController extends Controller
         ];
         if($request->verificar <> "FALSE")
             $this->validate($request, $rules);
-        $documents = Document::where('state_document_id', 1)->paginate(20);
+        $documents = Document::where('state_document_id', 1)->orderBy('id')->paginate(20);
 //        $documents = $documents->load('type_document');
         return view('homeowner', compact('documents'));
     }

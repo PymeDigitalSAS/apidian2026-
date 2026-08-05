@@ -39,7 +39,7 @@ class CompanyUserController extends Controller
         if ($company->user && !in_array($company->user->id, $allUserIds)) {
             $allUserIds[] = $company->user->id;
         }
-        $users = User::whereIn('id', $allUserIds)->paginate(15);
+        $users = User::whereIn('id', $allUserIds)->orderBy('id')->paginate(15);
 
         return view('company.users', compact('company', 'users', 'document_types'));
     }

@@ -26,6 +26,15 @@ class AppServiceProvider extends ServiceProvider
     {
         // Una sola instancia por petición acumula las consultas para el monitoreo.
         $this->app->singleton(\App\Services\SlowRequestRecorder::class);
+
+        // Reglas exists/unique tolerantes a PostgreSQL: un valor no numerico
+        // contra una columna id debe dar 422 (como en MySQL), no 500.
+        // extend() y no singleton(): el ValidationServiceProvider del
+        // framework es diferido y registraria su verifier DESPUES pisando
+        // el nuestro; extend se aplica al resolver, sin importar el orden.
+        $this->app->extend('validation.presence', function ($verifier, $app) {
+            return new \App\Validation\PgSafePresenceVerifier($app['db']);
+        });
     }
 
     /**

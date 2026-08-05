@@ -215,10 +215,10 @@ class ResumeController extends Controller
         // El facturador sincroniza en dos pasadas: primero aceptadas, luego rechazadas.
         $states = request()->query('rejected') ? [0] : [1];
 
-        $i = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 1)->oldest()->skip(($page - 1) * $perPage)->take($perPage)->get();
-        $c = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 4)->oldest()->skip(($page - 1) * $perPage)->take($perPage)->get();
-        $d = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 5)->oldest()->skip(($page - 1) * $perPage)->take($perPage)->get();
-        $p = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 15)->oldest()->skip(($page - 1) * $perPage)->take($perPage)->get();
+        $i = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 1)->oldest()->orderBy('id')->skip(($page - 1) * $perPage)->take($perPage)->get();
+        $c = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 4)->oldest()->orderBy('id')->skip(($page - 1) * $perPage)->take($perPage)->get();
+        $d = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 5)->oldest()->orderBy('id')->skip(($page - 1) * $perPage)->take($perPage)->get();
+        $p = Document::whereIn('state_document_id', $states)->where('identification_number', $company->identification_number)->where('type_document_id', 15)->oldest()->orderBy('id')->skip(($page - 1) * $perPage)->take($perPage)->get();
 
         $invoice = (object)[
             'name' => 'Factura de Venta Nacional',

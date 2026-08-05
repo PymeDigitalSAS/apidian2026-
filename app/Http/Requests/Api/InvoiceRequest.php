@@ -135,7 +135,7 @@ class InvoiceRequest extends FormRequest
             }),
 
             // Consecutive
-            'number' => 'required|integer|between:'.optional($this->resolution)->from.','.optional($this->resolution)->to,
+            'number' => 'required|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
 
             // Date time
             'date' => 'nullable|date_format:Y-m-d'. ($date_from ? '|after_or_equal:' . $date_from : ''). ($date_to ? '|before_or_equal:' . $date_to : ''),

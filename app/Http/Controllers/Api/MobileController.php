@@ -25,6 +25,9 @@ class MobileController extends Controller
         $company = $this->getCurrentCompany();
         $records = Document::where('identification_number', $company->identification_number)
             ->orderBy('date_issue', 'desc')
+            // desempate por id: en PostgreSQL el orden con empates no es
+            // estable entre paginas (en MySQL tampoco esta garantizado)
+            ->orderBy('id', 'desc')
             ->filter($request->search)
             ->filterByRangeDate($request->date)
             ->paginate(20);

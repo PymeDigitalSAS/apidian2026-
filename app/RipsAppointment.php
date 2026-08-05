@@ -44,7 +44,8 @@ class RipsAppointment extends Model
         }
 
         if ($search) {
-            $query->orWhere('date', 'like', "%$search%")
+            // date es columna DATE: requiere CAST para LIKE en PostgreSQL
+            $query->orWhereRaw(\App\Helpers\SqlDialect::castChar('date') . " LIKE ?", ["%$search%"])
             ->orWhere('time', 'like', "%$search%");
         }
 

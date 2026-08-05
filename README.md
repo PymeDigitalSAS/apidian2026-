@@ -20,6 +20,10 @@ Estamos enfocados en crear herramientas y soluciones para desarrolladores de sof
 - ### Despliegue con Docker
   * Ubuntu 20.04 , 22.04 y 24.04 | sólo API | sin dominio | proceso manual
      * [Pasos aquí](https://git.buho.la/-/snippets/31)
+- ### Base de datos PostgreSQL (opcional)
+  * El API funciona con MySQL/MariaDB (por defecto) o **PostgreSQL**; el motor se elige solo con el `.env`.
+     * **Conexión y puesta en marcha** (requisitos, `.env`, migraciones): [docs/MANUAL_POSTGRESQL.md](docs/MANUAL_POSTGRESQL.md)
+     * **PostgreSQL en Docker** con instalador interactivo (`instalar-postgres-docker.sh`, genera su `docker-compose.postgres.yml`): [docs/MANUAL_POSTGRESQL_DOCKER.md](docs/MANUAL_POSTGRESQL_DOCKER.md)
 - ### Extractor DIAN (Factura de compras)
   * La documentación del extractor está incluida en este repositorio, en la carpeta `docs/`:
     * **Despliegue e integración** — cómo conectar el worker del extractor a una instalación del API (Docker o LAMP): [docs/EXTRACTOR_INTEGRACION.md](docs/EXTRACTOR_INTEGRACION.md)

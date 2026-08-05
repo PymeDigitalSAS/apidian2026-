@@ -116,6 +116,7 @@ class MonitoringController extends Controller
                 $q->whereNotNull('top_processes')->orWhereNotNull('top_queries');
             })
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate($perPage, $columns, 'page', $page);
 
         $rows     = collect($paginator->items());

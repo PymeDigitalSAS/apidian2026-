@@ -60,9 +60,10 @@ class RipsPatient extends Model
     public function scopeFilter($query, $search)
     {
         if ($search) {
-            return $query->where('document_number', 'LIKE', "%$search%")
-                ->orWhere('name', 'LIKE', "%$search%")
-                ->orWhere('last_name', 'LIKE', "%$search%");
+            $like = \App\Helpers\SqlDialect::likeOp(); // insensible a mayusculas en ambos motores
+            return $query->where('document_number', $like, "%$search%")
+                ->orWhere('name', $like, "%$search%")
+                ->orWhere('last_name', $like, "%$search%");
         }
         return $query;
     }

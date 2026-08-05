@@ -61,15 +61,17 @@ class ReceivedDocument extends Model
             switch ($field) {
                 case 'number':
                     $query->where(function ($q) use ($search) {
+                        // TRIM: prefix es char() y en PostgreSQL llega a CONCAT relleno de espacios
                         $q->where('number', 'LIKE', "%$search%")
-                            ->orWhereRaw("CONCAT(COALESCE(prefix, ''), COALESCE(number, '')) LIKE ?", ["%$search%"]);
+                            ->orWhereRaw("CONCAT(COALESCE(TRIM(prefix), ''), COALESCE(number, '')) LIKE ?", ["%$search%"]);
                     });
                     break;
                 case 'prefix':
                     $query->where('prefix', 'LIKE', "%$search%");
                     break;
                 case 'nit':
-                    $query->where('identification_number', 'LIKE', "%$search%");
+                    // identification_number es bigint: requiere CAST para LIKE en PostgreSQL
+                    $query->whereRaw(\App\Helpers\SqlDialect::castChar('identification_number') . " LIKE ?", ["%$search%"]);
                     break;
                 case 'name':
                     $query->where('name_seller', 'LIKE', "%$search%");
@@ -88,13 +90,15 @@ class ReceivedDocument extends Model
         }
 
         // Búsqueda global (todos los campos).
+        // identification_number (bigint) y date_issue (datetime) requieren
+        // CAST para LIKE en PostgreSQL (MySQL lo hacia implicito).
         $query->where(function ($q) use ($search) {
             $q->orWhere('number', 'LIKE', "%$search%")
                 ->orWhere('prefix', 'LIKE', "%$search%")
-                ->orWhereRaw("CONCAT(COALESCE(prefix, ''), COALESCE(number, '')) LIKE ?", ["%$search%"])
-                ->orWhere('identification_number', 'LIKE', "%$search%")
+                ->orWhereRaw("CONCAT(COALESCE(TRIM(prefix), ''), COALESCE(number, '')) LIKE ?", ["%$search%"])
+                ->orWhereRaw(\App\Helpers\SqlDialect::castChar('identification_number') . " LIKE ?", ["%$search%"])
                 ->orWhere('name_seller', 'LIKE', "%$search%")
-                ->orWhere('date_issue', 'LIKE', "%$search%");
+                ->orWhereRaw(\App\Helpers\SqlDialect::castChar('date_issue') . " LIKE ?", ["%$search%"]);
         });
         return $query;
     }

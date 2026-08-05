@@ -16,11 +16,15 @@ class MunicipalityController extends Controller
         // Normalizar por si viene con espacios
         $codefacturador = trim((string) $codefacturador);
 
-        if ($codefacturador === '') {
+        // La columna codefacturador es bigint: un valor no numerico daria
+        // 22P02 en PostgreSQL (MySQL lo coaccionaba y devolvia 404).
+        if ($codefacturador === '' || !ctype_digit($codefacturador)) {
             return response()->json([
                 'success' => false,
-                'message' => 'El codefacturador es requerido.',
-            ], 422);
+                'message' => $codefacturador === ''
+                    ? 'El codefacturador es requerido.'
+                    : 'Municipio no encontrado para el codefacturador proporcionado.',
+            ], $codefacturador === '' ? 422 : 404);
         }
 
         $municipality = Municipality::query()
@@ -66,7 +70,9 @@ class MunicipalityController extends Controller
         $ids = [];
         foreach ($input as $value) {
             $value = trim((string) $value);
-            if ($value !== '') {
+            // solo numericos: la columna es bigint y un texto daria 22P02 en
+            // PostgreSQL (en MySQL simplemente no matcheaba)
+            if ($value !== '' && ctype_digit($value)) {
                 $ids[] = $value;
             }
         }

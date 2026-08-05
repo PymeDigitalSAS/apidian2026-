@@ -126,7 +126,7 @@ class InvoiceExportRequest extends FormRequest
             }),
 
             // Consecutive
-            'number' => 'required|integer|between:'.optional($this->resolution)->from.','.optional($this->resolution)->to,
+            'number' => 'required|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
 
             // Date time
             'date' => 'nullable|date_format:Y-m-d|after_or_equal:'.optional($this->resolution)->date_from.'|before_or_equal:'.optional($this->resolution)->date_to,

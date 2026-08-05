@@ -18,6 +18,7 @@ class ResolutionController extends Controller
         $company = Company::where('identification_number',$request->company)->first();
         $resolutions = Resolution::where('company_id', $company->id)
             ->with(['type_environment', 'type_document'])
+            ->orderBy('id')
             ->paginate(10);
 
         // Obtener tipos de documento para el modal
@@ -288,6 +289,7 @@ class ResolutionController extends Controller
         // Consulta las resoluciones existentes para la tabla
         $resolutions = \App\Resolution::where('company_id', $company->id)
             ->with(['type_environment', 'type_document'])
+            ->orderBy('id')
             ->paginate(10);
 
         return view('company.resolutions', compact('company', 'typeDocuments', 'prefill', 'resolutions'));

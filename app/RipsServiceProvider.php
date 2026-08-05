@@ -29,10 +29,11 @@ class RipsServiceProvider extends Model
     public function scopeFilter($query, $search = null) {
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
-                $q->orWhere('document_number', 'LIKE', "%$search%")
-                    ->orWhere('name', 'LIKE', "%$search%")
-                    ->orWhere('code', 'LIKE', "%$search%")
-                    ->orWhere('email', 'LIKE', "%$search%");
+                $like = \App\Helpers\SqlDialect::likeOp(); // insensible a mayusculas en ambos motores
+                $q->orWhere('document_number', $like, "%$search%")
+                    ->orWhere('name', $like, "%$search%")
+                    ->orWhere('code', $like, "%$search%")
+                    ->orWhere('email', $like, "%$search%");
             });
         }
         return $query;

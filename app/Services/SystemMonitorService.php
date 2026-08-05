@@ -320,6 +320,12 @@ class SystemMonitorService
      */
     public function activeQueries(int $limit = 20): array
     {
+        // SHOW PROCESSLIST es de MySQL/MariaDB; en PostgreSQL el equivalente
+        // es la vista pg_stat_activity.
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            return $this->activeQueriesPgsql($limit);
+        }
+
         try {
             $rows = DB::select('SHOW FULL PROCESSLIST');
         } catch (Throwable $e) {
@@ -363,14 +369,72 @@ class SystemMonitorService
     }
 
     /**
+     * Variante PostgreSQL de activeQueries() sobre pg_stat_activity.
+     * Devuelve la misma estructura que la variante MySQL.
+     */
+    protected function activeQueriesPgsql(int $limit): array
+    {
+        try {
+            $rows = DB::select("
+                SELECT pid, usename, datname, state,
+                       CAST(EXTRACT(EPOCH FROM (now() - query_start)) AS INTEGER) AS seconds,
+                       query
+                FROM pg_stat_activity
+                WHERE state IS NOT NULL
+                  AND state <> 'idle'
+                  AND pid <> pg_backend_pid()
+                  AND query <> ''
+            ");
+        } catch (Throwable $e) {
+            return ['rows' => [], 'error' => $this->humanizeDbError($e)];
+        }
+
+        $queries = [];
+        $hidden  = false; // filas de otros usuarios sin permiso para ver su SQL
+        foreach ($rows as $row) {
+            $info = trim((string) ($row->query ?? ''));
+            if ($info === '') {
+                continue;
+            }
+            if (stripos($info, 'insufficient privilege') !== false) {
+                $hidden = true;
+                continue;
+            }
+            $queries[] = [
+                'id'      => $row->pid ?? null,
+                'user'    => $row->usename ?? null,
+                'db'      => $row->datname ?? null,
+                'time'    => isset($row->seconds) ? (int) $row->seconds : null,
+                'state'   => $row->state ?? null,
+                'query'   => mb_substr($info, 0, 1000),
+            ];
+        }
+        usort($queries, fn ($a, $b) => ($b['time'] ?? 0) <=> ($a['time'] ?? 0));
+
+        $note = null;
+        if ($hidden) {
+            $dbUser = (string) config('database.connections.pgsql.username');
+            $note = 'El usuario de la base de datos' . ($dbUser !== '' ? " ({$dbUser})" : '') . ' no puede ver '
+                  . 'el SQL de las conexiones de otros usuarios en pg_stat_activity. '
+                  . "Otorga (como superusuario): GRANT pg_monitor TO {$dbUser};";
+        }
+
+        return ['rows' => array_slice($queries, 0, $limit), 'error' => $note];
+    }
+
+    /**
      * Comprueba si al usuario actual le FALTA el privilegio global PROCESS,
      * necesario para ver en SHOW PROCESSLIST las consultas de otras conexiones.
      * PROCESS solo existe a nivel de servidor (ON *.*); tener ALL sobre la base
      * propia no lo incluye. Devuelve false si no se puede determinar, para no
-     * avisar en falso.
+     * avisar en falso. Solo aplica a MySQL/MariaDB.
      */
     protected function dbMissingProcessPrivilege(): bool
     {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return false;
+        }
+
         try {
             $grants = DB::select('SHOW GRANTS FOR CURRENT_USER()');
         } catch (Throwable $e) {

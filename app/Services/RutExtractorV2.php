@@ -281,7 +281,7 @@ class RutExtractorV2
 
                     $dep = Department::whereRaw('LPAD(' . SqlDialect::castChar('code') . ", 2, '0') = ?", [$depCode])->first();
                     if (!$dep) {
-                        $dep = Department::whereRaw('UPPER(name) LIKE UPPER(?)', [$depName])->first();
+                        $dep = Department::whereRaw(SqlDialect::fold('name') . ' LIKE ' . SqlDialect::fold('?'), [$depName])->first();
                     }
 
                     if ($dep) {
@@ -297,7 +297,7 @@ class RutExtractorV2
                             ->first();
                         if (!$mun) {
                             $mun = Municipality::where('department_id', $dep->id)
-                                ->whereRaw('UPPER(name) LIKE UPPER(?)', [$munName])
+                                ->whereRaw(SqlDialect::fold('name') . ' LIKE ' . SqlDialect::fold('?'), [$munName])
                                 ->first();
                         }
 

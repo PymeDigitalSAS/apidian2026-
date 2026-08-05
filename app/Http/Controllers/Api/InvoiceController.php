@@ -1135,7 +1135,7 @@ class InvoiceController extends Controller
 
         // User company
         $company = $user->company;
-        $invoice = Document::where('identification_number', $company->identification_number)->where('type_document_id', $type)->where('state_document_id', 0)->where('number', $number)->latest()->first();
+        $invoice = Document::where('identification_number', $company->identification_number)->where('type_document_id', $type)->where('state_document_id', 0)->where('number', $number)->latest('id')->first();
         if($invoice){
             $invoice->state_document_id = 1;
             $invoice->save();

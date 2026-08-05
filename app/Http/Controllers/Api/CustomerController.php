@@ -19,13 +19,15 @@ class CustomerController extends Controller
                 ->select('identification_number', 'dv', 'name', 'phone', 'address', 'email', 'companies_id');
 
             if ($search) {
-                $query->where(function($q) use ($search) {
-                    $q->where('identification_number', 'like', "%$search%")
-                      ->orWhere('name', 'like', "%$search%");
+                $like = \App\Helpers\SqlDialect::likeOp(); // insensible a mayusculas en ambos motores
+                $query->where(function($q) use ($search, $like) {
+                    $q->where('identification_number', $like, "%$search%")
+                      ->orWhere('name', $like, "%$search%");
                 });
             }
 
-            $customers = $query->paginate(20);
+            // orden estable para que la paginacion no repita filas en PostgreSQL
+            $customers = $query->orderBy('identification_number')->paginate(20);
 
             return response()->json([
                 'success' => true,

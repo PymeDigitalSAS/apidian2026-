@@ -22,8 +22,9 @@ class RipsCie extends Model
     public function scopeFilter($query, $search)
     {
         if ($search) {
-            $query->where('code', 'like', "%$search%")
-                ->orWhere('name', 'like', "%$search%");
+            $like = \App\Helpers\SqlDialect::likeOp(); // insensible a mayusculas en ambos motores
+            $query->where('code', $like, "%$search%")
+                ->orWhere('name', $like, "%$search%");
         }
 
         return $query;

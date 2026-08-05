@@ -207,6 +207,7 @@ class HomeController extends Controller
         $documents = ReceivedDocument::where('customer','=',$company_idnumber)
             ->where('state_document_id', '=', 1)
             ->filter(request('event_search'), request('event_search_field'), request('event_search_to'))
+            ->orderBy('id', 'DESC') // orden estable: PostgreSQL no garantiza orden sin ORDER BY
             ->paginate(10)
             ->withQueryString();
         return view('company.events', compact('documents', 'company_idnumber'));
@@ -218,6 +219,7 @@ class HomeController extends Controller
         $documents = DocumentPayroll::where('state_document_id', '=', 1)
             ->where('identification_number', $company_idnumber)
             ->filter(request('payroll_search'), request('payroll_search_field'), request('payroll_search_to'))
+            ->orderBy('id', 'DESC') // orden estable: PostgreSQL no garantiza orden sin ORDER BY
             ->paginate(20)
             ->withQueryString();
         return view('company.payrolls', compact('documents', 'company_idnumber'));

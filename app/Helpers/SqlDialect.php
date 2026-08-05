@@ -85,4 +85,18 @@ class SqlDialect
     {
         return self::isPgsql() ? 'ILIKE' : 'LIKE';
     }
+
+    /**
+     * Normaliza una expresion para comparar texto ignorando mayusculas Y
+     * acentos ("MEDELLIN" debe encontrar "Medellín"). La collation *_ci de
+     * MySQL ya ignora acentos, basta UPPER; en PostgreSQL se necesita la
+     * extension unaccent (la crea la migracion enable_unaccent_extension).
+     * Usar en ambos lados de la comparacion: fold('name') LIKE fold('?').
+     */
+    public static function fold($expr)
+    {
+        return self::isPgsql()
+            ? "unaccent(UPPER($expr))"
+            : "UPPER($expr)";
+    }
 }
