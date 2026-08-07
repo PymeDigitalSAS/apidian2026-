@@ -18,9 +18,10 @@ class ItemController extends Controller
                         ->select('id', 'name', 'second_name', 'description', 'internal_id', 'sale_unit_price', 'percentage_of_profit', 'is_set', 'has_perception', 'percentage_perception','companies_id', 'status');
 
             if ($search) {
-                $query->where(function($q) use ($search) {
-                    $q->where('name', 'like', "%$search%")
-                      ->orWhere('internal_id', 'like', "%$search%");
+                $like = \App\Helpers\SqlDialect::likeOp(); // insensible a mayusculas en ambos motores
+                $query->where(function($q) use ($search, $like) {
+                    $q->where('name', $like, "%$search%")
+                      ->orWhere('internal_id', $like, "%$search%");
                 });
             }
 

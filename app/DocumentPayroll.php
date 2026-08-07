@@ -70,8 +70,9 @@ class DocumentPayroll extends Model
             switch ($field) {
                 case 'number':
                     $query->where(function ($q) use ($search) {
+                        // TRIM: prefix es char() y en PostgreSQL llega a CONCAT relleno de espacios
                         $q->where('consecutive', 'LIKE', "%$search%")
-                            ->orWhereRaw("CONCAT(COALESCE(prefix, ''), COALESCE(consecutive, '')) LIKE ?", ["%$search%"]);
+                            ->orWhereRaw("CONCAT(COALESCE(TRIM(prefix), ''), COALESCE(consecutive, '')) LIKE ?", ["%$search%"]);
                     });
                     break;
                 case 'prefix':
@@ -97,12 +98,14 @@ class DocumentPayroll extends Model
         }
 
         // Búsqueda global (todos los campos).
+        // date_issue es datetime: el CAST lo vuelve comparable con LIKE
+        // tambien en PostgreSQL (MySQL lo hacia implicito).
         $query->where(function ($q) use ($search) {
             $q->orWhere('consecutive', 'LIKE', "%$search%")
                 ->orWhere('prefix', 'LIKE', "%$search%")
-                ->orWhereRaw("CONCAT(COALESCE(prefix, ''), COALESCE(consecutive, '')) LIKE ?", ["%$search%"])
+                ->orWhereRaw("CONCAT(COALESCE(TRIM(prefix), ''), COALESCE(consecutive, '')) LIKE ?", ["%$search%"])
                 ->orWhere('employee_id', 'LIKE', "%$search%")
-                ->orWhere('date_issue', 'LIKE', "%$search%");
+                ->orWhereRaw(\App\Helpers\SqlDialect::castChar('date_issue') . " LIKE ?", ["%$search%"]);
         });
         return $query;
     }

@@ -91,7 +91,8 @@ class RipsController extends Controller
 
     private function findXml($company_number, $num_factura)
     {
-        $invoice = Document::where('identification_number', $company_number)->where('response_dian', '!=', null)->where(DB::raw("CONCAT(prefix, number)"), $num_factura)->first();
+        // TRIM: prefix es char() y en PostgreSQL llega a CONCAT relleno de espacios (la igualdad nunca matchearia)
+        $invoice = Document::where('identification_number', $company_number)->where('response_dian', '!=', null)->where(DB::raw("CONCAT(TRIM(prefix), number)"), $num_factura)->first();
         if (!$invoice) {
             throw new HttpException(404, 'No se encontró la factura en la base de datos.');
         }

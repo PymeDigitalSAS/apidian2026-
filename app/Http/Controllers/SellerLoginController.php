@@ -199,7 +199,7 @@ class SellerLoginController extends Controller
     }
 
     protected function SellersRadianEventsView(Request $request, $company_idnumber){
-        $documents = ReceivedDocument::where('customer','=',$company_idnumber)->where('state_document_id', '=', 1)->paginate(10);
+        $documents = ReceivedDocument::where('customer','=',$company_idnumber)->where('state_document_id', '=', 1)->orderBy('id')->paginate(10);
 //        $documents = $documents->load('type_document');
 //        $documents = Document::with('type_document')->get();
 //        return view('homecustomers')->with('documents', $documents);
@@ -315,7 +315,7 @@ class SellerLoginController extends Controller
 
     public function SellersPayrolls(Request $request, $company_idnumber)
     {
-        $documents = DocumentPayroll::where('state_document_id', '=', 1)->where('identification_number', $company_idnumber)->paginate(20);
+        $documents = DocumentPayroll::where('state_document_id', '=', 1)->where('identification_number', $company_idnumber)->orderBy('id')->paginate(20);
 //        $documents = $documents->load('type_document');
         return view('sellerspayrolls', compact('documents', 'company_idnumber'));
     }
@@ -356,7 +356,7 @@ class SellerLoginController extends Controller
         ];
         if($request->verificar <> "FALSE")
             $this->validate($request, $rules);
-        $documents = Document::where('identification_number','=',$company_idnumber)->where('state_document_id', '=', 1)->paginate(15);
+        $documents = Document::where('identification_number','=',$company_idnumber)->where('state_document_id', '=', 1)->orderBy('id')->paginate(15);
 //        $documents = $documents->load('type_document');
 //        $documents = Document::with('type_document')->get();
 //        return view('homecustomers')->with('documents', $documents);
@@ -408,12 +408,13 @@ class SellerLoginController extends Controller
             break;
         }
         if($request->searchfield == "Seleccione campo para filtrar.")
-            $documents = Document::where('identification_number','=',$company_idnumber)->where('state_document_id', 1)->paginate(15);
+            $documents = Document::where('identification_number','=',$company_idnumber)->where('state_document_id', 1)->orderBy('id')->paginate(15);
         else
             if($field == 'type_document_id')
-                $documents = Document::where('identification_number','=',$company_idnumber)->where($field, '=', $type_document_id)->where('number', 'like', '%'.$number.'%')->where('state_document_id', 1)->paginate(15);
+                $documents = Document::where('identification_number','=',$company_idnumber)->where($field, '=', $type_document_id)->where('number', 'like', '%'.$number.'%')->where('state_document_id', 1)->orderBy('id')->paginate(15);
             else
-                $documents = Document::where('identification_number','=',$company_idnumber)->where($field, 'like', '%'.$request->searchvalue.'%')->where('state_document_id', 1)->paginate(15);
+                // CAST: date_issue es datetime y en PostgreSQL LIKE requiere texto ($field sale de un switch controlado, no del request)
+                $documents = Document::where('identification_number','=',$company_idnumber)->whereRaw(\App\Helpers\SqlDialect::castChar($field) . " LIKE ?", ['%'.$request->searchvalue.'%'])->where('state_document_id', 1)->orderBy('id')->paginate(15);
 //        $documents = $documents->load('type_document');
         return view('homesellers', compact('documents', 'company_idnumber'));
     }
@@ -443,12 +444,13 @@ class SellerLoginController extends Controller
             break;
         }
         if($request->searchfield == "Seleccione campo para filtrar.")
-            $documents = DocumentPayroll::where('identification_number','=',$company_idnumber)->where('state_document_id', 1)->paginate(15);
+            $documents = DocumentPayroll::where('identification_number','=',$company_idnumber)->where('state_document_id', 1)->orderBy('id')->paginate(15);
         else
             if($field == 'type_document_id')
-                $documents = DocumentPayroll::where('identification_number','=',$company_idnumber)->where($field, '=', $type_document_id)->where('consecutive', 'like', '%'.$number.'%')->where('state_document_id', 1)->paginate(15);
+                $documents = DocumentPayroll::where('identification_number','=',$company_idnumber)->where($field, '=', $type_document_id)->where('consecutive', 'like', '%'.$number.'%')->where('state_document_id', 1)->orderBy('id')->paginate(15);
             else
-                $documents = DocumentPayroll::where('identification_number','=',$company_idnumber)->where($field, 'like', '%'.$request->searchvalue.'%')->where('state_document_id', 1)->paginate(15);
+                // CAST: date_issue es datetime y en PostgreSQL LIKE requiere texto ($field sale de un switch controlado, no del request)
+                $documents = DocumentPayroll::where('identification_number','=',$company_idnumber)->whereRaw(\App\Helpers\SqlDialect::castChar($field) . " LIKE ?", ['%'.$request->searchvalue.'%'])->where('state_document_id', 1)->orderBy('id')->paginate(15);
 //        $documents = $documents->load('type_document');
         return view('sellerspayrolls', compact('documents', 'company_idnumber'));
     }
@@ -485,15 +487,16 @@ class SellerLoginController extends Controller
             break;
         }
         if($request->searchfield == "Seleccione campo para filtrar.")
-            $documents = ReceivedDocument::where('customer','=',$company_idnumber)->where('state_document_id', 1)->paginate(10);
+            $documents = ReceivedDocument::where('customer','=',$company_idnumber)->where('state_document_id', 1)->orderBy('id')->paginate(10);
         else
             if($field == 'type_document_id')
-                $documents = ReceivedDocument::where('customer','=',$company_idnumber)->where($field, '=', $type_document_id)->where('number', 'like', '%'.$number.'%')->where('state_document_id', 1)->paginate(10);
+                $documents = ReceivedDocument::where('customer','=',$company_idnumber)->where($field, '=', $type_document_id)->where('number', 'like', '%'.$number.'%')->where('state_document_id', 1)->orderBy('id')->paginate(10);
             else
                 if($field == "prefix" || $field == "identification_number" || $field == "name_seller")
-                    $documents = ReceivedDocument::where('customer','=',$company_idnumber)->where($field, 'like', '%'.$request->searchvalue.'%')->where('state_document_id', 1)->paginate(10);
+                    // CAST: identification_number es bigint y en PostgreSQL LIKE requiere texto ($field sale de un switch controlado, no del request)
+                    $documents = ReceivedDocument::where('customer','=',$company_idnumber)->whereRaw(\App\Helpers\SqlDialect::castChar($field) . " LIKE ?", ['%'.$request->searchvalue.'%'])->where('state_document_id', 1)->orderBy('id')->paginate(10);
                 else
-                    $documents = ReceivedDocument::where('customer','=',$company_idnumber)->where($field, '=', 1)->where('state_document_id', 1)->paginate(10);
+                    $documents = ReceivedDocument::where('customer','=',$company_idnumber)->where($field, '=', 1)->where('state_document_id', 1)->orderBy('id')->paginate(10);
 //        $documents = $documents->load('type_document');
         return view('homeradianevents', compact('documents', 'company_idnumber'));
     }

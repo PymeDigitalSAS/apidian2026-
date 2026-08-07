@@ -12,6 +12,11 @@ class Seller extends Model
      * @var array
      */
     protected $primaryKey = 'identification_number';
+
+    // PK de texto (ver nota en Customer): evita whereIntegerInRaw en PostgreSQL
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     protected $fillable = [
         'identification_number', 'dv', 'name', 'phone', 'address', 'email', 'password',
     ];

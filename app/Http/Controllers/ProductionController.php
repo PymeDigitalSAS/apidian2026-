@@ -437,6 +437,9 @@ class ProductionController extends Controller
         }
 
         return [
+            // El tipo viaja en el arreglo para que el badge sepa contra qué URL del
+            // software comparar; sin él caía a la de facturas para todos los tipos.
+            'type' => $type,
             'environment_id' => $environmentId,
             'has_software' => $hasSoftware,
             'software_info' => $softwareInfo
@@ -451,6 +454,12 @@ class ProductionController extends Controller
 
         if (!in_array($environmentId, [1, 2])) {
             return back()->with('error', 'Ambiente no válido');
+        }
+
+        // Sin software solo se movería la columna y la URL de envío quedaría como está,
+        // que es exactamente la desincronización que hace mentir al badge.
+        if (!$company->software) {
+            return back()->with('error', 'La empresa no tiene software configurado. Configure el software antes de cambiar el ambiente.');
         }
 
         switch ($type) {
@@ -532,7 +541,7 @@ class ProductionController extends Controller
                 // \Log::error('Token de usuario principal no encontrado', ['company_id' => $company->id]);
                 return response()->json(['error' => 'No se encontró el token del usuario principal.']);
             }
-            $baseUrl = rtrim(config('app.url'), '/');
+            $baseUrl = $this->apiBaseUrl();
             $client = new Client(['base_uri' => $baseUrl]);
             $headers = [
                 'Authorization' => 'Bearer ' . $token,
@@ -656,7 +665,7 @@ class ProductionController extends Controller
                             continue;
                         }
                     } catch (\Exception $e) {
-                        $errors[] = "Nómina $i: " . $e->getMessage();
+                        $errors[] = "Nómina $i: " . $this->apiErrorMessage($e);
                         continue;
                     }
                 }
@@ -682,7 +691,7 @@ class ProductionController extends Controller
                             $payroll_cunes[] = $cune;
                         }
                     } catch (\Exception $e) {
-                        $errors[] = "Nómina " . ($idx + 1) . ": Error consultando ZipKey - " . $e->getMessage();
+                        $errors[] = "Nómina " . ($idx + 1) . ": Error consultando ZipKey - " . $this->apiErrorMessage($e);
                         $payroll_cunes[] = null;
                     }
                 }
@@ -803,7 +812,7 @@ class ProductionController extends Controller
                             $errors[] = "Ajuste " . ($i + 1) . ": No se obtuvo ZipKey.";
                         }
                     } catch (\Exception $e) {
-                        $errors[] = "Ajuste " . ($i + 1) . ": " . $e->getMessage();
+                        $errors[] = "Ajuste " . ($i + 1) . ": " . $this->apiErrorMessage($e);
                     }
                 }
 
@@ -819,7 +828,7 @@ class ProductionController extends Controller
                         $ajuste_statuses[] = json_decode($response->getBody(), true);
                         \Log::info("ajuste", $ajuste_statuses);
                     } catch (\Exception $e) {
-                        $ajuste_statuses[] = ['error' => $e->getMessage()];
+                        $ajuste_statuses[] = ['error' => $this->apiErrorMessage($e)];
                     }
                 }
 
@@ -839,13 +848,25 @@ class ProductionController extends Controller
                     'ajuste_statuses' => $ajuste_statuses
                 ]);
             }
-            if ($step == 3 && $type === 'payroll') {
+            if ($step == 3) {
+                // Solo se mueve el tipo que se está migrando. Antes se enviaban los tres
+                // ambientes en cada paso a producción, así que habilitar POS bajaba las
+                // facturas a habilitación (y viceversa), y soporte/eventos no se tocaban
+                // nunca porque no tenían rama en este paso.
+                $envColumnByType = [
+                    'invoice' => 'type_environment_id',
+                    'pos'     => 'eqdocs_type_environment_id',
+                    'payroll' => 'payroll_type_environment_id',
+                    'support' => 'support_document_type_environment_id',
+                    'event'   => 'event_type_environment_id',
+                ];
+
+                if (!isset($envColumnByType[$type])) {
+                    return response()->json(['error' => 'Tipo de documento no válido para el cambio de ambiente.']);
+                }
+
                 try {
-                    $envData = [
-                        "type_environment_id" => 2,
-                        "payroll_type_environment_id" => 1,
-                        "eqdocs_type_environment_id" => 2
-                    ];
+                    $envData = [$envColumnByType[$type] => 1];
                     $envResponse = $client->put('/api/ubl2.1/config/environment', [
                         'headers' => $headers,
                         'json' => $envData
@@ -853,7 +874,7 @@ class ProductionController extends Controller
                     $envResult = json_decode($envResponse->getBody(), true);
                     return response()->json(['success' => true, 'env_result' => $envResult]);
                 } catch (\Exception $e) {
-                    return response()->json(['error' => 'Error cambiando ambiente: ' . $e->getMessage()]);
+                    return response()->json(['error' => 'Error cambiando ambiente: ' . $this->apiErrorMessage($e)]);
                 }
             }
             if ($step == 1) {
@@ -1056,7 +1077,7 @@ class ProductionController extends Controller
                     return response()->json(['success' => true, 'zipkey' => $zipkey]);
                 } catch (\Exception $e) {
                     // \Log::error('Error al enviar el documento', ['exception' => $e]);
-                    return response()->json(['error' => 'Error al enviar el documento: ' . $e->getMessage()]);
+                    return response()->json(['error' => 'Error al enviar el documento: ' . $this->apiErrorMessage($e)]);
                 }
             }
 
@@ -1124,38 +1145,71 @@ class ProductionController extends Controller
                     return response()->json(['success' => true, 'zipkey_status' => $data]);
                 } catch (\Exception $e) {
                     // \Log::error('Error consultando ZipKey', ['exception' => $e]);
-                    return response()->json(['error' => 'Error consultando ZipKey: ' . $e->getMessage()]);
+                    return response()->json(['error' => 'Error consultando ZipKey: ' . $this->apiErrorMessage($e)]);
                 }
             }
 
-            if ($step == 3) {
-                // \Log::info('Paso 3: Cambiar ambiente');
-                try {
-                    $envData = [
-                        "type_environment_id" => $type === 'invoice' ? 1 : 2,
-                        "payroll_type_environment_id" => 2,
-                        "eqdocs_type_environment_id" => $type === 'pos' ? 1 : 2
-                    ];
-                    $envResponse = $client->put('/api/ubl2.1/config/environment', [
-                        'headers' => $headers,
-                        'json' => $envData
-                    ]);
-                    $envResult = json_decode($envResponse->getBody(), true);
-                    // \Log::info('Respuesta cambio de ambiente', ['envResult' => $envResult]);
-                    return response()->json(['success' => true, 'env_result' => $envResult]);
-                } catch (\Exception $e) {
-                    // \Log::error('Error cambiando ambiente', ['exception' => $e]);
-                    return response()->json(['error' => 'Error cambiando ambiente: ' . $e->getMessage()]);
-                }
-            }
         }
 
         return back()->with('error', 'Petición inválida.');
     }
 
-    private function consultarZipKey($zipKey, $token)
+    /**
+     * URL base para las llamadas internas a la propia API.
+     *
+     * Si APP_URL trae el puerto por defecto (típicamente https://dominio:80 cuando
+     * el .env arma la URL con ${APP_PORT}), Guzzle intenta TLS contra el puerto 80
+     * y falla con "cURL error 35: wrong version number". Se elimina el puerto en
+     * ese caso para que mande el esquema.
+     */
+    private function apiBaseUrl()
     {
         $baseUrl = rtrim(config('app.url'), '/');
+        $parts = parse_url($baseUrl);
+
+        if (!empty($parts['port']) && in_array((int) $parts['port'], [80, 443], true)) {
+            $baseUrl = preg_replace('/:' . $parts['port'] . '(?=\/|$)/', '', $baseUrl);
+        }
+
+        return $baseUrl;
+    }
+
+    /**
+     * Mensaje de error legible para fallas de las llamadas internas a la API.
+     *
+     * Guzzle recorta el cuerpo de la respuesta a 120 caracteres dentro de
+     * getMessage(), lo que deja los errores útiles (SQLSTATE, validaciones)
+     * cortados a la mitad. Cuando hay respuesta se lee el cuerpo completo.
+     */
+    private function apiErrorMessage(\Exception $e)
+    {
+        if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
+            $response = $e->getResponse();
+            $body = (string) $response->getBody();
+            $decoded = json_decode($body, true);
+
+            if (is_array($decoded)) {
+                $parts = array_filter([
+                    $decoded['message'] ?? null,
+                    $decoded['error'] ?? null,
+                ], 'is_string');
+
+                if ($parts) {
+                    return 'HTTP ' . $response->getStatusCode() . ' - ' . implode(': ', array_unique($parts));
+                }
+            }
+
+            if ($body !== '') {
+                return 'HTTP ' . $response->getStatusCode() . ' - ' . mb_substr($body, 0, 2000);
+            }
+        }
+
+        return $e->getMessage();
+    }
+
+    private function consultarZipKey($zipKey, $token)
+    {
+        $baseUrl = $this->apiBaseUrl();
         $client = new Client(['base_uri' => $baseUrl]);
         $headers = [
             'Authorization' => 'Bearer ' . $token,
@@ -1198,7 +1252,7 @@ class ProductionController extends Controller
         if (!$token || !$IDSoftware) {
             return response()->json(['error' => 'Token o IDSoftware no disponible'], 400);
         }
-        $baseUrl = rtrim(config('app.url'), '/');
+        $baseUrl = $this->apiBaseUrl();
         $client = new Client(['base_uri' => $baseUrl]);
 
         try {
@@ -1215,7 +1269,7 @@ class ProductionController extends Controller
             $data = json_decode($response->getBody(), true);
             return response()->json($data);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json(['error' => $this->apiErrorMessage($e)], 500);
         }
     }
 

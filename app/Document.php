@@ -8,6 +8,7 @@ use DateTime;
 use App\TypeDocument;
 use App\Customer;
 use App\TypeCurrency;
+use App\Helpers\SqlDialect;
 
 
 class Document extends Model
@@ -236,8 +237,9 @@ class Document extends Model
             switch ($field) {
                 case 'number':
                     $query->where(function ($q) use ($search) {
+                        // TRIM: prefix es char() y en PostgreSQL llega a CONCAT relleno de espacios
                         $q->where('number', 'LIKE', "%$search%")
-                            ->orWhereRaw("CONCAT(COALESCE(prefix, ''), COALESCE(number, '')) LIKE ?", ["%$search%"]);
+                            ->orWhereRaw("CONCAT(COALESCE(TRIM(prefix), ''), COALESCE(number, '')) LIKE ?", ["%$search%"]);
                     });
                     break;
                 case 'prefix':
@@ -245,8 +247,9 @@ class Document extends Model
                     break;
                 case 'client':
                     $query->where(function ($q) use ($search) {
-                        $q->whereRaw("JSON_UNQUOTE(client->'$.name') LIKE ?", ["%$search%"])
-                            ->orWhereRaw("JSON_UNQUOTE(client->'$.identification_number') LIKE ?", ["%$search%"]);
+                        $like = SqlDialect::likeOp();
+                        $q->whereRaw(SqlDialect::jsonText('client', 'name') . " $like ?", ["%$search%"])
+                            ->orWhereRaw(SqlDialect::jsonText('client', 'identification_number') . " $like ?", ["%$search%"]);
                     });
                     break;
                 case 'type':
@@ -283,16 +286,19 @@ class Document extends Model
         }
 
         // Búsqueda global (todos los campos).
+        // total/date_issue no son texto: el CAST los vuelve comparables con
+        // LIKE tambien en PostgreSQL (MySQL lo hacia implicito).
         $query->where(function ($q) use ($search) {
+            $like = SqlDialect::likeOp();
             $q->orWhere('number', 'LIKE', "%$search%")
                 ->orWhere('prefix', 'LIKE', "%$search%")
-                ->orWhereRaw("CONCAT(COALESCE(prefix, ''), COALESCE(number, '')) LIKE ?", ["%$search%"])
-                ->orWhere('total', 'LIKE', "%$search%")
-                ->orWhere('date_issue', 'LIKE', "%$search%")
-                ->orWhereRaw("JSON_UNQUOTE(client->'$.name') LIKE ?", ["%$search%"])
-                ->orWhereRaw("JSON_UNQUOTE(client->'$.email') LIKE ?", ["%$search%"])
-                ->orWhereRaw("JSON_UNQUOTE(client->'$.phone') LIKE ?", ["%$search%"])
-                ->orWhereRaw("JSON_UNQUOTE(client->'$.identification_number') LIKE ?", ["%$search%"]);
+                ->orWhereRaw("CONCAT(COALESCE(TRIM(prefix), ''), COALESCE(number, '')) LIKE ?", ["%$search%"])
+                ->orWhereRaw(SqlDialect::castChar('total') . " LIKE ?", ["%$search%"])
+                ->orWhereRaw(SqlDialect::castChar('date_issue') . " LIKE ?", ["%$search%"])
+                ->orWhereRaw(SqlDialect::jsonText('client', 'name') . " $like ?", ["%$search%"])
+                ->orWhereRaw(SqlDialect::jsonText('client', 'email') . " $like ?", ["%$search%"])
+                ->orWhereRaw(SqlDialect::jsonText('client', 'phone') . " $like ?", ["%$search%"])
+                ->orWhereRaw(SqlDialect::jsonText('client', 'identification_number') . " $like ?", ["%$search%"]);
             });
         return $query;
     }

@@ -162,6 +162,10 @@ class HomeController extends Controller
 
         $token_company = $company->user->api_token;
 
+        // Este listado mezcla todos los tipos de documento, asi que no se pasa $type:
+        // la vista pinta un badge por tipo en vez de mostrar el de facturas para todos.
+        $company->load('software');
+
         return view('company.documents', ['company' => $company, 'documents' => $documents, 'resolution_credit_notes' => $resolution_credit_notes, 'token_company' => $token_company]);
     }
 
@@ -207,9 +211,13 @@ class HomeController extends Controller
         $documents = ReceivedDocument::where('customer','=',$company_idnumber)
             ->where('state_document_id', '=', 1)
             ->filter(request('event_search'), request('event_search_field'), request('event_search_to'))
+            ->orderBy('id', 'DESC') // orden estable: PostgreSQL no garantiza orden sin ORDER BY
             ->paginate(10)
             ->withQueryString();
-        return view('company.events', compact('documents', 'company_idnumber'));
+        // Sin $company la vista revienta en el encabezado y el badge de ambiente
+        // cae al valor por defecto (Habilitación) sin leer event_type_environment_id.
+        $company = Company::with('software')->where('identification_number', $company_idnumber)->firstOrFail();
+        return view('company.events', compact('documents', 'company_idnumber', 'company'));
     }
 
     // replica de SellerLoginController@SellersPayrolls
@@ -218,9 +226,12 @@ class HomeController extends Controller
         $documents = DocumentPayroll::where('state_document_id', '=', 1)
             ->where('identification_number', $company_idnumber)
             ->filter(request('payroll_search'), request('payroll_search_field'), request('payroll_search_to'))
+            ->orderBy('id', 'DESC') // orden estable: PostgreSQL no garantiza orden sin ORDER BY
             ->paginate(20)
             ->withQueryString();
-        return view('company.payrolls', compact('documents', 'company_idnumber'));
+        // Idem eventos: sin $company el badge no puede leer payroll_type_environment_id.
+        $company = Company::with('software')->where('identification_number', $company_idnumber)->firstOrFail();
+        return view('company.payrolls', compact('documents', 'company_idnumber', 'company'));
     }
 
     public function updateStorageMode(Request $request, $companyId)

@@ -32,7 +32,16 @@ class DropboxServiceProvider extends ServiceProvider
                 $config['authorization_token']
             );
 
-            return new Filesystem(new DropboxAdapter($client));
+            $adapter = new DropboxAdapter($client);
+
+            // Laravel 10 espera un FilesystemAdapter (contrato de Illuminate),
+            // no el Filesystem crudo de League; devolverlo crudo rompia
+            // backup:run con TypeError en BackupDestination.
+            return new \Illuminate\Filesystem\FilesystemAdapter(
+                new Filesystem($adapter, $config),
+                $adapter,
+                $config
+            );
         });
     }
 }

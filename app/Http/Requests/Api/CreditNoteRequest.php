@@ -128,7 +128,7 @@ class CreditNoteRequest extends FormRequest
             }),
 
             // Consecutive
-            'number' => 'required|integer|between:'.optional($this->resolution)->from.','.optional($this->resolution)->to,
+            'number' => 'required|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
 
             // Discrepancy Response
             'discrepancyresponsecode' => 'nullable|integer|between:1,6',

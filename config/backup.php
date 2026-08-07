@@ -57,8 +57,10 @@ return [
              *
              * For a complete list of available customization options, see https://github.com/spatie/db-dumper
              */
+            // La conexion a respaldar sigue al .env: con pgsql el paquete
+            // usa pg_dump en lugar de mysqldump.
             'databases' => [
-                'mysql',
+                env('DB_CONNECTION', 'mysql'),
             ],
         ],
 

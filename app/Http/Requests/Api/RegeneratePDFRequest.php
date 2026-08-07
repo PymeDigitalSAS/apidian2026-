@@ -129,7 +129,7 @@ class RegeneratePDFRequest extends FormRequest
             }),
 
             // Consecutive
-            'number' => 'nullable|integer|between:'.optional($this->resolution)->from.','.optional($this->resolution)->to,
+            'number' => 'nullable|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
 
             // Discrepancy Response
             'discrepancyresponsecode' => 'nullable|integer|between:1,6',
@@ -450,7 +450,7 @@ class RegeneratePDFRequest extends FormRequest
             // Secuence number
             'worker_code' => 'nullable|string',
 
-            'consecutive' => 'nullable|integer|between:'.optional($this->resolution)->from.','.optional($this->resolution)->to,
+            'consecutive' => 'nullable|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
 
             // General Information
             'payroll_period_id' => 'nullable|exists:payroll_periods,id',

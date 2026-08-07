@@ -36,6 +36,7 @@ class RipsAppointmentController extends Controller
                 ->where('company_id', $company->id)
                 ->where('user_id', auth()->user()->id)
                 ->filter($search, $month)
+                ->orderBy('id') // orden estable: PostgreSQL no garantiza orden sin ORDER BY
                 ->paginate(20);
             return response()->json([
                 'success' => true,

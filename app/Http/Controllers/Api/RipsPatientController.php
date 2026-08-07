@@ -20,7 +20,7 @@ class RipsPatientController extends Controller
         $company = $this->getCompanyId();
         $search = request()->get('search');
         try {
-            $patients = RipsPatient::where('company_id', $company->id)->filter($search)->paginate(20);
+            $patients = RipsPatient::where('company_id', $company->id)->filter($search)->orderBy('id')->paginate(20);
             return response()->json([
                 'success' => true,
                 'data' => $patients

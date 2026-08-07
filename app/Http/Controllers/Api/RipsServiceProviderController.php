@@ -19,7 +19,7 @@ class RipsServiceProviderController extends Controller
         $company = $this->getCompanyId();
         $search = request()->get('search');
         try {
-            $providers = RipsServiceProvider::where('company_id', $company->id)->filter($search)->paginate(20);
+            $providers = RipsServiceProvider::where('company_id', $company->id)->filter($search)->orderBy('id')->paginate(20);
             return response()->json([
                 'success' => true,
                 'data' => $providers
