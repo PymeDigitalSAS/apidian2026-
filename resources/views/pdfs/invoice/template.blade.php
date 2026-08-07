@@ -386,6 +386,8 @@
                                     if (isset($aiuLine['code']) && in_array($aiuLine['code'], ['ADMINIST', 'IMPREVIS', 'UTILIDAD']))
                                         $aiuBase += (float) $aiuLine['line_extension_amount'];
                                 }
+                                $aiuServiceBase = (float) $request->legal_monetary_totals['line_extension_amount'] - $aiuBase;
+                                $aiuPercent = $aiuServiceBase > 0 ? round($aiuBase / $aiuServiceBase * 100, 2) : 0;
                             @endphp
                             @if($aiuBase > 0)
                                 <tr>
@@ -393,7 +395,7 @@
                                     <td>{{number_format($request->legal_monetary_totals['line_extension_amount'] - $aiuBase, 2)}}</td>
                                 </tr>
                                 <tr>
-                                    <td>Base AIU:</td>
+                                    <td>Base AIU ({{$aiuPercent}}%):</td>
                                     <td>{{number_format($aiuBase, 2)}}</td>
                                 </tr>
                             @else

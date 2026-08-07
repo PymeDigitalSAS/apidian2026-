@@ -12,6 +12,8 @@
     foreach ($request->invoice_lines ?? [] as $t10line) {
         if (in_array($t10line['code'] ?? '', ['ADMINIST', 'IMPREVIS', 'UTILIDAD'])) $t10aiu += (float) ($t10line['line_extension_amount'] ?? 0);
     }
+    $t10aiuSb = (float) ($t10lmt['tax_exclusive_amount'] ?? 0) - $t10aiu;
+    $t10aiuPct = $t10aiuSb > 0 ? round($t10aiu / $t10aiuSb * 100, 2) : 0;
 @endphp
 <body>
     @if(isset($request->head_note))
@@ -194,7 +196,7 @@
                             <td style="border-bottom: 0.5px solid #dddddd; text-align: right;">{{$t10n(($t10lmt['tax_exclusive_amount'] ?? 0) - $t10aiu)}}</td>
                         </tr>
                         <tr>
-                            <td style="border-bottom: 0.5px solid #dddddd;">Base AIU</td>
+                            <td style="border-bottom: 0.5px solid #dddddd;">Base AIU ({{$t10aiuPct}}%)</td>
                             <td style="border-bottom: 0.5px solid #dddddd; text-align: right;">{{$t10n($t10aiu)}}</td>
                         </tr>
                     @else

@@ -11,6 +11,8 @@
     foreach ($request->invoice_lines ?? [] as $t12line) {
         if (in_array($t12line['code'] ?? '', ['ADMINIST', 'IMPREVIS', 'UTILIDAD'])) $t12aiu += (float) ($t12line['line_extension_amount'] ?? 0);
     }
+    $t12aiuSb = (float) ($t12lmt['tax_exclusive_amount'] ?? 0) - $t12aiu;
+    $t12aiuPct = $t12aiuSb > 0 ? round($t12aiu / $t12aiuSb * 100, 2) : 0;
     // ENVIAR A: usar tercero de entrega si viene, si no el cliente
     $t12ship = $request->deliveryparty ?? null;
 @endphp
@@ -162,7 +164,7 @@
                             <td style="background-color: #DDEBF7; text-align: right;">{{$t12n(($t12lmt['tax_exclusive_amount'] ?? 0) - $t12aiu)}}</td>
                         </tr>
                         <tr>
-                            <td style="background-color: #DDEBF7;">BASE AIU</td>
+                            <td style="background-color: #DDEBF7;">BASE AIU ({{$t12aiuPct}}%)</td>
                             <td style="background-color: #DDEBF7; text-align: right;">{{$t12n($t12aiu)}}</td>
                         </tr>
                     @else
