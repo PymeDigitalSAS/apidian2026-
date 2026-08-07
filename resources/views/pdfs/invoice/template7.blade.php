@@ -248,6 +248,12 @@
                                     @if(!empty($item['date_of_due']))<strong>Vence:</strong> {{ $item['date_of_due'] }}@endif
                                 </span>
                             @endif
+                            @php $itemAttrs = array_filter(is_array($item['item_attributes'] ?? null) ? $item['item_attributes'] : [], function ($a) { return !empty($a['value']); }); @endphp
+                            @if(count($itemAttrs))
+                                <br><span style="font-size: 7px; font-style: italic;">
+                                    @foreach($itemAttrs as $attr)<strong>{{$attr['description'] ?? ''}}:</strong> {{$attr['value']}}@if(!$loop->last) | @endif @endforeach
+                                </span>
+                            @endif
                         </td>
                         <td class="desc-9 text-right">
                             @php
