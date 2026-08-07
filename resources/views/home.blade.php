@@ -30,7 +30,10 @@
             <!-- Barra de búsqueda a la derecha -->
             <div class="col-md-8">
                 <label><strong>Búsqueda</strong></label>
-                <input type="text" id="filter-text" class="form-control" placeholder="Escribe para buscar...">
+                <input type="search" id="filter-text" name="filtro_busqueda_empresas" class="form-control"
+                       placeholder="Escribe para buscar..."
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                       data-lpignore="true" data-form-type="other" data-1p-ignore>
             </div>
         </div>
     </div>
@@ -758,7 +761,32 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // El navegador (o un gestor de contraseñas) puede autorrellenar este campo con
+    // el correo del usuario, ya que es el primer input de texto de la página. Eso
+    // dejaba la tabla filtrada en vacío y "sin empresas". Se limpia al cargar, al
+    // volver desde la caché de navegación (botón atrás) y por si el autorrelleno
+    // llega después del DOMContentLoaded.
+    let userTyped = false;
+    filterText.addEventListener("keydown", function () { userTyped = true; });
+
+    function resetIfAutofilled() {
+        if (!userTyped && filterText.value !== "") {
+            filterText.value = "";
+            applyFilter();
+        }
+    }
+
+    resetIfAutofilled();
+    setTimeout(resetIfAutofilled, 300);
+    setTimeout(resetIfAutofilled, 1200);
+    window.addEventListener("pageshow", function () {
+        userTyped = false;
+        resetIfAutofilled();
+        applyFilter();
+    });
+
     filterText.addEventListener("keyup", applyFilter);
+    filterText.addEventListener("search", applyFilter); // clic en la "x" de type=search
     filterType.addEventListener("change", applyFilter);
 });
 // Datos de certificado por empresa (generados server-side)

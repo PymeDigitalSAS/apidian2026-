@@ -665,7 +665,7 @@ class ProductionController extends Controller
                             continue;
                         }
                     } catch (\Exception $e) {
-                        $errors[] = "Nómina $i: " . $e->getMessage();
+                        $errors[] = "Nómina $i: " . $this->apiErrorMessage($e);
                         continue;
                     }
                 }
@@ -691,7 +691,7 @@ class ProductionController extends Controller
                             $payroll_cunes[] = $cune;
                         }
                     } catch (\Exception $e) {
-                        $errors[] = "Nómina " . ($idx + 1) . ": Error consultando ZipKey - " . $e->getMessage();
+                        $errors[] = "Nómina " . ($idx + 1) . ": Error consultando ZipKey - " . $this->apiErrorMessage($e);
                         $payroll_cunes[] = null;
                     }
                 }
@@ -812,7 +812,7 @@ class ProductionController extends Controller
                             $errors[] = "Ajuste " . ($i + 1) . ": No se obtuvo ZipKey.";
                         }
                     } catch (\Exception $e) {
-                        $errors[] = "Ajuste " . ($i + 1) . ": " . $e->getMessage();
+                        $errors[] = "Ajuste " . ($i + 1) . ": " . $this->apiErrorMessage($e);
                     }
                 }
 
@@ -828,7 +828,7 @@ class ProductionController extends Controller
                         $ajuste_statuses[] = json_decode($response->getBody(), true);
                         \Log::info("ajuste", $ajuste_statuses);
                     } catch (\Exception $e) {
-                        $ajuste_statuses[] = ['error' => $e->getMessage()];
+                        $ajuste_statuses[] = ['error' => $this->apiErrorMessage($e)];
                     }
                 }
 
@@ -874,7 +874,7 @@ class ProductionController extends Controller
                     $envResult = json_decode($envResponse->getBody(), true);
                     return response()->json(['success' => true, 'env_result' => $envResult]);
                 } catch (\Exception $e) {
-                    return response()->json(['error' => 'Error cambiando ambiente: ' . $e->getMessage()]);
+                    return response()->json(['error' => 'Error cambiando ambiente: ' . $this->apiErrorMessage($e)]);
                 }
             }
             if ($step == 1) {
@@ -1077,7 +1077,7 @@ class ProductionController extends Controller
                     return response()->json(['success' => true, 'zipkey' => $zipkey]);
                 } catch (\Exception $e) {
                     // \Log::error('Error al enviar el documento', ['exception' => $e]);
-                    return response()->json(['error' => 'Error al enviar el documento: ' . $e->getMessage()]);
+                    return response()->json(['error' => 'Error al enviar el documento: ' . $this->apiErrorMessage($e)]);
                 }
             }
 
@@ -1145,7 +1145,7 @@ class ProductionController extends Controller
                     return response()->json(['success' => true, 'zipkey_status' => $data]);
                 } catch (\Exception $e) {
                     // \Log::error('Error consultando ZipKey', ['exception' => $e]);
-                    return response()->json(['error' => 'Error consultando ZipKey: ' . $e->getMessage()]);
+                    return response()->json(['error' => 'Error consultando ZipKey: ' . $this->apiErrorMessage($e)]);
                 }
             }
 
@@ -1172,6 +1172,39 @@ class ProductionController extends Controller
         }
 
         return $baseUrl;
+    }
+
+    /**
+     * Mensaje de error legible para fallas de las llamadas internas a la API.
+     *
+     * Guzzle recorta el cuerpo de la respuesta a 120 caracteres dentro de
+     * getMessage(), lo que deja los errores útiles (SQLSTATE, validaciones)
+     * cortados a la mitad. Cuando hay respuesta se lee el cuerpo completo.
+     */
+    private function apiErrorMessage(\Exception $e)
+    {
+        if ($e instanceof \GuzzleHttp\Exception\RequestException && $e->hasResponse()) {
+            $response = $e->getResponse();
+            $body = (string) $response->getBody();
+            $decoded = json_decode($body, true);
+
+            if (is_array($decoded)) {
+                $parts = array_filter([
+                    $decoded['message'] ?? null,
+                    $decoded['error'] ?? null,
+                ], 'is_string');
+
+                if ($parts) {
+                    return 'HTTP ' . $response->getStatusCode() . ' - ' . implode(': ', array_unique($parts));
+                }
+            }
+
+            if ($body !== '') {
+                return 'HTTP ' . $response->getStatusCode() . ' - ' . mb_substr($body, 0, 2000);
+            }
+        }
+
+        return $e->getMessage();
     }
 
     private function consultarZipKey($zipKey, $token)
@@ -1236,7 +1269,7 @@ class ProductionController extends Controller
             $data = json_decode($response->getBody(), true);
             return response()->json($data);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json(['error' => $this->apiErrorMessage($e)], 500);
         }
     }
 
