@@ -145,7 +145,7 @@ class RegenerateAttachedDocumentController extends Controller
             // extraer de ahí lo que siga faltando (típico en notas y doc.
             // soporte, que no guardan respaldo en BD).
             if (!$signedxml || !$appresponsexml) {
-                list($dianSigned, $dianAppResponse) = $this->fetchFromDian($company, $cufecude);
+                list($dianSigned, $dianAppResponse) = $this->fetchFromDian($company, $cufecude, $invoice_doc->type_document_id);
                 $signedxml = $signedxml ?: $dianSigned;
                 $appresponsexml = $appresponsexml ?: $dianAppResponse;
             }
@@ -416,15 +416,21 @@ class RegenerateAttachedDocumentController extends Controller
      *
      * @param \App\Company $company
      * @param string|null $cufe
+     * @param int|null $type_document_id
      * @return array [signedxml|null, appresponsexml|null]
      */
-    protected function fetchFromDian($company, $cufe)
+    protected function fetchFromDian($company, $cufe, $type_document_id = null)
     {
         if (empty($cufe))
             return [null, null];
 
         try {
-            $getXml = new GetXmlByDocumentKey($company->certificate->path, $company->certificate->password, $company->software->url);
+            // Notas y doc. soporte pueden estar en un ambiente distinto al de facturacion:
+            // la consulta tiene que ir a la URL del tipo de documento, no siempre a la de FE.
+            $dian_url = is_null($type_document_id)
+                ? $company->software->url
+                : $company->software->urlForTypeDocument($type_document_id);
+            $getXml = new GetXmlByDocumentKey($company->certificate->path, $company->certificate->password, $dian_url);
             $getXml->trackId = $cufe;
             $r = $getXml->signToSend()->getResponseToObject();
 

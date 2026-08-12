@@ -1041,7 +1041,8 @@ class StateController extends Controller
         else
             $certificate_days_left = $c['certificate_days_left'];
 
-        $getStatus = new GetStatusEvents($user->company->certificate->path, $user->company->certificate->password, $user->company->software->url);
+        // Consulta de eventos: va contra el ambiente de eventos, no el de facturacion.
+        $getStatus = new GetStatusEvents($user->company->certificate->path, $user->company->certificate->password, $user->company->software->url_event);
 
         $getStatus->trackId = $trackId;
         StorageService::ensureDirectory("public/{$company->identification_number}");

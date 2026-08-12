@@ -52,7 +52,7 @@ class PayrollAdjustNoteController extends Controller
         $company = $user->company;
 
         // Verificar la disponibilidad de la DIAN antes de continuar
-        $dian_url = $company->software->url;
+        $dian_url = $company->software->url_payroll;
         if (!$this->verificarEstadoDIAN($dian_url)) {
             // Manejar la indisponibilidad del servicio, por ejemplo:
             return [
@@ -344,7 +344,7 @@ class PayrollAdjustNoteController extends Controller
         $company = $user->company;
 
         // Verificar la disponibilidad de la DIAN antes de continuar
-        $dian_url = $company->software->url;
+        $dian_url = $company->software->url_payroll;
         if (!$this->verificarEstadoDIAN($dian_url)) {
             // Manejar la indisponibilidad del servicio, por ejemplo:
             return [
