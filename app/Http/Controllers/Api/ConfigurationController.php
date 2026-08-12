@@ -509,8 +509,8 @@ class ConfigurationController extends Controller
                     [
                         'identifier' => isset($request->id) ? $request->id : $s->identifier,
                         'pin' => isset($request->pin) ? $request->pin : $s->pin,
-                        'url' => isset($request->url) ? $request->url : 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc',
-                        'url_payroll' => isset($request->urlpayroll) ? $request->urlpayroll : 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc',
+                        'url' => isset($request->url) ? $request->url : $s->url,
+                        'url_payroll' => isset($request->urlpayroll) ? $request->urlpayroll : $s->url_payroll,
                         'identifier_payroll' => isset($request->idpayroll) ? $request->idpayroll : $s->identifier_payroll,
                         'pin_payroll' => isset($request->pinpayroll) ? $request->pinpayroll : $s->pin_payroll,
 //                        'url_sd' => $request->urlsd ?? 'https://vpfe-hab.dian.gov.co/WcfDianCustomerServices.svc',
@@ -935,28 +935,32 @@ class ConfigurationController extends Controller
             // Preparar datos de ambiente con mapeo correcto
             $environmentData = [];
             
+            // filled() y no has(): un payload que manda el campo en null (modulo no
+            // configurado del lado del cliente) dejaba la columna en NULL mientras la URL
+            // del software se quedaba como estaba, que es la misma desincronizacion.
+
             // Factura de ventas (Invoice)
-            if ($request->has('type_environment_id') || $request->has('factura_ventas')) {
+            if ($request->filled('type_environment_id') || $request->filled('factura_ventas')) {
                 $environmentData['type_environment_id'] = $request->type_environment_id ?? $request->factura_ventas;
             }
-            
+
             // Nómina (Payroll)
-            if ($request->has('payroll_type_environment_id') || $request->has('nomina')) {
+            if ($request->filled('payroll_type_environment_id') || $request->filled('nomina')) {
                 $environmentData['payroll_type_environment_id'] = $request->payroll_type_environment_id ?? $request->nomina;
             }
-            
+
             // POS (Equivalent Documents)
-            if ($request->has('eqdocs_type_environment_id') || $request->has('pos')) {
+            if ($request->filled('eqdocs_type_environment_id') || $request->filled('pos')) {
                 $environmentData['eqdocs_type_environment_id'] = $request->eqdocs_type_environment_id ?? $request->pos;
             }
-            
+
             // Documentos Soporte (Support Documents)
-            if ($request->has('support_document_type_environment_id') || $request->has('documentos_soporte')) {
+            if ($request->filled('support_document_type_environment_id') || $request->filled('documentos_soporte')) {
                 $environmentData['support_document_type_environment_id'] = $request->support_document_type_environment_id ?? $request->documentos_soporte;
             }
-            
+
             // Eventos RADIAN (Events)
-            if ($request->has('event_type_environment_id') || $request->has('eventos_radian')) {
+            if ($request->filled('event_type_environment_id') || $request->filled('eventos_radian')) {
                 $environmentData['event_type_environment_id'] = $request->event_type_environment_id ?? $request->eventos_radian;
             }
 

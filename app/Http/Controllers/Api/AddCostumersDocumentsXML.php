@@ -141,10 +141,14 @@ class AddCostumersDocumentsXML extends Controller
             $attachmentRelativePath = "public/{$company->identification_number}/Attachment-".$this->valueXML($xml, $td."/cbc:ID/").".xml";
             if(!StorageService::exists($attachmentRelativePath)){
                 $this->environment($document->ambient_id, $company, $this->ValueXML($xml, $td."/ext:UBLExtensions/ext:UBLExtension/ext:ExtensionContent/sts:DianExtensions/sts:SoftwareProvider/sts:SoftwareID/"));
-                $getStatus = new GetStatus($company->certificate->path, $company->certificate->password, $company->software->url);
-                $getStatus->trackId = $document->cufe;
-                $respuestadian = $getStatus->signToSend(StorageService::tempPath("public/{$nit}/ReqZIP-".$document->cufe.".xml"))->getResponseToObject(StorageService::tempPath("public/{$nit}/RptaZIP-".$document->cufe.".xml"));
-                $this->environment($id_env_actual, $company, $id_software_actual);
+                try{
+                    $getStatus = new GetStatus($company->certificate->path, $company->certificate->password, $company->software->url);
+                    $getStatus->trackId = $document->cufe;
+                    $respuestadian = $getStatus->signToSend(StorageService::tempPath("public/{$nit}/ReqZIP-".$document->cufe.".xml"))->getResponseToObject(StorageService::tempPath("public/{$nit}/RptaZIP-".$document->cufe.".xml"));
+                }
+                finally{
+                    $this->environment($id_env_actual, $company, $id_software_actual);
+                }
                 if($respuestadian->Envelope->Body->GetStatusResponse->GetStatusResult->IsValid == 'true'){
                     $appresponsexml = base64_decode($respuestadian->Envelope->Body->GetStatusResponse->GetStatusResult->XmlBase64Bytes);
                     $ar->loadXML($appresponsexml);
