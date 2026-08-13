@@ -257,6 +257,24 @@
         </table>
         <br>
     @endisset
+    <?php
+        $showTaxColumn = false;
+        $showDiscountColumn = false;
+        foreach($request['invoice_lines'] as $line) {
+            foreach(($line['tax_totals'] ?? []) as $lineTax) {
+                if((float)($lineTax['tax_amount'] ?? 0) > 0) {
+                    $showTaxColumn = true;
+                    break;
+                }
+            }
+            foreach(($line['allowance_charges'] ?? []) as $lineDiscount) {
+                if((float)($lineDiscount['amount'] ?? 0) > 0) {
+                    $showDiscountColumn = true;
+                    break;
+                }
+            }
+        }
+    ?>
     <table class="table" style="width: 100%;">
         <thead>
             <tr>
@@ -266,9 +284,13 @@
                 <th class="text-center">Cantidad</th>
                 <th class="text-center">UM</th>
                 <th class="text-center">Val. Unit</th>
-                <th class="text-center">IVA/IC</th>
-                <th class="text-center">Dcto</th>
-                <th class="text-center">%</th>
+                @if($showTaxColumn)
+                    <th class="text-center">IVA/IC</th>
+                @endif
+                @if($showDiscountColumn)
+                    <th class="text-center">Dcto</th>
+                    <th class="text-center">%</th>
+                @endif
                 <th class="text-center">Val. Item</th>
             </tr>
         </thead>
@@ -287,11 +309,15 @@
                         <td class="text-right"></td>
                         <td class="text-right"></td>
                         <td class="text-right">{{number_format($item['price_amount'], 2)}}</td>
-                        <td class="text-right">{{number_format($item['tax_totals'][0]['tax_amount'], 2)}}</td>
-                        @if(isset($item['allowance_charges']))
-                            <td class="text-right">{{number_format($item['allowance_charges'][0]['amount'], 2)}}</td>
-                        @else
-                            <td class="text-right">{{number_format("0", 2)}}</td>
+                        @if($showTaxColumn)
+                            <td class="text-right">{{number_format($item['tax_totals'][0]['tax_amount'], 2)}}</td>
+                        @endif
+                        @if($showDiscountColumn)
+                            @if(isset($item['allowance_charges']))
+                                <td class="text-right">{{number_format($item['allowance_charges'][0]['amount'], 2)}}</td>
+                            @else
+                                <td class="text-right">{{number_format("0", 2)}}</td>
+                            @endif
                         @endif
                         <td class="text-right">{{number_format($item['invoiced_quantity'] * $item['price_amount'], 2)}}</td>
                     @else
@@ -322,27 +348,31 @@
                             @endif
                         @endif
 
-                        @if(isset($item['tax_totals']))
-                            @if(isset($item['tax_totals'][0]['tax_amount']))
-                                <td class="text-right">{{number_format($item['tax_totals'][0]['tax_amount'] / $item['invoiced_quantity'], 2)}}</td>
+                        @if($showTaxColumn)
+                            @if(isset($item['tax_totals']))
+                                @if(isset($item['tax_totals'][0]['tax_amount']))
+                                    <td class="text-right">{{number_format($item['tax_totals'][0]['tax_amount'] / $item['invoiced_quantity'], 2)}}</td>
+                                @else
+                                    <td class="text-right">{{number_format(0, 2)}}</td>
+                                @endif
                             @else
-                                <td class="text-right">{{number_format(0, 2)}}</td>
+                                <td class="text-right">E</td>
                             @endif
-                        @else
-                            <td class="text-right">E</td>
+                        @endif
+
+                        @if($showDiscountColumn)
+                            @if(isset($item['allowance_charges']))
+                                <td class="text-right">{{number_format($item['allowance_charges'][0]['amount'] / $item['invoiced_quantity'], 2)}}</td>
+                                <td class="text-right">{{number_format(($item['allowance_charges'][0]['amount'] * 100) / $item['allowance_charges'][0]['base_amount'], 2)}}</td>
+                            @else
+                                <td class="text-right">{{number_format("0", 2)}}</td>
+                                <td class="text-right">{{number_format("0", 2)}}</td>
+                            @endif
                         @endif
 
                         @if(isset($item['allowance_charges']))
-                            <td class="text-right">{{number_format($item['allowance_charges'][0]['amount'] / $item['invoiced_quantity'], 2)}}</td>
-                            <td class="text-right">{{number_format(($item['allowance_charges'][0]['amount'] * 100) / $item['allowance_charges'][0]['base_amount'], 2)}}</td>
-                            @if(isset($item['tax_totals']))
-                                <td class="text-right">{{number_format(($item['line_extension_amount']), 2)}}</td>
-                            @else
-                                <td class="text-right">{{number_format(($item['line_extension_amount']), 2)}}</td>
-                            @endif
+                            <td class="text-right">{{number_format(($item['line_extension_amount']), 2)}}</td>
                         @else
-                            <td class="text-right">{{number_format("0", 2)}}</td>
-                            <td class="text-right">{{number_format("0", 2)}}</td>
                             <td class="text-right">{{number_format($item['invoiced_quantity'] * ($item['line_extension_amount'] / $item['invoiced_quantity']) + ($item['tax_totals'][0]['tax_amount']), 2)}}</td>
                         @endif
                     @endif
@@ -436,22 +466,22 @@
                                 <td>Base:</td>
                                 <td>{{number_format($request->legal_monetary_totals['line_extension_amount'], 2)}}</td>
                             </tr>
-                            <tr>
-                                <td>Impuestos:</td>
-                                <td>{{number_format($TotalImpuestos, 2)}}</td>
-                            </tr>
+                            @if(($TotalImpuestos ?? 0) > 0)
+                                <tr>
+                                    <td>Impuestos:</td>
+                                    <td>{{number_format($TotalImpuestos, 2)}}</td>
+                                </tr>
+                            @endif
                             <tr>
                                 <td>Retenciones:</td>
                                 <td>{{number_format($TotalRetenciones, 2)}}</td>
                             </tr>
-                            <tr>
-                                <td>Descuentos:</td>
-                                @if(isset($request->legal_monetary_totals['allowance_total_amount']))
+                            @if((float)($request->legal_monetary_totals['allowance_total_amount'] ?? 0) > 0)
+                                <tr>
+                                    <td>Descuentos:</td>
                                     <td>{{number_format($request->legal_monetary_totals['allowance_total_amount'], 2)}}</td>
-                                @else
-                                    <td>{{number_format(0, 2)}}</td>
-                                @endif
-                            </tr>
+                                </tr>
+                            @endif
                             @if(isset($request->previous_balance))
                                 @if($request->previous_balance > 0)
                                     <tr>
