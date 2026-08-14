@@ -11,7 +11,7 @@
     foreach ($request->invoice_lines ?? [] as $t11line) {
         if (in_array($t11line['code'] ?? '', ['ADMINIST', 'IMPREVIS', 'UTILIDAD'])) $t11aiu += (float) ($t11line['line_extension_amount'] ?? 0);
     }
-    $t11aiuSb = (float) ($t11lmt['tax_exclusive_amount'] ?? 0) - $t11aiu;
+    $t11aiuSb = (float) ($t11lmt['line_extension_amount'] ?? 0) - $t11aiu;
     $t11aiuPct = $t11aiuSb > 0 ? round($t11aiu / $t11aiuSb * 100, 2) : 0;
 @endphp
 <body>
@@ -198,7 +198,7 @@
                     @if($t11aiu > 0)
                         <tr>
                             <td>Base servicio</td>
-                            <td style="text-align: right;">{{$t11m(($t11lmt['tax_exclusive_amount'] ?? 0) - $t11aiu)}}</td>
+                            <td style="text-align: right;">{{$t11m(($t11lmt['line_extension_amount'] ?? 0) - $t11aiu)}}</td>
                         </tr>
                         <tr>
                             <td>Base AIU ({{$t11aiuPct}}%)</td>
@@ -207,7 +207,7 @@
                     @else
                         <tr>
                             <td>Subtotal</td>
-                            <td style="text-align: right;">{{$t11m($t11lmt['tax_exclusive_amount'] ?? 0)}}</td>
+                            <td style="text-align: right;">{{$t11m($t11lmt['line_extension_amount'] ?? 0)}}</td>
                         </tr>
                     @endif
                     @if($t11descuento > 0)
