@@ -8,18 +8,21 @@ Estamos enfocados en crear herramientas y soluciones para desarrolladores de sof
 
 - ###  Despliegue en local (Windows)
   * Video de instalación. [Aquí](https://www.youtube.com/watch?v=9Ds2DR3QLGY)
-  * [Pasos aquí](docs/Comandos%20Instalacion%20API%202025%20Windows.md)
+  * [Pasos aquí](docs/Comandos%20Instalacion%20API%202026%20Windows.md)
 - ### Despliegue en linux
-  *  Exclusivo para Ubuntu **20.04** | entorno LAMP | ejecucion de comandos de forma manual.
+  *  Exclusivo para Ubuntu **22.04** | entorno LAMP | ejecucion de comandos de forma manual. (Ubuntu 20.04 ya no es compatible: el PPA de PHP 8.3 dejó de soportarlo)
      * [Video aquí](https://www.youtube.com/watch?v=rEgrHADjsCY)
-     * [Comandos aquí](docs/Comandos%20Instalacion%20API%202025%20Linux%20Ubuntu%2020.md)
-  * Exclusivo para Ubuntu **20.04** | Entorno LAMP | ejecución de script.
+     * [Comandos aquí](docs/Comandos%20Instalacion%20API%202026%20Linux%20Ubuntu%2022.md)
+  * Exclusivo para Ubuntu **22.04 / 24.04** | Entorno LAMP | ejecución de script.
      * [Pasos y script aquí](https://git.buho.la/facturalatam/co-apidian2026/-/snippets/47)
   * Linux | Entorno **Docker** | *Aporte de usuario de la comunidad*
      * [Descarga aquí](https://git.buho.la/facturalatam/co-apidian2026/-/blob/master/api_docker.zip?ref_type=heads)
 - ### Despliegue con Docker
   * Ubuntu 20.04 , 22.04 y 24.04 | sólo API | sin dominio | proceso manual
      * [Pasos aquí](https://git.buho.la/-/snippets/31)
+  * Sólo API | **con dominio** | ejecución de script | incluye el extractor de CUFEs (`cufes-worker`)
+     * Ubuntu 22.04: [scripts/scripapi.sh](scripts/scripapi.sh) — `bash scripapi.sh midominio.com`
+     * Ubuntu 20.04: [scripts/scripapi20.sh](scripts/scripapi20.sh) — `bash scripapi20.sh midominio.com`
 - ### Base de datos PostgreSQL (opcional)
   * El API funciona con MySQL/MariaDB (por defecto) o **PostgreSQL**; el motor se elige solo con el `.env`.
      * **Conexión y puesta en marcha** (requisitos, `.env`, migraciones): [docs/MANUAL_POSTGRESQL.md](docs/MANUAL_POSTGRESQL.md)

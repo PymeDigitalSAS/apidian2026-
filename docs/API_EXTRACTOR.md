@@ -2,16 +2,16 @@
 
 Rutas del API (Laravel) para extraer facturas de la DIAN desde sistemas externos.
 El API orquesta el worker Node (navegador) que obtiene los documentos del catálogo,
-y luego consulta/procesa los XML. El cliente **solo cambia la URL base**.
+y luego consulta/procesa los XML con el certificado de la empresa.
 
 > Las respuestas replican la estructura del extractor (`parseUblXml`): claves como
 > `TipoDocumento`, `CUFE`, `Sub Total`, `TaxBreakdown`, `LineItems`, etc.
 
 ---
 
-## Método recomendado: token de empresa
+## Autenticación: token de empresa
 
-La forma recomendada es autenticarse con el **token de la empresa** (el mismo
+Todas las rutas se autentican con el **token de la empresa** (el mismo
 `api_token` que usa la empresa para los eventos RADIAN). Así **no se envía ningún
 certificado** en la petición: el API usa el **certificado que la empresa ya tiene
 configurado** para consultar los XML en la DIAN. La respuesta son los **datos ya
@@ -22,27 +22,9 @@ extraídos y procesados** (no solo los CUFEs).
 - **Requisito**: la empresa debe existir y tener **software** y **certificado**
   configurados (lo mismo que ya necesita para emitir/enviar documentos).
 
----
-
-## Autenticación
-
-### A) Token de empresa (Bearer) — recomendado
-
 ```
 Authorization: Bearer <api_token de la empresa>
 ```
-
-Aplica a: `POST /api/extractor/company`, `GET /api/extractor/company/jobs/{id}`,
-`POST /api/extractor/company/stream` y `POST /api/ubl2.1/xml/document/{cufe}`.
-
-### B) API Key global (X-Api-Key)
-
-```
-X-Api-Key: <XML_QUERY_API_KEY>
-```
-
-Aplica a las rutas sin empresa/certificado (`/api/scrape`, `/api/cufes`). El valor
-es la variable `XML_QUERY_API_KEY` del `.env`. Si falta o no coincide: `401`.
 
 **Base URL** (ejemplo): `https://api.tu-dominio.com`
 
@@ -56,9 +38,6 @@ es la variable `XML_QUERY_API_KEY` del `.env`. Si falta o no coincide: `401`.
 | `POST` | `/api/extractor/company` | Bearer empresa | jobId (async, alternativa) |
 | `GET`  | `/api/extractor/company/jobs/{id}` | Bearer empresa | Avance + datos procesados |
 | `POST` | `/api/ubl2.1/xml/document/{cufe}` | Bearer empresa | XML (base64) de UN documento por CUFE (endpoint existente) |
-| `POST` | `/api/scrape` | X-Api-Key | Documentos completos `{log, data}` |
-| `GET`  | `/api/jobs/{id}` | X-Api-Key | Estado de un job del worker |
-| `POST` | `/api/cufes` | X-Api-Key | Solo la lista de CUFEs |
 
 > **Dos formas de consumir el mismo flujo con token de empresa:**
 > - **`/stream`** (simple, recomendado para clientes): **un solo endpoint**; se
@@ -357,91 +336,11 @@ curl -X POST https://api.tu-dominio.com/api/load-document-by-cufe \
 
 ---
 
-## 5. `POST /api/scrape` — extracción por token sin empresa (X-Api-Key)
-
-Alternativa **sin empresa ni certificado**: con el enlace `User/AuthToken`
-autentica la sesión del navegador y **descarga** los documentos del listado. Útil
-si no se quiere/tiene una empresa configurada.
-
-> Es más lento (descarga ZIP por documento). Para rangos con varios documentos usa
-> `async: true` + polling de `GET /api/jobs/{id}`.
-
-### Autenticación
-`X-Api-Key: <XML_QUERY_API_KEY>`
-
-### Petición
-
-```json
-{
-  "tipo": "Sent",
-  "fechaDesde": "2025-08-01",
-  "fechaHasta": "2025-08-01",
-  "url": "https://catalogo-vpfe.dian.gov.co/User/AuthToken?...",
-  "async": false
-}
-```
-
-### Respuesta síncrona (`async: false`)
-
-```json
-{
-  "partial": false,
-  "log": [ "✅ Iniciando proceso", "⬇️ Descargando archivo 1...", "✅ Proceso terminado" ],
-  "data": [ { "TipoDocumento": "Invoice", "CUFE": "...", "TaxBreakdown": [...], "LineItems": [...] } ]
-}
-```
-
-### Modo asíncrono (`async: true`)
-
-```json
-POST /api/scrape   { ..., "async": true }
-→ { "success": true, "jobId": "abc-123", "statusUrl": "/api/jobs/abc-123" }
-
-GET /api/jobs/abc-123   (X-Api-Key)
-→ running: { "status": "running", "log": [...], "data": null }
-→ done:    { "status": "done", "log": [...], "data": [ {...} ] }
-```
-
----
-
-## 6. `POST /api/cufes` — solo la lista de CUFEs (X-Api-Key)
-
-Rápido: obtiene únicamente los CUFEs del listado (no descarga XMLs ni los procesa).
-
-### Autenticación
-`X-Api-Key: <XML_QUERY_API_KEY>`
-
-### Petición
-
-```json
-{
-  "tipo": "Received",
-  "fechaDesde": "2025-08-01",
-  "fechaHasta": "2025-08-31",
-  "url": "https://catalogo-vpfe.dian.gov.co/User/AuthToken?..."
-}
-```
-
-### Respuesta
-
-```json
-{
-  "success": true,
-  "total": 5,
-  "message": "Se obtuvieron 5 CUFE(s)",
-  "data": [
-    { "cufe": "41a77209...", "Numero de Factura": "FEBC24", "NIT del Emisor": "901846280", "...": "..." }
-  ]
-}
-```
-
----
-
 ## Códigos de error comunes
 
 | Código | Significado |
 |--------|-------------|
-| `401` | Falta/incorrecto el `Authorization: Bearer` (empresa) o el `X-Api-Key`. |
+| `401` | Falta/incorrecto el `Authorization: Bearer` (empresa). |
 | `422` | Validación fallida, empresa inactiva o sin software/certificado, o `EXTRACTOR_URL` no configurada. |
 | `404` | Job expirado, inexistente o de otra empresa. |
 | `502` | No se pudo conectar al worker / error consultando el extractor. |
@@ -454,7 +353,6 @@ Rápido: obtiene únicamente los CUFEs del listado (no descarga XMLs ni los proc
 - **`EXTRACTOR_URL`** (en el `.env` del API): apunta al worker.
   - API en Docker: `http://cufes-worker:3001`
   - API en LAMP/bare-metal: `http://127.0.0.1:3001`
-- **`XML_QUERY_API_KEY`**: clave del header `X-Api-Key` (rutas sin empresa).
 - **Ambiente del token**: el enlace `User/AuthToken` debe ser del mismo ambiente
   (Producción = `catalogo-vpfe.dian.gov.co`, Habilitación = `catalogo-vpfe-hab.dian.gov.co`)
   que la empresa / los documentos a consultar.
@@ -464,7 +362,14 @@ Rápido: obtiene únicamente los CUFEs del listado (no descarga XMLs ni los proc
 ## Ejemplos rápidos (cURL)
 
 ```bash
-# === RECOMENDADO: token de empresa (usa el certificado de la empresa) ===
+# === Un solo endpoint: JSON { log, data } al terminar ===
+curl -X POST https://api.tu-dominio.com/api/extractor/company/stream \
+  -H "Authorization: Bearer EL_API_TOKEN_DE_LA_EMPRESA" \
+  -H "Content-Type: application/json" \
+  -d '{"tipo":"Received","fechaDesde":"2025-08-01","fechaHasta":"2025-08-31","url":"https://catalogo-vpfe.dian.gov.co/User/AuthToken?..."}'
+
+
+# === Async + polling (rangos grandes o proxy con timeout corto) ===
 
 # 1) Iniciar la extracción -> devuelve jobId
 curl -X POST https://api.tu-dominio.com/api/extractor/company \
@@ -475,18 +380,4 @@ curl -X POST https://api.tu-dominio.com/api/extractor/company \
 # 2) Consultar avance/resultado (polling cada 3-5s hasta status "done")
 curl https://api.tu-dominio.com/api/extractor/company/jobs/EL_JOB_ID \
   -H "Authorization: Bearer EL_API_TOKEN_DE_LA_EMPRESA"
-
-
-# === Sin empresa (X-Api-Key) ===
-
-# Extracción por token (async recomendado)
-curl -X POST https://api.tu-dominio.com/api/scrape \
-  -H "X-Api-Key: TU_KEY" -H "Content-Type: application/json" \
-  -d '{"tipo":"Sent","fechaDesde":"2025-08-01","fechaHasta":"2025-08-01","url":"https://catalogo-vpfe.dian.gov.co/User/AuthToken?...","async":true}'
-curl https://api.tu-dominio.com/api/jobs/EL_JOB_ID -H "X-Api-Key: TU_KEY"
-
-# Solo CUFEs
-curl -X POST https://api.tu-dominio.com/api/cufes \
-  -H "X-Api-Key: TU_KEY" -H "Content-Type: application/json" \
-  -d '{"tipo":"Received","fechaDesde":"2025-08-01","fechaHasta":"2025-08-31","url":"https://catalogo-vpfe.dian.gov.co/User/AuthToken?..."}'
 ```
