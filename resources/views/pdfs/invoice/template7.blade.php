@@ -333,11 +333,13 @@
             <td class="desc text-right font-bold">SUBTOTAL:</td>
             <td class="desc text-right font-bold">{{ number_format($request->legal_monetary_totals['line_extension_amount'], 2) }}</td>
         </tr>
+        @if($TotalImpuestos > 0)
         <tr>
             <td class="desc text-right font-bold">IMPUESTOS:</td>
             <td class="desc text-right font-bold">{{ number_format($TotalImpuestos, 2) }}</td>
         </tr>
-        @if(isset($request->legal_monetary_totals['allowance_total_amount']))
+        @endif
+        @if((float)($request->legal_monetary_totals['allowance_total_amount'] ?? 0) > 0)
         <tr>
             <td class="desc text-right font-bold">DESCUENTOS:</td>
             <td class="desc text-right font-bold">{{ number_format($request->legal_monetary_totals['allowance_total_amount'], 2) }}</td>
