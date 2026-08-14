@@ -77,10 +77,43 @@ API_DOCKER=${API_DOCKER:-n}
 
 if [ "$API_DOCKER" = "s" ] || [ "$API_DOCKER" = "S" ]; then
     echo ""
+    # deteccion automatica: el contenedor PHP de la API se llama php_api
+    # (o php_api_<dominio> en instalaciones API + facturador); la red de la
+    # API es la red en la que este ese contenedor.
+    API_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E '^php_api' | head -n1)
+    DETECTED=""
+    if [ -n "$API_CONTAINER" ]; then
+        DETECTED=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{"\n"}}{{end}}' "$API_CONTAINER" 2>/dev/null | grep -v '^bridge$' | head -n1)
+    fi
+    if [ -z "$DETECTED" ]; then
+        # fallback: nombres tipicos (apinet = solo API, webnet = API + facturador)
+        for n in apinet webnet; do
+            if docker network ls --format '{{.Names}}' | grep -qx "$n"; then
+                DETECTED=$n
+                break
+            fi
+        done
+    fi
+
+    if [ -n "$API_CONTAINER" ] && [ -n "$DETECTED" ]; then
+        echo "Red detectada: '$DETECTED' (es la red del contenedor '$API_CONTAINER')."
+    elif [ -n "$DETECTED" ]; then
+        echo "Red detectada: '$DETECTED' (nombre tipico de las instalaciones de la API)."
+    else
+        echo "No se pudo detectar la red automaticamente."
+        echo "Donde encontrarla: en el docker-compose.yml de la API (seccion 'networks'),"
+        echo "o con: docker inspect <contenedor_php_de_la_API> --format '{{json .NetworkSettings.Networks}}'"
+    fi
+    echo ""
     echo "Redes de Docker disponibles:"
     docker network ls --format '  - {{.Name}}'
     echo ""
-    read -p "Nombre de la red donde corre la API: " NETWORK
+    if [ -n "$DETECTED" ]; then
+        read -p "Nombre de la red donde corre la API [$DETECTED]: " NETWORK
+        NETWORK=${NETWORK:-$DETECTED}
+    else
+        read -p "Nombre de la red donde corre la API: " NETWORK
+    fi
     if [ -n "$NETWORK" ] && ! docker network ls --format '{{.Name}}' | grep -qx "$NETWORK"; then
         echo "ERROR: la red '$NETWORK' no existe."
         exit 1
