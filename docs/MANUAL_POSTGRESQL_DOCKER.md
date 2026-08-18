@@ -31,10 +31,21 @@ El script le pregunta, una por una (Enter acepta el valor por defecto):
 | Puerto en el servidor | `5432` |
 | ¿La API corre en Docker? | `n` |
 
-Si su API corre en Docker, responda `s` y el nombre de la red donde corre
-(el script se la muestra con la lista de `docker network ls`) — así el
+Si su API corre en Docker, responda `s`. El script **detecta la red
+automáticamente**: busca el contenedor PHP de la API (`php_api` o
+`php_api_<dominio>`) y toma la red en la que está; si no lo encuentra
+corriendo, prueba con los nombres típicos de las instalaciones (`apinet`
+en instalaciones solo API, `webnet` en API + facturador). La red detectada
+se ofrece como valor por defecto — basta con presionar Enter. Así el
 contenedor de PostgreSQL queda en la misma red y la API lo alcanza por su
 nombre.
+
+Si necesita verificarla manualmente, la red está en el `docker-compose.yml`
+de la API (sección `networks`) o con:
+
+```bash
+docker inspect php_api --format '{{json .NetworkSettings.Networks}}'
+```
 
 Al terminar, el script:
 

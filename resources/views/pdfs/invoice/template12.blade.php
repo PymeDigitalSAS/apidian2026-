@@ -11,7 +11,7 @@
     foreach ($request->invoice_lines ?? [] as $t12line) {
         if (in_array($t12line['code'] ?? '', ['ADMINIST', 'IMPREVIS', 'UTILIDAD'])) $t12aiu += (float) ($t12line['line_extension_amount'] ?? 0);
     }
-    $t12aiuSb = (float) ($t12lmt['tax_exclusive_amount'] ?? 0) - $t12aiu;
+    $t12aiuSb = (float) ($t12lmt['line_extension_amount'] ?? 0) - $t12aiu;
     $t12aiuPct = $t12aiuSb > 0 ? round($t12aiu / $t12aiuSb * 100, 2) : 0;
     // ENVIAR A: usar tercero de entrega si viene, si no el cliente
     $t12ship = $request->deliveryparty ?? null;
@@ -161,7 +161,7 @@
                     @if($t12aiu > 0)
                         <tr>
                             <td style="background-color: #DDEBF7; width: 55%;">BASE SERVICIO</td>
-                            <td style="background-color: #DDEBF7; text-align: right;">{{$t12n(($t12lmt['tax_exclusive_amount'] ?? 0) - $t12aiu)}}</td>
+                            <td style="background-color: #DDEBF7; text-align: right;">{{$t12n(($t12lmt['line_extension_amount'] ?? 0) - $t12aiu)}}</td>
                         </tr>
                         <tr>
                             <td style="background-color: #DDEBF7;">BASE AIU ({{$t12aiuPct}}%)</td>
@@ -170,7 +170,7 @@
                     @else
                         <tr>
                             <td style="background-color: #DDEBF7; width: 55%;">SUBTOTAL</td>
-                            <td style="background-color: #DDEBF7; text-align: right;">{{$t12n($t12lmt['tax_exclusive_amount'] ?? 0)}}</td>
+                            <td style="background-color: #DDEBF7; text-align: right;">{{$t12n($t12lmt['line_extension_amount'] ?? 0)}}</td>
                         </tr>
                     @endif
                     @if($t12descuento > 0)
