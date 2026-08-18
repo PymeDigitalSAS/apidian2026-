@@ -168,12 +168,11 @@ class PayrollAdjustNoteRequest extends FormRequest
             // Payment
             'payment' => 'nullable|required_if:type_note,1|array',
             'payment.payment_method_id' => 'nullable|required_if:type_note,1|exists:payment_methods,id',
-//            'payment.bank_name' => 'nullable|required_if:type_note,==,1|required_if:payment.payment_method_id,2,3,4,5,6,7,21,22,30,31,42,45,46,47,|string',
-//            'payment.account_type' => 'nullable|required_if:type_note,1|required_if:payment.payment_method_id,2,3,4,5,6,7,21,22,30,31,42,45,46,47,|string',
-//            'payment.account_number' => 'nullable|required_if:type_note,1|required_if:payment.payment_method_id,2,3,4,5,6,7,21,22,30,31,42,45,46,47,|string',
-            'payment.bank_name' => 'nullable|required_if:type_note,==,1|string',
-            'payment.account_type' => 'nullable|required_if:type_note,1|string',
-            'payment.account_number' => 'nullable|required_if:type_note,1|string',
+            // Banco/tipo/numero de cuenta solo aplican para metodos de pago bancarios;
+            // en efectivo (1) y similares no se exigen aunque sea nota de reemplazo
+            'payment.bank_name' => 'nullable|required_if:payment.payment_method_id,2,3,4,5,6,7,21,22,30,31,42,45,46,47|string',
+            'payment.account_type' => 'nullable|required_if:payment.payment_method_id,2,3,4,5,6,7,21,22,30,31,42,45,46,47|string',
+            'payment.account_number' => 'nullable|required_if:payment.payment_method_id,2,3,4,5,6,7,21,22,30,31,42,45,46,47|string',
 
             // Payment Dates
             'payment_dates' => 'nullable|required_if:type_note,1|array',

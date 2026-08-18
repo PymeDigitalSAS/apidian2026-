@@ -176,6 +176,7 @@ Route::middleware(['auth:api', 'storage.context'])->group(function () {
             Route::put('/softwareeqdocs', 'Api\ConfigurationController@storeSoftware');
             Route::put('/softwaresupportdocument', 'Api\ConfigurationController@storeSoftware');
             Route::put('/certificate', 'Api\ConfigurationController@storeCertificate');
+            Route::get('/certificate', 'Api\ConfigurationController@downloadCertificate');
             Route::put('/resolution', 'Api\ConfigurationController@storeResolution');
             Route::put('/environment', 'Api\ConfigurationController@storeEnvironment');
             Route::put('/logo', 'Api\ConfigurationController@storeLogo');

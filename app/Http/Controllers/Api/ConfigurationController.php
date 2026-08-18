@@ -724,6 +724,41 @@ class ConfigurationController extends Controller
     }
 
     /**
+     * Download certificate.
+     * Devuelve el .p12 de la empresa autenticada codificado en base64.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function downloadCertificate()
+    {
+        $company = auth()->user()->company;
+        $certificate = $company->certificate;
+
+        if (!$certificate) {
+            return response([
+                'success' => false,
+                'message' => 'La empresa no tiene un certificado registrado.',
+            ], 404);
+        }
+
+        $path = "certificates/{$certificate->name}";
+
+        if (!StorageService::existsLocalStorage($path)) {
+            return response([
+                'success' => false,
+                'message' => 'El archivo del certificado no se encuentra en el servidor.',
+            ], 404);
+        }
+
+        return [
+            'success' => true,
+            'name' => $certificate->name,
+            'expiration_date' => $certificate->expiration_date,
+            'certificate' => base64_encode(StorageService::getLocal($path)),
+        ];
+    }
+
+    /**
      * Store logo.
      *
      * @param \App\Http\Requests\Api\ConfigurationLogoRequest $request
