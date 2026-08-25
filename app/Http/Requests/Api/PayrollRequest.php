@@ -118,7 +118,7 @@ class PayrollRequest extends FormRequest
                     return false;
             }),
 
-            'consecutive' => 'required|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
+            'consecutive' => \App\Helpers\ResolutionNumberRule::make($this->resolution),
 
             // General Information
             'payroll_period_id' => 'required|exists:payroll_periods,id',

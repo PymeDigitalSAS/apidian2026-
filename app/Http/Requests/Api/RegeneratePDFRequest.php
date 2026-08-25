@@ -129,7 +129,7 @@ class RegeneratePDFRequest extends FormRequest
             }),
 
             // Consecutive
-            'number' => 'nullable|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
+            'number' => \App\Helpers\ResolutionNumberRule::make($this->resolution, 'nullable|integer'),
 
             // Discrepancy Response
             'discrepancyresponsecode' => 'nullable|integer|between:1,6',
@@ -450,7 +450,7 @@ class RegeneratePDFRequest extends FormRequest
             // Secuence number
             'worker_code' => 'nullable|string',
 
-            'consecutive' => 'nullable|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
+            'consecutive' => \App\Helpers\ResolutionNumberRule::make($this->resolution, 'nullable|integer'),
 
             // General Information
             'payroll_period_id' => 'nullable|exists:payroll_periods,id',

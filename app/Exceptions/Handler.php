@@ -47,6 +47,21 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
+        // brick/math revienta con 'The given value "" does not represent a valid number'
+        // cuando una regla de validacion (between/min/max) se arma con un parametro
+        // vacio; tipicamente una resolucion con el rango from/to vacio. Responder
+        // con la causa probable en lugar del mensaje criptico.
+        if ($exception instanceof \Brick\Math\Exception\MathException && $request->is('api/*')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación numérica: una regla se construyó con un valor vacío o no numérico. '
+                    .'Generalmente ocurre porque la resolución del tipo de documento enviado tiene el rango de numeración (from/to) vacío o inválido, '
+                    .'o porque no se envió resolution_number y el sistema tomó una resolución mal registrada. '
+                    .'Verifique las resoluciones con GET /api/ubl2.1/resolutions/{nit}/{type_document_id} y corríjalas con PUT /api/ubl2.1/config/resolution.',
+                'error' => $this->sanitizeUtf8($exception->getMessage()),
+            ], 422, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE);
+        }
+
         // Si es una solicitud de API, sanitizar la respuesta para evitar errores UTF-8
         if ($request->expectsJson()) {
             return $this->renderJsonException($request, $exception);

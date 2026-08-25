@@ -116,19 +116,24 @@ class CreditNoteRequest extends FormRequest
             'type_operation_id' => 'nullable|numeric|in:7,8,12,30,31,32',
 
             // Resolution number for document sending
-            'resolution_number' => 'nullable|string',
+            'resolution_number' => Rule::requiredIf(function(){
+                if(is_null($this->invoice_period) && auth()->user()->company->resolutions->where('type_document_id', $this->type_document_id)->count() >= 2)
+                    return true;
+                else
+                    return false;
+            }),
 
             // Prefijo de la resolucion a utilizar
 
             'prefix' => Rule::requiredIf(function(){
-                if(auth()->user()->company->resolutions->where('type_document_id', $this->type_document_id)->where('resolution_number', $this->resolution_number)->count() >= 2)
+                if(auth()->user()->company->resolutions->where('type_document_id', $this->type_document_id)->where('resolution', $this->resolution_number)->count() >= 2)
                     return true;
                 else
                     return false;
             }),
 
             // Consecutive
-            'number' => 'required|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
+            'number' => \App\Helpers\ResolutionNumberRule::make($this->resolution),
 
             // Discrepancy Response
             'discrepancyresponsecode' => 'nullable|integer|between:1,6',
@@ -293,6 +298,20 @@ class CreditNoteRequest extends FormRequest
             'credit_note_lines.*.type_item_identification_id' => 'required|exists:type_item_identifications,id',
             'credit_note_lines.*.price_amount' => 'required|numeric',
             'credit_note_lines.*.base_quantity' => 'required|numeric',
+        ];
+    }
+
+    /**
+     * Mensajes claros cuando hay varias resoluciones configuradas y el payload
+     * no indica cual usar (antes terminaba en el error generico de brick/math
+     * "The given value \"\" does not represent a valid number").
+     */
+    public function messages()
+    {
+        $count = auth()->user()->company->resolutions->where('type_document_id', $this->type_document_id)->count();
+        return [
+            'resolution_number.required' => "Tiene {$count} resoluciones configuradas para este tipo de documento y no se indicó cuál usar: debe enviar el campo resolution_number.",
+            'prefix.required' => 'Hay varias resoluciones con el mismo resolution_number: debe enviar el campo prefix para indicar cuál usar.',
         ];
     }
 

@@ -109,14 +109,14 @@ class DebitNoteRequest extends FormRequest
             // Prefijo de la resolucion a utilizar
 
             'prefix' => Rule::requiredIf(function(){
-                if(auth()->user()->company->resolutions->where('type_document_id', $this->type_document_id)->where('resolution_number', $this->resolution_number)->count() >= 2)
+                if(auth()->user()->company->resolutions->where('type_document_id', $this->type_document_id)->where('resolution', $this->resolution_number)->count() >= 2)
                     return true;
                 else
                     return false;
             }),
 
             // Consecutive
-            'number' => 'required|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
+            'number' => \App\Helpers\ResolutionNumberRule::make($this->resolution),
 
             // Discrepancy Response
             'discrepancyresponsecode' => 'nullable|integer|between:1,4',
@@ -291,6 +291,20 @@ class DebitNoteRequest extends FormRequest
             'debit_note_lines.*.type_item_identification_id' => 'required|exists:type_item_identifications,id',
             'debit_note_lines.*.price_amount' => 'required|numeric',
             'debit_note_lines.*.base_quantity' => 'required|numeric',
+        ];
+    }
+
+    /**
+     * Mensajes claros cuando hay varias resoluciones configuradas y el payload
+     * no indica cual usar (antes terminaba en el error generico de brick/math
+     * "The given value \"\" does not represent a valid number").
+     */
+    public function messages()
+    {
+        $count = auth()->user()->company->resolutions->where('type_document_id', $this->type_document_id)->count();
+        return [
+            'resolution_number.required' => "Tiene {$count} resoluciones configuradas para este tipo de documento y no se indicó cuál usar: debe enviar el campo resolution_number.",
+            'prefix.required' => 'Hay varias resoluciones con el mismo resolution_number: debe enviar el campo prefix para indicar cuál usar.',
         ];
     }
 

@@ -118,7 +118,7 @@ class SupportDocumentRequest extends FormRequest
             }),
 
             // Consecutive
-            'number' => 'required|integer'.(isset($this->resolution->from, $this->resolution->to) ? '|between:'.$this->resolution->from.','.$this->resolution->to : ''),
+            'number' => \App\Helpers\ResolutionNumberRule::make($this->resolution),
 
             // Date time
             'date' => 'nullable|date_format:Y-m-d|after_or_equal:'.optional($this->resolution)->date_from.'|before_or_equal:'.optional($this->resolution)->date_to,
