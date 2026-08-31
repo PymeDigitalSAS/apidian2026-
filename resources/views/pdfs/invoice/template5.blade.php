@@ -307,6 +307,19 @@
                             @else
                                 <span class="invoice-item-description" style="display: block; font-size: 10px; line-height: 1.3;">{{$item['description']}}</span>
                             @endif
+                            @if(!empty($item['lot_code']) || !empty($item['date_of_due']))
+                                <p style="font-size: 7px; margin: 0; font-style: italic; line-height: 1.2;">
+                                    @if(!empty($item['lot_code']))<strong>Lote:</strong> {{$item['lot_code']}}@endif
+                                    @if(!empty($item['lot_code']) && !empty($item['date_of_due'])) | @endif
+                                    @if(!empty($item['date_of_due']))<strong>Vence:</strong> {{$item['date_of_due']}}@endif
+                                </p>
+                            @endif
+                            @php $itemAttrs = array_filter(is_array($item['item_attributes'] ?? null) ? $item['item_attributes'] : [], function ($a) { return !empty($a['value']); }); @endphp
+                            @if(count($itemAttrs))
+                                <p style="font-size: 7px; margin: 0; font-style: italic; line-height: 1.2;">
+                                    @foreach($itemAttrs as $attr)<strong>{{$attr['description'] ?? ''}}:</strong> {{$attr['value']}}@if(!$loop->last) | @endif @endforeach
+                                </p>
+                            @endif
                         </td>
                         @if($showPurchaseOrderColumn)
                             <td>

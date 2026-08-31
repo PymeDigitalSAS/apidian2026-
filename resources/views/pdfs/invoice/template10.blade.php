@@ -144,6 +144,17 @@
                         @if(!empty($line['notes']))
                             <br><span style="font-size: 7.5px; font-style: italic; color: #555555;">{{$line['notes']}}</span>
                         @endif
+                        @if(!empty($line['lot_code']) || !empty($line['date_of_due']))
+                            <br><span style="font-size: 7.5px; font-style: italic; color: #555555;">
+                                @if(!empty($line['lot_code']))<strong>Lote:</strong> {{$line['lot_code']}}@endif
+                                @if(!empty($line['lot_code']) && !empty($line['date_of_due'])) | @endif
+                                @if(!empty($line['date_of_due']))<strong>Vence:</strong> {{$line['date_of_due']}}@endif
+                            </span>
+                        @endif
+                        @php $lineAttrs = array_filter(is_array($line['item_attributes'] ?? null) ? $line['item_attributes'] : [], function ($a) { return !empty($a['value']); }); @endphp
+                        @if(count($lineAttrs))
+                            <br><span style="font-size: 7.5px; font-style: italic; color: #555555;">@foreach($lineAttrs as $attr)<strong>{{$attr['description'] ?? ''}}:</strong> {{$attr['value']}}@if(!$loop->last) | @endif @endforeach</span>
+                        @endif
                     </td>
                     <td style="border-left: 0.5px solid #666666; border-right: 0.5px solid #666666; border-bottom: 0.5px solid #dddddd; text-align: right; vertical-align: top;">{{ rtrim(rtrim(number_format((float) ($line['tax_totals'][0]['percent'] ?? 0), 2, '.', ''), '0'), '.') }}%</td>
                     <td style="border-left: 0.5px solid #666666; border-right: 0.5px solid #666666; border-bottom: 0.5px solid #dddddd; text-align: right; vertical-align: top;">{{$t10n($line['price_amount'] ?? 0)}}</td>
