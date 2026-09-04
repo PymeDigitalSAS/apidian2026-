@@ -1353,7 +1353,7 @@ $(function () {
                 var descs = root.getElementsByTagNameNS('*', 'Description');
                 for (var i = 0; i < descs.length; i++) {
                     var t = (descs[i].textContent || '');
-                    if (/<(Invoice|CreditNote|DebitNote)[ >]/.test(t) || t.indexOf('<?xml') > -1) {
+                    if (/<(Invoice|CreditNote|DebitNote)[ >]/.test(t) || t.indexOf('<' + '?xml') > -1) {
                         var inner = new DOMParser().parseFromString(t, 'application/xml');
                         if (!inner.getElementsByTagName('parsererror').length) {
                             doc = inner; root = inner.documentElement; out.xml = t.trim();

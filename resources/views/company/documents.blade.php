@@ -224,6 +224,9 @@
                                     <button type="button" class="btn btn-info btn-xs btn-credit-note mt-0"
                                         data-id="{{ $row->id }}"
                                         data-cufe="{{ $row->cufe }}"
+                                        data-prefix="{{ $row->prefix }}"
+                                        data-number="{{ $row->number }}"
+                                        data-date="{{ $row->date_issue }}"
                                         data-request-api="{{ $row->request_api }}">
                                         Nota de crédito
                                     </button>
@@ -862,14 +865,15 @@ $(document).ready(function() {
         var documentId = $(this).data('id');
         var $button = $(this);
 
-        // Buscar la fila correspondiente para obtener los datos del documento
-        var $row = $button.closest('tr');
+        // Los datos de la factura salen de los data-attributes del botón: raspar las
+        // celdas con nth-child se desfasaba cada vez que la tabla cambiaba de columnas
+        // (la referencia de la NC terminaba con el NIT del cliente como número).
         var documentData = {
             id: documentId,
-            prefix: $row.find('td:nth-child(8)').text().match(/^([A-Z]+)/)?.[1] || '', // Extraer prefijo del número
-            number: $row.find('td:nth-child(8)').text().match(/\d+/)?.[0] || '', // Extraer número
+            prefix: String($button.attr('data-prefix') || ''),
+            number: String($button.attr('data-number') || ''),
             cufe: $button.data('cufe'),
-            date_issue: $row.find('td:nth-child(6)').text().split(' ')[0], // Extraer solo la fecha sin la hora
+            date_issue: String($button.attr('data-date') || '').split(' ')[0], // billing_reference.issue_date exige Y-m-d, sin hora
             request_api: $button.data('request-api')
         };
 
@@ -974,7 +978,16 @@ $(document).ready(function() {
             // 2. Armar el JSON para la nota de crédito
             // datos request_api
 
-            const originalData = documentData.request_api; // Ya viene como objeto, no parsear
+            // jQuery entrega data-request-api como objeto si el atributo es JSON válido;
+            // si llegó como string se intenta parsear.
+            const originalData = typeof documentData.request_api === 'string'
+                ? tryParseJSON(documentData.request_api)
+                : documentData.request_api;
+
+            if (!originalData || !Array.isArray(originalData.invoice_lines) || originalData.invoice_lines.length === 0) {
+                throw new Error('La factura no tiene guardado el JSON original (request_api), por lo que no es posible armar la nota de crédito de anulación automáticamente.');
+            }
+
             const now = new Date();
             // Ajustar a zona horaria de Colombia (GMT-5)
             const colombiaTime = new Date(now.getTime() - (5 * 60 * 60 * 1000));
@@ -988,9 +1001,9 @@ $(document).ready(function() {
                     issue_date: documentData.date_issue
                 },
                 resolution_number: selectedResolution.resolution_number,
-                discrepancyresponsecode: 2,
-                discrepancyresponsedescription: "NOTA DE CREDITO GENERADA AUTOMATICAMENTE",
-                notes: "NOTA DE CREDITO",
+                discrepancyresponsecode: 2, // 2 = Anulación de factura electrónica
+                discrepancyresponsedescription: "ANULACION DE LA FACTURA " + documentData.prefix + documentData.number,
+                notes: "ANULACION DE LA FACTURA " + documentData.prefix + documentData.number,
                 prefix: selectedResolution.prefix,
                 number: nextNumber,
                 type_document_id: 4,
@@ -998,7 +1011,7 @@ $(document).ready(function() {
                 time: currentTime,
                 sendmail: originalData.sendmail || false,
                 sendmailtome: originalData.sendmailtome || false,
-                seze: "2021-2017",
+                seze: originalData.seze, // régimen ZESE: solo va si la factura original lo traía (undefined se omite del JSON)
                 head_note: originalData.head_note || '',
                 foot_note: originalData.foot_note || '',
                 customer: originalData.customer,
