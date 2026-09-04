@@ -18,6 +18,7 @@ Route::prefix('/ubl2.1')->group(function () {
 
     // Configuration
     Route::prefix('/config')->middleware(['check.api.register'])->group(function () {
+        Route::get('/query/{nit}', 'Api\ConfigurationController@queryCompany');
         Route::post('/{nit}/{dv?}', 'Api\ConfigurationController@store');
         Route::post('/delete/{nit}/{email}', 'Api\ConfigurationController@destroyCompany');
     });

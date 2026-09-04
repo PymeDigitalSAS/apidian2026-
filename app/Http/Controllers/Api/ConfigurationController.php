@@ -1234,6 +1234,75 @@ class ConfigurationController extends Controller
     }
 
     /**
+     * queryCompany.
+     *
+     * @param string                                      $nit
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function queryCompany($nit)
+    {
+        try {
+            $company = Company::where('identification_number', $nit)->first();
+
+            if (!$company) {
+                return response([
+                    'success' => false,
+                    'message' => 'No existe una empresa registrada con el NIT: '.$nit,
+                ], 404);
+            }
+
+            $certificate = $company->certificate;
+
+            return [
+                'success' => true,
+                'message' => 'Empresa registrada con el NIT: '.$nit,
+                'company' => [
+                    'identification_number' => $company->identification_number,
+                    'dv' => $company->dv,
+                    'business_name' => $company->user->name ?? null,
+                    'email' => $company->user->email ?? null,
+                    'type_document_identification_id' => $company->type_document_identification_id,
+                    'type_organization_id' => $company->type_organization_id,
+                    'type_regime_id' => $company->type_regime_id,
+                    'type_liability_id' => $company->type_liability_id,
+                    'type_liability_ids' => $company->type_liability_ids,
+                    'department_id' => $company->municipality_id ? ($company->municipality->department_id ?? null) : null,
+                    'municipality_id' => $company->municipality_id,
+                    'merchant_registration' => $company->merchant_registration,
+                    'address' => $company->address,
+                    'phone' => $company->phone,
+                    'language_id' => $company->language_id,
+                    'tax_id' => $company->tax_id,
+                    'country_id' => $company->country_id,
+                    'type_currency_id' => $company->type_currency_id,
+                    'type_operation_id' => $company->type_operation_id,
+                    'type_environment_id' => $company->type_environment_id,
+                    'payroll_type_environment_id' => $company->payroll_type_environment_id,
+                    'eqdocs_type_environment_id' => $company->eqdocs_type_environment_id,
+                    'support_document_type_environment_id' => $company->support_document_type_environment_id,
+                    'event_type_environment_id' => $company->event_type_environment_id,
+                    'graphic_representation_template' => $company->graphic_representation_template,
+                    'allow_seller_login' => $company->allow_seller_login,
+                    'state' => $company->state,
+                ],
+                'status' => [
+                    'type_environment_name' => $company->type_environment ? $company->type_environment->name : null,
+                    'has_software' => (bool) $company->software,
+                    'has_certificate' => (bool) $certificate,
+                    'certificate_expiration_date' => $certificate ? $certificate->expiration_date : null,
+                    'resolutions_count' => $company->resolutions()->count(),
+                ],
+            ];
+        } catch (Exception $e) {
+            return response([
+                'message' => 'Internal Server Error',
+                'payload' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * queryAdministrator.
      *
      * @param int                                         $id
