@@ -6,6 +6,9 @@
 </head> --}}
 
 <body margin-top:50px>
+@isset($request->software_manufacturer)
+    <div style="position: absolute; right: 2mm; top: 8mm; width: 281mm; rotate: 90; font-size: 11px; text-align: center; color: #555;">Fabricante Software y Proveedor tecnológico: {{ $request->software_manufacturer['business_name'] ?? ($request->software_manufacturer['name'] ?? '') }} - Nit {{ $request->software_manufacturer['nit'] ?? (($company->identification_number ?? '').(isset($company->dv) ? '-'.$company->dv : '')) }}. Nombre Software: {{ $request->software_manufacturer['software_name'] ?? '' }}. Firma electrónica va en el XML.</div>
+@endisset
     @if(isset($request->head_note))
     <div class="row">
         <div class="col-sm-12">

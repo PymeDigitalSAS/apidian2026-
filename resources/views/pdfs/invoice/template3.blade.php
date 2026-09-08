@@ -786,6 +786,11 @@
     @isset($request->foot_note)
         <p id='mi-texto-1'>{{$request->foot_note}}</p>
     @endisset
+    @isset($request->software_manufacturer)
+        <p style="font-size: 6px; text-align: center; margin: 2px 0 0 0;">
+            Fabricante Software y Proveedor tecnológico: {{ $request->software_manufacturer['business_name'] ?? ($request->software_manufacturer['name'] ?? '') }} - Nit {{ $request->software_manufacturer['nit'] ?? (($company->identification_number ?? '').(isset($company->dv) ? '-'.$company->dv : '')) }}. Nombre Software: {{ $request->software_manufacturer['software_name'] ?? '' }}. Firma electrónica va en el XML.
+        </p>
+    @endisset
 
     <h3> GRACIAS POR SU COMPRA</h3>
 </div>
