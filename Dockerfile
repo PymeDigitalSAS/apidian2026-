@@ -1,5 +1,10 @@
 FROM rash07/php-fpm:8.2
 
+# Repos de bullseye archivados: apt apunta a archive.debian.org.
+RUN printf 'deb http://archive.debian.org/debian bullseye main\n' > /etc/apt/sources.list && \
+    rm -f /etc/apt/sources.list.d/*.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check
+
 RUN apt-get update && \
     apt-get -y install poppler-utils procps
 
