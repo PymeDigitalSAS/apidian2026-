@@ -1037,12 +1037,17 @@ class InvoiceController extends Controller
         $invoice_doc->version_ubl_id = 2;
         $invoice_doc->ambient_id = $company->type_environment_id;
         $invoice_doc->identification_number = $company->identification_number;
+        $cufe = $signInvoice->ConsultarCUFE();
+        $invoice_doc->cufe = $cufe;
         $invoice_doc->save();
 
         if ($request->GuardarEn){
+            $respDian = $sendTestSetAsync->signToSend($request->GuardarEn."\\ReqFE-{$resolution->next_consecutive}.xml")->getResponseToObject($request->GuardarEn."\\RptaFE-{$resolution->next_consecutive}.xml");
+            $invoice_doc->response_dian = json_encode($respDian);
+            $invoice_doc->save();
             return [
                 'message' => "{$typeDocument->name} #{$resolution->next_consecutive} generada con éxito",
-                'ResponseDian' => $sendTestSetAsync->signToSend($request->GuardarEn."\\ReqFE-{$resolution->next_consecutive}.xml")->getResponseToObject($request->GuardarEn."\\RptaFE-{$resolution->next_consecutive}.xml"),
+                'ResponseDian' => $respDian,
                 'invoicexml'=>base64_encode(file_get_contents($request->GuardarEn."\\FES-{$resolution->next_consecutive}.xml")),
                 'zipinvoicexml'=>base64_encode(file_get_contents($request->GuardarEn."\\FES-{$resolution->next_consecutive}.zip")),
                 'unsignedinvoicexml'=>base64_encode(file_get_contents($request->GuardarEn."\\FE-{$resolution->next_consecutive}.xml")),
@@ -1051,7 +1056,7 @@ class InvoiceController extends Controller
                 'urlinvoicexml'=>"FES-{$resolution->next_consecutive}.xml",
                 'urlinvoicepdf'=>"FES-{$resolution->next_consecutive}.pdf",
                 'urlinvoiceattached'=>"Attachment-{$resolution->next_consecutive}.xml",
-                'cufe' => $signInvoice->ConsultarCUFE(),
+                'cufe' => $cufe,
                 'QRStr' => $QRStr,
                 'certificate_days_left' => $certificate_days_left,
                 'resolution_days_left' => $this->days_between_dates(Carbon::now()->format('Y-m-d'), $resolution->date_to),
@@ -1069,6 +1074,9 @@ class InvoiceController extends Controller
                 "public/{$company->identification_number}/RptaFE-{$resolution->next_consecutive}.xml",
             ]);
 
+            $invoice_doc->response_dian = json_encode($respDian);
+            $invoice_doc->save();
+
             return [
                 'message' => "{$typeDocument->name} #{$resolution->next_consecutive} generada con éxito",
                 'ResponseDian' => $respDian,
@@ -1080,7 +1088,7 @@ class InvoiceController extends Controller
                 'urlinvoicexml'=>"FES-{$resolution->next_consecutive}.xml",
                 'urlinvoicepdf'=>"FES-{$resolution->next_consecutive}.pdf",
                 'urlinvoiceattached'=>"Attachment-{$resolution->next_consecutive}.xml",
-                'cufe' => $signInvoice->ConsultarCUFE(),
+                'cufe' => $cufe,
                 'QRStr' => $QRStr,
                 'certificate_days_left' => $certificate_days_left,
                 'resolution_days_left' => $this->days_between_dates(Carbon::now()->format('Y-m-d'), $resolution->date_to),

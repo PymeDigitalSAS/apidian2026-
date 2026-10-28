@@ -14,13 +14,14 @@
     <cbc:UBLVersionID>UBL 2.1</cbc:UBLVersionID>
     <cbc:CustomizationID>1</cbc:CustomizationID>
     <cbc:ProfileID>DIAN 2.1: ApplicationResponse de la Factura Electrónica de Venta</cbc:ProfileID>
-    <cbc:ProfileExecutionID>@if(isset($is_event) && $is_event){{ preg_replace("/[\r\n|\n|\r]+/", "", $company->event_type_environment->code) }}@else{{ preg_replace("/[\r\n|\n|\r]+/", "", $company->type_environment->code) }}@endif</cbc:ProfileExecutionID>    
+    <cbc:ProfileExecutionID>{{preg_replace("/[\r\n|\n|\r]+/", "", $company->type_environment->code)}}</cbc:ProfileExecutionID>
     @if(isset($request->resend_consecutive) && ($request->resend_consecutive == true))
         <cbc:ID>{{preg_replace("/[\r\n|\n|\r]+/", "", $user->company->identification_number)}}{{preg_replace("/[\r\n|\n|\r]+/", "", $documentReference->number)}}{{preg_replace("/[\r\n|\n|\r]+/", "", $event->code)}}-{{rand(0, 9)}}</cbc:ID>
     @else
         <cbc:ID>{{preg_replace("/[\r\n|\n|\r]+/", "", $user->company->identification_number)}}{{preg_replace("/[\r\n|\n|\r]+/", "", $documentReference->number)}}{{preg_replace("/[\r\n|\n|\r]+/", "", $event->code)}}</cbc:ID>
     @endif
-    <cbc:UUID schemeID="@if(isset($is_event) && $is_event){{ preg_replace("/[\r\n|\n|\r]+/", "", $company->event_type_environment->code) }}@else{{ preg_replace("/[\r\n|\n|\r]+/", "", $company->type_environment->code) }}@endif" schemeName="{{ preg_replace("/[\r\n|\n|\r]+/", "", $typeDocument->cufe_algorithm) }}">{{ preg_replace("/[\r\n|\n|\r]+/", "", $documentReference->uuid) }}</cbc:UUID>    <cbc:IssueDate>{{preg_replace("/[\r\n|\n|\r]+/", "", $date ?? Carbon\Carbon::now()->format('Y-m-d'))}}</cbc:IssueDate>
+    <cbc:UUID schemeID="{{preg_replace("/[\r\n|\n|\r]+/", "", $company->type_environment->code)}}" schemeName="{{preg_replace("/[\r\n|\n|\r]+/", "", $typeDocument->cufe_algorithm)}}"/>
+    <cbc:IssueDate>{{preg_replace("/[\r\n|\n|\r]+/", "", $date ?? Carbon\Carbon::now()->format('Y-m-d'))}}</cbc:IssueDate>
     <cbc:IssueTime>{{preg_replace("/[\r\n|\n|\r]+/", "", $time ?? Carbon\Carbon::now()->format('H:i:s'))}}-05:00</cbc:IssueTime>
     @if(isset($notes))
         <cbc:Note>{{preg_replace("/[\r\n|\n|\r]+/", "", $notes)}}</cbc:Note>

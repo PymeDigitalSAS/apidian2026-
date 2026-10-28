@@ -107,6 +107,8 @@ class StateController extends Controller
                         'message' => "El servicio DIAN no se encuentra disponible en el momento, reintente mas tarde..."
                     ];
 
+                $this->persistirListadoTrasZip($company, $trackId, $respuestadian);
+
                 if($respuestadian->Envelope->Body->GetStatusZipResponse->GetStatusZipResult->DianResponse->IsValid == 'true'){
                     if(isset($respuestadian->Envelope->Body->GetStatusZipResponse->GetStatusZipResult->DianResponse->XmlFileName->_attributes))
                     {
@@ -310,6 +312,8 @@ class StateController extends Controller
                         'success' => false,
                         'message' => "El servicio DIAN no se encuentra disponible en el momento, reintente mas tarde..."
                     ];
+
+                $this->persistirListadoTrasZip($company, $trackId, $respuestadian);
 
                 if($respuestadian->Envelope->Body->GetStatusZipResponse->GetStatusZipResult->DianResponse->IsValid == 'true'){
                     if(isset($respuestadian->Envelope->Body->GetStatusZipResponse->GetStatusZipResult->DianResponse->XmlFileName->_attributes))

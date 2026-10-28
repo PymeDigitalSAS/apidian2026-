@@ -1645,6 +1645,28 @@ trait DocumentTrait
         return false;
     }
 
+    /** En habilitación el listado no se actualiza si GetStatusZip viene con IsValid=false y código 2. */
+    protected function persistirListadoTrasZip($company, $trackId, $respuestadian): void
+    {
+        $nombre = $this->InvoiceByZipKey($company->identification_number, $trackId);
+        $numero = (int) preg_replace('/\D+/', '', (string) $nombre);
+        if ($numero < 1) {
+            return;
+        }
+        $doc = \App\Document::query()
+            ->where('identification_number', $company->identification_number)
+            ->where('number', $numero)
+            ->latest('id')
+            ->first();
+        if (!$doc) {
+            return;
+        }
+        \App\Support\DianListado::aplicar($doc, [
+            'ResponseDian' => json_decode(json_encode($respuestadian), true),
+            'cufe' => $doc->cufe,
+        ]);
+    }
+
     protected function ValueXML($stringXML, $xpath){
         if(substr($xpath, 0, 1) != '/')
             return NULL;

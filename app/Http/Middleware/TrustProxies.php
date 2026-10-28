@@ -12,7 +12,14 @@ class TrustProxies extends Middleware
      *
      * @var array|string
      */
-    protected $proxies;
+    /**
+     * Apache termina TLS y reenvía internamente a Laravel por loopback.
+     * Confiar en cualquier proxy permitiría que un cliente externo falsifique
+     * X-Forwarded-Proto, Host o IP. El proxy local es el único autorizado.
+     *
+     * @var array|string
+     */
+    protected $proxies = '127.0.0.1';
 
     /**
      * The headers that should be used to detect proxies.

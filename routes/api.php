@@ -2,6 +2,9 @@
 
 use App\Services\StorageService;
 
+// Integración optativa y autenticada con Perfex; sus acciones se habilitan en config/erp.php.
+require __DIR__ . '/erp.php';
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
