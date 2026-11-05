@@ -39,19 +39,34 @@ class CreateRipsProcedureCodesTable extends Migration
     protected function insertDataFromCsv()
     {
         $csvFile = public_path('csv/rips_procedure_codes.csv');
-        $data = array_map('str_getcsv', file($csvFile));
-        $header = array_shift($data); // Get the header row
-
-        foreach ($data as $row) {
-            $rowData = array_combine($header, $row);
-            DB::table('rips_procedure_codes')->insert([
-                'code' => $rowData['Codigo'],
-                'name' => $rowData['Nombre'],
-                'description' => $rowData['Descripcion'] ?? null,
-                'is_enabled' => $rowData['Habilitado'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        $handle = fopen($csvFile, 'r');
+        if ($handle === false) {
+            throw new \RuntimeException('No se pudo abrir el catalogo RIPS: '.$csvFile);
+        }
+        try {
+            $header = fgetcsv($handle);
+            if ($header === false) {
+                throw new \RuntimeException('Catalogo RIPS vacio: '.$csvFile);
+            }
+            while (($row = fgetcsv($handle)) !== false) {
+                if ($row === [null]) {
+                    continue;
+                }
+                if (count($header) !== count($row)) {
+                    throw new \RuntimeException('Fila invalida en el catalogo RIPS: '.$csvFile);
+                }
+                $rowData = array_combine($header, $row);
+                DB::table('rips_procedure_codes')->insert([
+                    'code' => $rowData['Codigo'],
+                    'name' => $rowData['Nombre'],
+                    'description' => $rowData['Descripcion'] ?? null,
+                    'is_enabled' => $rowData['Habilitado'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        } finally {
+            fclose($handle);
         }
     }
 }
