@@ -79,9 +79,23 @@ class ConfigurationController extends Controller
     public function extractRut(Request $request)
     {
         if (!$request->hasFile('rut')) {
+            $uploadError = $_FILES['rut']['error'] ?? null;
+            Log::warning('extractRut: archivo no recibido', [
+                'content_type' => $request->header('Content-Type'),
+                'files' => array_keys($_FILES),
+                'upload_error' => $uploadError,
+            ]);
+
+            $message = 'No se envió el archivo RUT. Arrástralo de nuevo o selecciónalo con clic.';
+            if ($uploadError === UPLOAD_ERR_INI_SIZE || $uploadError === UPLOAD_ERR_FORM_SIZE) {
+                $message = 'El archivo supera el tamaño permitido por el servidor.';
+            } elseif ($uploadError) {
+                $message = 'El servidor no pudo recibir el archivo (código '.$uploadError.').';
+            }
+
             return response()->json([
                 'success' => false,
-                'message' => 'No se envió el archivo RUT'
+                'message' => $message
             ], 400);
         }
 

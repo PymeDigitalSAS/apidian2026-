@@ -6,8 +6,29 @@
 
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="app-base" content="{{ rtrim(url('/'), '/') }}">
 
     <title>Facturación Electrónica</title>
+
+    {{-- La app se abre en un subdirectorio (por ejemplo /apidian2026/public).
+         Axios y jQuery piden /tax/records o /configuration/tables desde la raíz
+         del dominio, Apache responde 404 y Element UI muestra "Sin datos"
+         aunque los catálogos sí tengan registros. --}}
+    <script>
+        (function () {
+            var base = @json(rtrim(parse_url(url('/'), PHP_URL_PATH) ?: '', '/'));
+            if (!base) {
+                return;
+            }
+            var origOpen = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function (method, url) {
+                if (typeof url === 'string' && url.charAt(0) === '/' && url.charAt(1) !== '/' && url.indexOf(base + '/') !== 0 && url !== base) {
+                    arguments[1] = base + url;
+                }
+                return origOpen.apply(this, arguments);
+            };
+        })();
+    </script>
 
     <!-- Scripts -->
 
@@ -22,7 +43,7 @@
 
     <link rel="stylesheet" href="{{ asset('porto-light/vendor/bootstrap/css/bootstrap.css') }}" />
     <link rel="stylesheet" href="{{ asset('porto-light/vendor/animate/animate.css') }}" />
-    <link rel="stylesheet" href="{{ asset('porto-light/vendor/font-awesome/css/fontawesome-all.min.css') }}" />
+    <link rel="stylesheet" href="{{ asset('porto-light/vendor/font-awesome/css/fontawesome-all.min.css') }}?v=5.15.4b" />
     <link rel="stylesheet" href="{{ asset('porto-light/vendor/select2/css/select2.css') }}" />
     <link rel="stylesheet" href="{{ asset('porto-light/vendor/select2-bootstrap-theme/select2-bootstrap.min.css') }}" />
     <link rel="stylesheet" href="{{ asset('porto-light/vendor/datatables/media/css/dataTables.bootstrap4.css') }}" />
@@ -207,7 +228,7 @@
 
     @stack('scripts')
 
-    <script src="{{ asset('js/app.js') }}"></script>
+    <script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
 
     <!-- Theme Base, Components and Settings -->
     <script src="{{asset('porto-light/js/theme.js')}}"></script>

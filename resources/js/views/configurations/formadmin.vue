@@ -93,8 +93,8 @@
                             action="#"
                             :auto-upload="false"
                             :limit="1"
-                            accept="application/pdf"
                             :on-change="onRutChange"
+                            :on-exceed="onRutExceed"
                             :show-file-list="false"
                             class="rut-drag"
                         >
@@ -345,8 +345,9 @@
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="form-group" :class="{'has-danger': errors.password}">
-                                        <label class="control-label">Password</label>
-                                        <el-input type="password" v-model="form.password"></el-input>
+                                        <label class="control-label">Contraseña del certificado</label>
+                                        <el-input ref="certPassword" type="password" v-model="form.password" autocomplete="new-password" show-password></el-input>
+                                        <small class="text-muted">Es la clave con la que descargaste el archivo .pfx o .p12. No es la contraseña de ingreso a Apidian.</small>
                                         <small class="form-control-feedback" v-if="errors.password"
                                             v-text="errors.password"></small>
                                     </div>
@@ -356,7 +357,7 @@
                                         <textarea hidden id="base64" rows="5"></textarea>
                                         <label class="control-label">File</label>
                                         <el-upload ref="fileCertificado" :auto-upload="false" width="100px"
-                                            :on-change="handleChangeFileCertificado" :limit="1" drag action="''">
+                                            :on-change="handleChangeFileCertificado" :on-exceed="onCertExceed" :limit="1" drag action="#">
                                             <i class="el-icon-upload"></i>
                                             <div class="el-upload__text">
                                                 Suelta tu archivo aquí o
@@ -432,9 +433,9 @@
                                             <el-carousel-item v-for="n in 4" :key="n">
                                                 <div style="height: 100%; display: flex; flex-direction: column;">
                                                     <div class="text-center" style="margin-bottom: 4px;"><b>Paso {{ n }}</b></div>
-                                                    <img :src="'/img/help/software-paso' + n + '.png'"
+                                                    <img :src="softwareStepImage(n)"
                                                         :alt="'Paso ' + n"
-                                                        style="flex: 1; min-height: 0; width: 100%; object-fit: contain;">
+                                                        style="flex: 1; min-height: 0; width: 100%; height: 100%; object-fit: contain;">
                                                 </div>
                                             </el-carousel-item>
                                         </el-carousel>
@@ -904,6 +905,14 @@
         // Read in the image file as a data URL.
         reader.readAsBinaryString(f);
     }
+    function publicAsset(path) {
+        const script = document.querySelector('script[src*="js/app.js"]');
+        const src = script ? (script.getAttribute('src') || '') : '';
+        const marker = 'js/app.js';
+        const index = src.indexOf(marker);
+        const base = index >= 0 ? src.slice(0, index) : '/';
+        return base + String(path).replace(/^\//, '');
+    }
     import 'element-ui/lib/theme-chalk/index.css';
     export default {
         components: {},
@@ -1003,6 +1012,9 @@
             this.initForm()
         },
         methods: {
+            softwareStepImage(n) {
+                return publicAsset('img/help/software-paso' + n + '.png');
+            },
             initForm() {
                 this.form = {
                     generated_to_date: 0,
@@ -1021,6 +1033,8 @@
                     type_liability_id: null,
                     type_organization_id: null,
                     type_regime_id: null,
+                    password: null,
+                    certificate: null,
                 };
                 this.software = {
                     id: null,
@@ -1409,9 +1423,23 @@
                 }
             },
             saveCertificate() {
+                const fromDom = document.getElementById("base64");
+                const certificate = this.form.certificate || (fromDom && fromDom.value);
+                if (!certificate) {
+                    this.$message.error("No se cargó el certificado. Selecciona el archivo .pfx o .p12 y espera el aviso de que fue recibido.");
+                    return;
+                }
+                const passwordInput = this.$refs.certPassword && this.$refs.certPassword.$refs.input;
+                if (passwordInput && passwordInput.value) {
+                    this.form.password = passwordInput.value;
+                }
+                if (!this.form.password) {
+                    this.$message.error("Escribe la contraseña con la que se descargó el certificado. No es la clave de ingreso a Apidian.");
+                    return;
+                }
+                this.form.certificate = certificate;
                 this.loading_submit = true;
                 return new Promise((resolve, reject) => {
-                    this.form.certificate = document.getElementById("base64").value;
                     this.$http
                         .put(
                             `/${this.resourceapi}/certificate`,
@@ -1429,10 +1457,12 @@
                             }
                         })
                         .catch(error => {
-                            if (error.response.status === 422) {
-                                this.errors = error.response.data.errors;
+                            const data = error.response && error.response.data;
+                            if (error.response && error.response.status === 422) {
+                                this.errors = (data && data.errors) || {};
+                                this.$message.error((data && data.message) || "Revisa el certificado y la contraseña.");
                             } else {
-                                this.$message.error(error.response.data.message);
+                                this.$message.error((data && (data.error || data.message)) || "Error procesando el certificado");
                             }
                         })
                         .then(() => {
@@ -1449,9 +1479,57 @@
                 //this.form.municipality_id = ''
             },
             handleChangeFileCertificado(file) {
-                // this.fileCertificado = file.raw;
-                handleFileSelect(file.raw);
-                //console.log(dato)
+                const realFile = file && (file.raw || file);
+                if (!realFile || !realFile.name) {
+                    this.$message.error("No se pudo leer el archivo");
+                    return;
+                }
+                if (!realFile.size) {
+                    this.$message.error("El archivo está vacío o todavía no se ha descargado. Ábrelo en el equipo y vuelve a seleccionarlo.");
+                    this.clearCertUpload();
+                    return;
+                }
+                const lower = realFile.name.toLowerCase();
+                if (lower.endsWith(".zip")) {
+                    this.form.certificate = null;
+                    this.$message.error("Ese archivo es un ZIP. Ábrelo y selecciona el certificado .pfx o .p12 que está adentro.");
+                    this.clearCertUpload();
+                    return;
+                }
+                if (!lower.endsWith(".pfx") && !lower.endsWith(".p12")) {
+                    this.form.certificate = null;
+                    this.$message.error("El certificado debe ser un archivo .pfx o .p12.");
+                    this.clearCertUpload();
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const result = String((e.target && e.target.result) || "");
+                    const base64 = result.indexOf(",") >= 0 ? result.split(",")[1] : result;
+                    if (!base64) {
+                        this.$message.error("No se pudo guardar el certificado en el formulario");
+                        return;
+                    }
+                    this.form.certificate = base64;
+                    const el = document.getElementById("base64");
+                    if (el) el.value = base64;
+                    this.$message.success("Certificado recibido: " + realFile.name);
+                };
+                reader.onerror = () => {
+                    this.$message.error("No se pudo leer el certificado");
+                };
+                reader.readAsDataURL(realFile);
+            },
+            onCertExceed(files) {
+                const upload = this.$refs.fileCertificado;
+                if (!upload) return;
+                upload.clearFiles();
+                if (files && files[0]) upload.handleStart(files[0]);
+            },
+            clearCertUpload() {
+                this.$nextTick(() => {
+                    if (this.$refs.fileCertificado) this.$refs.fileCertificado.clearFiles();
+                });
             },
             next() {
                 if (this.active < 5) this.active++;
@@ -1686,32 +1764,41 @@
                 });
             },
             onRutChange(file) {
-                const realFile = file.raw;
-                this.selectedRutName = realFile.name;
-                this.rutProgress = 0;
-
-                if (!realFile) {
+                const realFile = file && (file.raw || file);
+                if (!realFile || !realFile.name) {
                     this.$message.error("No se pudo leer el archivo");
                     return;
                 }
+                if (!realFile.size) {
+                    this.$message.error("El archivo está vacío o todavía no se ha descargado. Ábrelo en el equipo y vuelve a seleccionarlo.");
+                    this.clearRutUpload();
+                    return;
+                }
+                if (!/\.pdf$/i.test(realFile.name)) {
+                    this.$message.error("El archivo debe ser un PDF de la ficha RUT.");
+                    this.clearRutUpload();
+                    return;
+                }
 
+                this.selectedRutName = realFile.name;
+                this.rutProgress = 15;
+                if (this.simulatedInterval) {
+                    clearInterval(this.simulatedInterval);
+                    this.simulatedInterval = null;
+                }
                 this.initForm();
-
-                // detener intervalos previos por si acaso
-                if (this.simulatedInterval) clearInterval(this.simulatedInterval);
-
-                // --- SIMULACIÓN DE PROGRESO LENTO ---
-                const steps = 100;
-                const stepTime = this.simulatedDuration / steps;
-
-                this.simulatedInterval = setInterval(() => {
-                    if (this.rutProgress < 100) {
-                        this.rutProgress++;
-                    } else {
-                        clearInterval(this.simulatedInterval);
-                        this.uploadRut(realFile); // cuando termina, ahora sí subimos el archivo
-                    }
-                }, stepTime);
+                this.uploadRut(realFile);
+            },
+            onRutExceed(files) {
+                const upload = this.$refs.rutUpload;
+                if (!upload) return;
+                upload.clearFiles();
+                if (files && files[0]) upload.handleStart(files[0]);
+            },
+            clearRutUpload() {
+                this.$nextTick(() => {
+                    if (this.$refs.rutUpload) this.$refs.rutUpload.clearFiles();
+                });
             },
             resetRutUpload() {
                 this.selectedRutName = null;
@@ -1730,16 +1817,18 @@
             uploadRut(realFile) {
                 const formData = new FormData();
                 formData.append("rut", realFile);
+                this.rutProgress = 45;
 
-                this.$http.post("/configuration/extract-rut", formData, {
-                    headers: { "Content-Type": "multipart/form-data" }
-                })
+                this.$http.post("/configuration/extract-rut", formData)
                 .then(({ data }) => {
 
                     if (!data.success) {
-                        this.$message.error(data.message);
+                        this.rutProgress = 0;
+                        this.$message.error(data.message || "No se pudo leer el RUT");
                         return;
                     }
+
+                    this.rutProgress = 100;
 
                     // Llenar formulario con datos reales del backend
                     Object.assign(this.form, data.fields);
@@ -1758,7 +1847,9 @@
                 })
                 .catch(err => {
                     console.error(err);
-                    this.$message.error("Error procesando el RUT");
+                    this.rutProgress = 0;
+                    const message = err.response && err.response.data && err.response.data.message;
+                    this.$message.error(message || "Error procesando el RUT");
                 });
             },
             validateRutFields() {

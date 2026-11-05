@@ -75,6 +75,14 @@ class Handler extends ExceptionHandler
      */
     protected function renderJsonException($request, Throwable $exception)
     {
+        if ($exception instanceof \Illuminate\Validation\ValidationException) {
+            return response()->json([
+                'success' => false,
+                'message' => $this->sanitizeUtf8($exception->getMessage()),
+                'errors' => $exception->errors(),
+            ], $exception->status, [], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE);
+        }
+
         $status = 500;
         $sqlState = null;
 
