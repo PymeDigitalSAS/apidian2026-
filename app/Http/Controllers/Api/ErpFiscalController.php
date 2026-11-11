@@ -80,7 +80,10 @@ class ErpFiscalController extends Controller
         $clave = (string) $request->header('Idempotency-Key');
         abort_unless(preg_match('/^[A-Za-z0-9-]{16,100}$/D', $clave), 422, 'Clave idempotente requerida.');
         $carga = $entrada['carga'];
-        validator($carga, ['prefix' => 'required|string|max:20|regex:/^[A-Za-z0-9]+$/', 'number' => 'required|integer|min:1|max:99999999999999', 'resolution_number' => 'required|string|max:40', 'date' => 'required|date_format:Y-m-d', 'time' => 'required|date_format:H:i:s'])->validate();
+        $reglasNumeracion = ['prefix' => 'required|string|max:20|regex:/^[A-Za-z0-9]+$/', 'number' => 'required|integer|min:1|max:99999999999999', 'date' => 'required|date_format:Y-m-d', 'time' => 'required|date_format:H:i:s'];
+        // La factura exige resolución DIAN. La nota crédito y la nota débito se numeran con prefijo y consecutivo.
+        $reglasNumeracion['resolution_number'] = $entrada['tipo'] === 'factura' ? 'required|string|max:40' : 'nullable|string|max:40';
+        validator($carga, $reglasNumeracion)->validate();
         // El puente no admite parámetros de SMTP, rutas, certificados ni plantillas arbitrarias.
         $permitidos = ['type_document_id', 'number', 'prefix', 'resolution_number', 'date', 'time', 'customer', 'invoice_lines', 'credit_note_lines', 'debit_note_lines', 'legal_monetary_totals', 'requested_monetary_totals', 'tax_totals', 'payment_form', 'billing_reference', 'discrepancyresponsecode', 'discrepancyresponsedescription', 'sendmail', 'sendmailtome', 'send_whatsapp', 'send_customer_credentials'];
         abort_if(array_diff(array_keys($carga), $permitidos), 422, 'La carga contiene campos no admitidos por el puente.');
@@ -142,7 +145,7 @@ class ErpFiscalController extends Controller
         $buscar = function ($nodo) use (&$buscar, &$permitidos) {
             if (!is_array($nodo)) { return; }
             foreach ($nodo as $key => $valor) {
-                if (in_array($key, ['cufe', 'XmlDocumentKey', 'ZipKey'], true) && is_string($valor)) { $permitidos[] = $valor; }
+                if (in_array($key, ['cufe', 'cude', 'XmlDocumentKey', 'ZipKey'], true) && is_string($valor)) { $permitidos[] = $valor; }
                 elseif (is_array($valor)) { $buscar($valor); }
             }
         };
