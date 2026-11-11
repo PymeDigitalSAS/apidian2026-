@@ -23,8 +23,8 @@ class ErpFiscalController extends Controller
         return response()->json([
             'version_contrato' => 1, 'nit' => (string) $c->identification_number,
             'ambiente' => (int) $c->type_environment_id === 1 ? 'produccion' : 'habilitacion',
-            'software_configurado' => !empty($c->software->identifier),
-            'certificado_hasta' => $c->certificate->expiration_date ?? null,
+            'software_configurado' => !empty(optional($c->software)->identifier),
+            'certificado_hasta' => optional($c->certificate)->expiration_date,
             'idempotencia' => true,
             'resoluciones' => $c->resolutions->map(static fn ($r) => ['tipo_documento' => (int) $r->type_document_id, 'numero_resolucion' => (string) $r->resolution, 'prefijo' => (string) $r->prefix, 'numero_desde' => (string) $r->from, 'numero_hasta' => (string) $r->to, 'vigente_desde' => (string) $r->date_from, 'vigente_hasta' => (string) $r->date_to])->values(),
         ]);
