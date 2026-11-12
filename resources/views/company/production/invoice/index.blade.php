@@ -398,6 +398,33 @@
                 const url = "{{ route('company.production.process', $company->identification_number) }}";
                 const token = '{{ csrf_token() }}';
 
+                function cambiarAmbienteProduccion() {
+                    setStepStatus('step3', 'loading');
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': token,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            test_set_id: testSetId,
+                            step: 3,
+                            type: 'invoice'
+                        })
+                    })
+                    .then(res3 => res3.json())
+                    .then(data3 => {
+                        if (data3.error) {
+                            setStepStatus('step3', 'error', data3.error);
+                            document.getElementById('finalMessage').innerHTML = '<div class="alert alert-danger">' + data3.error + '</div>';
+                            return;
+                        }
+                        setStepStatus('step3', 'success', 'Ambiente cambiado a producción correctamente');
+                        document.getElementById('finalMessage').innerHTML = '<div class="alert alert-success">¡Proceso completado correctamente!</div>';
+                    });
+                }
+
                 // Paso 1: Enviar factura de prueba
                 fetch(url, {
                         method: 'POST',
@@ -417,6 +444,12 @@
                         if (data.error) {
                             setStepStatus('step1', 'error', data.error);
                             document.getElementById('finalMessage').innerHTML = '<div class="alert alert-danger">' + data.error + '</div>';
+                            return;
+                        }
+                        if (data.already_accepted) {
+                            setStepStatus('step1', 'success', 'El set de pruebas ya está aceptado por la DIAN');
+                            setStepStatus('step2', 'success', 'No es necesario consultar el ZipKey');
+                            cambiarAmbienteProduccion();
                             return;
                         }
                         setStepStatus('step1', 'success', 'Factura enviada correctamente');
@@ -442,31 +475,10 @@
                                     document.getElementById('finalMessage').innerHTML = '<div class="alert alert-danger">' + data2.error + '</div>';
                                     return;
                                 }
-                                setStepStatus('step2', 'success', 'ZipKey consultado correctamente');
-                                // Paso 3: Cambiar ambiente
-                                setStepStatus('step3', 'loading');
-                                fetch(url, {
-                                        method: 'POST',
-                                        headers: {
-                                            'X-CSRF-TOKEN': token,
-                                            'X-Requested-With': 'XMLHttpRequest',
-                                            'Content-Type': 'application/json'
-                                        },
-                                        body: JSON.stringify({
-                                            test_set_id: testSetId,
-                                            step: 3
-                                        })
-                                    })
-                                    .then(res3 => res3.json())
-                                    .then(data3 => {
-                                        if (data3.error) {
-                                            setStepStatus('step3', 'error', data3.error);
-                                            document.getElementById('finalMessage').innerHTML = '<div class="alert alert-danger">' + data3.error + '</div>';
-                                            return;
-                                        }
-                                        setStepStatus('step3', 'success', 'Ambiente cambiado a producción correctamente');
-                                        document.getElementById('finalMessage').innerHTML = '<div class="alert alert-success">¡Proceso completado correctamente!</div>';
-                                    });
+                                setStepStatus('step2', 'success', data2.already_accepted
+                                    ? 'El set de pruebas ya está aceptado por la DIAN'
+                                    : 'ZipKey consultado correctamente');
+                                cambiarAmbienteProduccion();
                             });
                     })
                     .catch(err => {

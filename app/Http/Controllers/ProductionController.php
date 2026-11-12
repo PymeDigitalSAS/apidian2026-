@@ -1071,13 +1071,18 @@ class ProductionController extends Controller
 
                     if (!$zipkey) {
                         $mensaje = $result['message'] ?? 'No se obtuvo ZipKey.';
-                        // \Log::error('No se obtuvo ZipKey', ['result' => $result]);
+                        if ($this->setDePruebasAceptado($mensaje)) {
+                            return response()->json(['success' => true, 'already_accepted' => true]);
+                        }
                         return response()->json(['error' => $mensaje]);
                     }
                     return response()->json(['success' => true, 'zipkey' => $zipkey]);
                 } catch (\Exception $e) {
-                    // \Log::error('Error al enviar el documento', ['exception' => $e]);
-                    return response()->json(['error' => 'Error al enviar el documento: ' . $this->apiErrorMessage($e)]);
+                    $mensaje = $this->apiErrorMessage($e);
+                    if ($this->setDePruebasAceptado($mensaje)) {
+                        return response()->json(['success' => true, 'already_accepted' => true]);
+                    }
+                    return response()->json(['error' => 'Error al enviar el documento: ' . $mensaje]);
                 }
             }
 
@@ -1107,23 +1112,21 @@ class ProductionController extends Controller
                     // ]);
 
                     $dianResponse = $data['ResponseDian']['Envelope']['Body']['GetStatusZipResponse']['GetStatusZipResult']['DianResponse'] ?? null;
+                    if (is_array($dianResponse) && array_is_list($dianResponse)) {
+                        $dianResponse = $dianResponse[0] ?? null;
+                    }
                     if ($dianResponse && isset($dianResponse['IsValid']) && $dianResponse['IsValid'] === "false") {
-                        $desc = $dianResponse['StatusDescription'] ?? 'Error desconocido';
-                        $statusCode = $dianResponse['StatusCode'] ?? '';
-                        $statusMsg = $dianResponse['StatusMessage'] ?? '';
+                        $desc = $this->textoDian($dianResponse['StatusDescription'] ?? '') ?: 'Error desconocido';
+                        if ($this->setDePruebasAceptado($desc)) {
+                            return response()->json(['success' => true, 'already_accepted' => true]);
+                        }
+                        $statusMsg = $this->textoDian($dianResponse['StatusMessage'] ?? '');
                         $errorMsg = '';
                         if (stripos($desc, 'proceso de validación') !== false) {
                             return response()->json([
                                 'error' => 'El documento está en proceso de validación en la DIAN. Por favor, espera unos minutos y vuelve a consultar el ZipKey.'
                             ]);
                         }
-                        if (is_array($statusCode)) {
-                            $statusCode = json_encode($statusCode);
-                        }
-                        if (is_array($statusMsg)) {
-                            $statusMsg = json_encode($statusMsg);
-                        }
-
                         if (isset($dianResponse['ErrorMessage']['string'])) {
                             if (is_array($dianResponse['ErrorMessage']['string'])) {
                                 $errorMsg = implode('<br>', $dianResponse['ErrorMessage']['string']);
@@ -1172,6 +1175,28 @@ class ProductionController extends Controller
         }
 
         return $baseUrl;
+    }
+
+    private function textoDian($valor): string
+    {
+        if (is_string($valor) || is_numeric($valor)) {
+            return trim((string) $valor);
+        }
+        if (!is_array($valor)) {
+            return '';
+        }
+        if (($valor['_attributes']['nil'] ?? null) === 'true') {
+            return '';
+        }
+        if (isset($valor['_value']) && (is_string($valor['_value']) || is_numeric($valor['_value']))) {
+            return trim((string) $valor['_value']);
+        }
+        return '';
+    }
+
+    private function setDePruebasAceptado(string $texto): bool
+    {
+        return (bool) preg_match('/se encuentra aceptado/iu', $texto);
     }
 
     /**
