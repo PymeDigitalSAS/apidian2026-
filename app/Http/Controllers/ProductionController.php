@@ -8,6 +8,7 @@ use App\DocumentPayroll;
 use App\ReceivedDocument;
 use App\Resolution;
 use App\Software;
+use App\Support\PasoProduccion;
 use App\TypeDocument;
 use App\User;
 use Illuminate\Http\Request;
@@ -1065,21 +1066,15 @@ class ProductionController extends Controller
                         'headers' => $headers,
                         'json' => $json
                     ]);
-                    $result = json_decode($response->getBody(), true);
-                    // \Log::info('Respuesta envío factura de prueba', ['result' => $result]);
-                    $zipkey = $result['ResponseDian']['Envelope']['Body']['SendTestSetAsyncResponse']['SendTestSetAsyncResult']['ZipKey'] ?? null;
-
-                    if (!$zipkey) {
-                        $mensaje = $result['message'] ?? 'No se obtuvo ZipKey.';
-                        if ($this->setDePruebasAceptado($mensaje)) {
-                            return response()->json(['success' => true, 'already_accepted' => true]);
-                        }
-                        return response()->json(['error' => $mensaje]);
+                    $result = json_decode($response->getBody(), true) ?: [];
+                    $decision = PasoProduccion::envio($result);
+                    if (!empty($decision['error'])) {
+                        return response()->json(['error' => $decision['error']]);
                     }
-                    return response()->json(['success' => true, 'zipkey' => $zipkey]);
+                    return response()->json($decision);
                 } catch (\Exception $e) {
                     $mensaje = $this->apiErrorMessage($e);
-                    if ($this->setDePruebasAceptado($mensaje)) {
+                    if (PasoProduccion::contieneAceptado($mensaje)) {
                         return response()->json(['success' => true, 'already_accepted' => true]);
                     }
                     return response()->json(['error' => 'Error al enviar el documento: ' . $mensaje]);
@@ -1096,8 +1091,8 @@ class ProductionController extends Controller
                     $body = [
                         "sendmail" => false,
                         "sendmailtome" => false,
-                        "is_payroll" => false,
-                        "is_eqdoc" => true
+                        "is_payroll" => $type === 'payroll',
+                        "is_eqdoc" => $type === 'pos',
                     ];
                     $response = $client->post("/api/ubl2.1/status/zip/{$zipkey}", [
                         'headers' => $headers,
@@ -1106,49 +1101,18 @@ class ProductionController extends Controller
                     // \Log::info('Respuesta RAW de la DIAN al consultar ZipKey', [
                     //     'raw_response' => (string) $response->getBody()
                     // ]);
-                    $data = json_decode($response->getBody(), true);
-                    // \Log::info('Respuesta ARRAY consulta ZipKey', [
-                    //     'data' => $data
-                    // ]);
-
-                    $dianResponse = $data['ResponseDian']['Envelope']['Body']['GetStatusZipResponse']['GetStatusZipResult']['DianResponse'] ?? null;
-                    if (is_array($dianResponse) && array_is_list($dianResponse)) {
-                        $dianResponse = $dianResponse[0] ?? null;
+                    $data = json_decode($response->getBody(), true) ?: [];
+                    $decision = PasoProduccion::consultaZip($data);
+                    if (!empty($decision['error'])) {
+                        return response()->json(['error' => $decision['error']]);
                     }
-                    if ($dianResponse && isset($dianResponse['IsValid']) && $dianResponse['IsValid'] === "false") {
-                        $desc = $this->textoDian($dianResponse['StatusDescription'] ?? '') ?: 'Error desconocido';
-                        if ($this->setDePruebasAceptado($desc)) {
-                            return response()->json(['success' => true, 'already_accepted' => true]);
-                        }
-                        $statusMsg = $this->textoDian($dianResponse['StatusMessage'] ?? '');
-                        $errorMsg = '';
-                        if (stripos($desc, 'proceso de validación') !== false) {
-                            return response()->json([
-                                'error' => 'El documento está en proceso de validación en la DIAN. Por favor, espera unos minutos y vuelve a consultar el ZipKey.'
-                            ]);
-                        }
-                        if (isset($dianResponse['ErrorMessage']['string'])) {
-                            if (is_array($dianResponse['ErrorMessage']['string'])) {
-                                $errorMsg = implode('<br>', $dianResponse['ErrorMessage']['string']);
-                            } else {
-                                $errorMsg = $dianResponse['ErrorMessage']['string'];
-                            }
-                        }
-
-                        $fullMsg = $desc;
-                        if ($statusMsg) {
-                            $fullMsg .= '<br>' . $statusMsg;
-                        }
-                        if ($errorMsg) {
-                            $fullMsg .= '<br>' . $errorMsg;
-                        }
-
-                        return response()->json(['error' => $fullMsg]);
-                    }
-                    return response()->json(['success' => true, 'zipkey_status' => $data]);
+                    return response()->json($decision + ['zipkey_status' => $data]);
                 } catch (\Exception $e) {
-                    // \Log::error('Error consultando ZipKey', ['exception' => $e]);
-                    return response()->json(['error' => 'Error consultando ZipKey: ' . $this->apiErrorMessage($e)]);
+                    $mensaje = $this->apiErrorMessage($e);
+                    if (PasoProduccion::contieneAceptado($mensaje)) {
+                        return response()->json(['success' => true, 'already_accepted' => true]);
+                    }
+                    return response()->json(['error' => 'Error consultando ZipKey: ' . $mensaje]);
                 }
             }
 
@@ -1175,28 +1139,6 @@ class ProductionController extends Controller
         }
 
         return $baseUrl;
-    }
-
-    private function textoDian($valor): string
-    {
-        if (is_string($valor) || is_numeric($valor)) {
-            return trim((string) $valor);
-        }
-        if (!is_array($valor)) {
-            return '';
-        }
-        if (($valor['_attributes']['nil'] ?? null) === 'true') {
-            return '';
-        }
-        if (isset($valor['_value']) && (is_string($valor['_value']) || is_numeric($valor['_value']))) {
-            return trim((string) $valor['_value']);
-        }
-        return '';
-    }
-
-    private function setDePruebasAceptado(string $texto): bool
-    {
-        return (bool) preg_match('/se encuentra aceptado/iu', $texto);
     }
 
     /**
