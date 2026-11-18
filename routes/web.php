@@ -128,6 +128,7 @@ Route::group(['middleware' => ['auth', 'company.web.access']], function() {
     Route::get('companies/{company}/configuration/resolutions', 'ResolutionController@index')->name('company.resolutions.index');
     Route::post('companies/{company}/configuration/resolutions', 'ResolutionController@store')->name('company.resolutions.store');
     Route::put('companies/{company}/configuration/resolutions/{resolutionId}', 'ResolutionController@update')->name('company.resolutions.edit');
+    Route::delete('companies/{company}/configuration/resolutions/{resolutionId}', 'ResolutionController@destroy')->name('company.resolutions.destroy');
     Route::patch('companies/{company}/configuration/resolutions/{resolutionId}', 'ResolutionController@updateEnvironment')->name('company.resolutions.update');
 
     // production

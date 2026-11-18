@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Resolution;
 use App\Company;
+use App\Document;
 use App\User;
 use App\TypeDocument;
 use Exception;
@@ -98,6 +99,24 @@ class ResolutionController extends Controller
                 'date_to' => $request->date_to,
                 'type_environment_id' => $company->type_environment_id,
             ];
+
+            $existente = Resolution::where('company_id', $company->id)
+                ->where('prefix', $request->prefix)
+                ->where('resolution', $request->resolution)
+                ->where('type_environment_id', $company->type_environment_id)
+                ->first();
+
+            if ($existente) {
+                DB::rollBack();
+                if ($expectsJson) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Esa resolución ya está registrada.',
+                    ], 409);
+                }
+
+                return redirect()->back()->with('error', 'Esa resolución ya está registrada.');
+            }
 
             $resolution = Resolution::create($resolutionData);
 
@@ -274,6 +293,46 @@ class ResolutionController extends Controller
 
             return redirect()->back()->with('error', 'Error al actualizar la resolución: ' . $e->getMessage());
         }
+    }
+
+    public function destroy(Request $request, $companyNumber, $resolutionId)
+    {
+        $expectsJson = $request->ajax() || $request->wantsJson() || $request->expectsJson();
+        $company = Company::where('identification_number', $companyNumber)->first();
+        $resolution = Resolution::find($resolutionId);
+
+        if (!$company || !$resolution || (int) $resolution->company_id !== (int) $company->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Resolución no encontrada o no pertenece a la compañía.',
+            ], 404);
+        }
+
+        $hayOtra = Resolution::where('company_id', $company->id)
+            ->where('prefix', $resolution->prefix)
+            ->where('id', '!=', $resolution->id)
+            ->exists();
+        $tieneDocumentos = Document::where('identification_number', $company->identification_number)
+            ->where('prefix', $resolution->prefix)
+            ->exists();
+
+        if ($tieneDocumentos && !$hayOtra) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta resolución ya tiene documentos emitidos y es la única de ese prefijo.',
+            ], 409);
+        }
+
+        $resolution->delete();
+
+        if ($expectsJson) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Resolución eliminada.',
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Resolución eliminada.');
     }
 
     public function create(Request $request, $companyNumber)

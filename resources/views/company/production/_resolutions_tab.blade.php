@@ -70,6 +70,12 @@
                                     <td>{{ $resolution->date_from }} → {{ $resolution->date_to }}</td>
                                     <td>{{ $resolution->technical_key }}</td>
                                     <td class="text-right">
+                                        <button type="button" class="btn btn-sm btn-danger delete-resolution-btn-{{ $type }}"
+                                            data-id="{{ $resolution->id }}"
+                                            data-prefix="{{ $resolution->prefix }}"
+                                            title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                         <button type="button" class="btn btn-sm btn-primary edit-resolution-btn-{{ $type }}"
                                             data-bs-toggle="modal"
                                             data-bs-target="#editResolutionModal_{{ $type }}"
@@ -416,6 +422,35 @@
             },
             complete: function () {
                 $btn.prop('disabled', false).html(original);
+            }
+        });
+    });
+
+    $(document).on('click', '.delete-resolution-btn-' + TYPE, function () {
+        const $b = $(this);
+        const id = $b.data('id');
+        const prefix = $b.data('prefix');
+        if (!window.confirm('¿Eliminar la resolución ' + prefix + '?')) {
+            return;
+        }
+        $b.prop('disabled', true);
+        $.ajax({
+            url: '/companies/' + COMPANY + '/configuration/resolutions/' + id,
+            method: 'DELETE',
+            data: { _token: $('meta[name="csrf-token"]').attr('content') },
+            dataType: 'json',
+            success: function (response) {
+                if (response.success) {
+                    notify(response.message, 'success');
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    notify(response.message || 'No se pudo eliminar la resolución', 'error');
+                    $b.prop('disabled', false);
+                }
+            },
+            error: function (xhr) {
+                notify((xhr.responseJSON && xhr.responseJSON.message) || 'No se pudo eliminar la resolución', 'error');
+                $b.prop('disabled', false);
             }
         });
     });
