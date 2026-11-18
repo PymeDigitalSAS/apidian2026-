@@ -46,37 +46,71 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="thead-light">
+                    <table class="table res-table mb-0">
+                        <thead>
                             <tr>
                                 <th>Prefijo</th>
                                 <th>Número</th>
-                                <th>Tipo de Documento</th>
+                                <th>Tipo de documento</th>
                                 <th>Fecha</th>
                                 <th>Rango</th>
                                 <th>Vigencia</th>
-                                <th>Clave Técnica</th>
+                                <th>Clave técnica</th>
                                 <th class="text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse ($info['data'] as $resolution)
+                                @php
+                                    $fecha = function ($valor) {
+                                        if (!$valor) {
+                                            return '—';
+                                        }
+                                        try {
+                                            return \Carbon\Carbon::parse($valor)->format('d/m/Y');
+                                        } catch (\Throwable $e) {
+                                            return $valor;
+                                        }
+                                    };
+                                    $clave = trim((string) $resolution->technical_key);
+                                    $claveCorta = strlen($clave) > 18
+                                        ? substr($clave, 0, 8).'…'.substr($clave, -6)
+                                        : $clave;
+                                    $estado = 'sin-fecha';
+                                    if ($resolution->date_to) {
+                                        try {
+                                            $hasta = \Carbon\Carbon::parse($resolution->date_to)->endOfDay();
+                                            $estado = $hasta->isPast() ? 'vencida' : ($hasta->lte(now()->addDays(30)) ? 'por-vencer' : 'vigente');
+                                        } catch (\Throwable $e) {
+                                            $estado = 'sin-fecha';
+                                        }
+                                    }
+                                    $estadoTexto = ['vigente' => 'Vigente', 'por-vencer' => 'Por vencer', 'vencida' => 'Vencida', 'sin-fecha' => ''][$estado];
+                                @endphp
                                 <tr>
-                                    <td>{{ $resolution->prefix }}</td>
-                                    <td>{{ $resolution->resolution }}</td>
-                                    <td>{{ optional($resolution->type_document)->name }}</td>
-                                    <td>{{ $resolution->resolution_date }}</td>
-                                    <td>{{ $resolution->from }} - {{ $resolution->to }}</td>
-                                    <td>{{ $resolution->date_from }} → {{ $resolution->date_to }}</td>
-                                    <td>{{ $resolution->technical_key }}</td>
-                                    <td class="text-right">
-                                        <button type="button" class="btn btn-sm btn-danger delete-resolution-btn-{{ $type }}"
-                                            data-id="{{ $resolution->id }}"
-                                            data-prefix="{{ $resolution->prefix }}"
-                                            title="Eliminar">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-primary edit-resolution-btn-{{ $type }}"
+                                    <td><span class="res-prefix">{{ $resolution->prefix }}</span></td>
+                                    <td class="res-numero">{{ $resolution->resolution }}</td>
+                                    <td class="res-doc">{{ optional($resolution->type_document)->name }}</td>
+                                    <td>{{ $fecha($resolution->resolution_date) }}</td>
+                                    <td>{{ number_format((int) $resolution->from, 0, ',', '.') }} – {{ number_format((int) $resolution->to, 0, ',', '.') }}</td>
+                                    <td>
+                                        <span class="res-fechas">{{ $fecha($resolution->date_from) }} → {{ $fecha($resolution->date_to) }}</span>
+                                        @if($estadoTexto !== '')
+                                            <span class="res-estado res-estado-{{ $estado }}">{{ $estadoTexto }}</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($clave === '')
+                                            <span class="text-muted">—</span>
+                                        @else
+                                            <span class="res-key" title="{{ $clave }}">{{ $claveCorta }}</span>
+                                            <button type="button" class="res-copy" data-copy="{{ $clave }}" title="Copiar clave técnica">
+                                                <i class="far fa-copy"></i>
+                                            </button>
+                                        @endif
+                                    </td>
+                                    <td class="text-right text-nowrap">
+                                        <button type="button" class="btn btn-sm btn-outline-primary edit-resolution-btn-{{ $type }}"
                                             data-bs-toggle="modal"
                                             data-bs-target="#editResolutionModal_{{ $type }}"
                                             data-id="{{ $resolution->id }}"
@@ -88,14 +122,21 @@
                                             data-from="{{ $resolution->from }}"
                                             data-to="{{ $resolution->to }}"
                                             data-date-from="{{ $resolution->date_from }}"
-                                            data-date-to="{{ $resolution->date_to }}">
+                                            data-date-to="{{ $resolution->date_to }}"
+                                            title="Editar">
                                             <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger delete-resolution-btn-{{ $type }}"
+                                            data-id="{{ $resolution->id }}"
+                                            data-prefix="{{ $resolution->prefix }}"
+                                            title="Eliminar">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted">
+                                    <td colspan="8" class="text-center text-muted py-4">
                                         No hay resoluciones en {{ $info['label'] }}.
                                     </td>
                                 </tr>
@@ -338,6 +379,102 @@
     </div>
 </div>
 
+@once
+@push('styles')
+<style>
+    .res-table {
+        font-size: 13.5px;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .res-table thead th {
+        background: #f4f7fb;
+        color: #5b6573;
+        font-size: 11.5px;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        border-bottom: 1px solid #e4e9f0;
+        white-space: nowrap;
+        padding: 10px 12px;
+    }
+    .res-table tbody td {
+        vertical-align: middle;
+        white-space: nowrap;
+        padding: 12px;
+        border-top: 1px solid #eef1f5;
+        color: #2b323d;
+    }
+    .res-table tbody tr:hover td {
+        background: #f8fafc;
+    }
+    .res-table .res-doc {
+        white-space: normal;
+        min-width: 150px;
+        max-width: 220px;
+    }
+    .res-prefix {
+        display: inline-block;
+        background: #e8eefb;
+        color: #1e3a6e;
+        font-weight: 700;
+        letter-spacing: .03em;
+        border-radius: 6px;
+        padding: 3px 8px;
+        font-size: 12px;
+    }
+    .res-numero {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+    }
+    .res-fechas {
+        font-variant-numeric: tabular-nums;
+    }
+    .res-estado {
+        display: inline-block;
+        margin-left: 8px;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        vertical-align: middle;
+    }
+    .res-estado-vigente {
+        background: #e7f6ee;
+        color: #157347;
+    }
+    .res-estado-por-vencer {
+        background: #fff4d6;
+        color: #8a5a00;
+    }
+    .res-estado-vencida {
+        background: #fde8ea;
+        color: #b42318;
+    }
+    .res-key {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        background: #f3f5f8;
+        border-radius: 6px;
+        padding: 3px 8px;
+        color: #374151;
+    }
+    .res-copy {
+        border: 0;
+        background: transparent;
+        color: #6b7280;
+        padding: 0 4px;
+        cursor: pointer;
+        vertical-align: middle;
+    }
+    .res-copy:hover,
+    .res-copy.is-copied {
+        color: #0d6efd;
+    }
+</style>
+@endpush
+@endonce
+
 @push('scripts')
 <script>
 (function () {
@@ -349,6 +486,34 @@
     const $editForm = $('.editResolutionForm_' + TYPE);
     const newModalEl = document.getElementById('newResolutionModal_' + TYPE);
     const editModalEl = document.getElementById('editResolutionModal_' + TYPE);
+
+    if (!window.__resCopyBound) {
+        window.__resCopyBound = true;
+        $(document).on('click', '.res-copy', function () {
+            const texto = String($(this).attr('data-copy') || '');
+            const $btn = $(this);
+            const listo = function () {
+                $btn.addClass('is-copied').attr('title', 'Copiada');
+                setTimeout(function () {
+                    $btn.removeClass('is-copied').attr('title', 'Copiar clave técnica');
+                }, 1200);
+            };
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(texto).then(listo);
+                return;
+            }
+            const area = document.createElement('textarea');
+            area.value = texto;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.left = '-9999px';
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand('copy');
+            document.body.removeChild(area);
+            listo();
+        });
+    }
 
     const hideModal = (el) => {
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {

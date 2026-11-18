@@ -9,6 +9,7 @@ use App\ReceivedDocument;
 use App\Resolution;
 use App\Software;
 use App\Support\PasoProduccion;
+use App\Support\RepresentacionFactura;
 use App\TypeDocument;
 use App\User;
 use Illuminate\Http\Request;
@@ -1260,9 +1261,19 @@ class ProductionController extends Controller
             return response()->json(['error' => 'Tipo de documento no válido.'], 422);
         }
 
-        $request->validate([
+        $reglas = [
             'template' => 'required|integer|min:1',
-        ]);
+        ];
+        if ($type === 'invoice') {
+            $reglas['graphic'] = 'sometimes|array';
+            $reglas['graphic.actividad.on'] = 'sometimes|boolean';
+            $reglas['graphic.actividad.value'] = 'nullable|string|max:40';
+            $reglas['graphic.ica.on'] = 'sometimes|boolean';
+            $reglas['graphic.ica.value'] = 'nullable|string|max:40';
+            $reglas['graphic.ica_anual.on'] = 'sometimes|boolean';
+            $reglas['graphic.letras.on'] = 'sometimes|boolean';
+        }
+        $request->validate($reglas);
 
         $folder = $types[$type]['folder'];
         $template = (int) $request->input('template');
@@ -1281,6 +1292,9 @@ class ProductionController extends Controller
         }
 
         $company->{$types[$type]['column']} = $template;
+        if ($type === 'invoice' && $request->exists('graphic')) {
+            $company->invoice_graphic = RepresentacionFactura::normalizar((array) $request->input('graphic', []));
+        }
         $company->save();
 
         return response()->json([

@@ -41,7 +41,8 @@
                             {{optional($company->municipality)->name}} - {{optional($company->country)->name}}<br>
                             <br>
                             Teléfono: {{$request->establishment_phone ?? $company->phone}}<br>
-                            Correo: {{$request->establishment_email ?? $user->email}}
+                            Correo: {{$request->establishment_email ?? $user->email}}<br>
+                            @include('pdfs.invoice._datos')
                         </td>
                     </tr>
                 </table>
@@ -254,4 +255,5 @@
             </td>
         </tr>
     </table>
+    @include('pdfs.invoice._letras')
 </body>

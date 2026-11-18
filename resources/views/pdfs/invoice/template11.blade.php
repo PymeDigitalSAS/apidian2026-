@@ -63,6 +63,9 @@
                         <td style="padding: 1px 0;">Ciudad, Depart.</td>
                         <td style="padding: 1px 0;">{{optional($company->municipality)->name}}@if(optional(optional($company->municipality)->department)->name), {{$company->municipality->department->name}}@endif (CO)</td>
                     </tr>
+                    <tr>
+                        <td colspan="2" style="padding: 4px 0 0 0;">@include('pdfs.invoice._datos')</td>
+                    </tr>
                 </table>
             </td>
             <td style="vertical-align: top; padding: 2px 8px 8px 8px;">
@@ -267,4 +270,5 @@
         Resolución de Facturación Electrónica Nro. {{$resolution->resolution}}@if(!empty($resolution->resolution_date)) de {{$resolution->resolution_date}}@endif ·
         Prefijo: {{$resolution->prefix}} · Rango: {{$resolution->from}} al {{$resolution->to}}@if(!empty($resolution->date_from) || !empty($resolution->date_to)) · Vigencia: {{$resolution->date_from}} hasta {{$resolution->date_to}}@endif
     </p>
+    @include('pdfs.invoice._letras')
 </body>

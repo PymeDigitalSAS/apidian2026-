@@ -836,5 +836,6 @@
         </div>
     @endif
     <!-- Se eliminan duplicados y se mantiene solo una sección de totales, cuentas bancarias, notas y firma, como en template2.blade.php -->
+    @include('pdfs.invoice._letras')
 </body>
 </html>

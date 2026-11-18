@@ -73,10 +73,13 @@
                 $infoDian[] = 'Tipo Doc: '.$request->nombretipodocid;
             }
             if(isset($request->tarifaica) && $request->tarifaica != '100') {
-                $infoDian[] = 'ICA: '.$request->tarifaica.'‰';
+                $infoDian[] = 'ICA: '.$request->tarifaica.(is_numeric($request->tarifaica) ? '‰' : '');
             }
             if(isset($request->actividadeconomica)) {
                 $infoDian[] = 'Act. Econ.: '.$request->actividadeconomica;
+            }
+            if(!empty($request->presentacion_ica_anual)) {
+                $infoDian[] = 'Presentación de ICA anual';
             }
             echo implode(' | ', $infoDian);
         @endphp

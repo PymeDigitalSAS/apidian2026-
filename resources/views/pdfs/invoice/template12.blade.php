@@ -234,7 +234,9 @@
             <td style="vertical-align: top; padding: 0; line-height: 1.5;">
                 Resolución de Facturación Electrónica Nro. {{$resolution->resolution}}@if(!empty($resolution->resolution_date)) de {{$resolution->resolution_date}}@endif<br>
                 Prefijo: {{$resolution->prefix}} · Rango: {{$resolution->from}} al {{$resolution->to}}@if(!empty($resolution->date_from) || !empty($resolution->date_to))<br>Vigencia: {{$resolution->date_from}} hasta {{$resolution->date_to}}@endif
+                <br>@include('pdfs.invoice._datos')
             </td>
         </tr>
     </table>
+    @include('pdfs.invoice._letras')
 </body>

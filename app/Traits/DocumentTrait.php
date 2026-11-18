@@ -35,6 +35,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
 use App\Http\Controllers\Api\ConfigurationController;
 use App\Services\StorageService;
+use App\Support\RepresentacionFactura;
 use App\Country;
 use App\Municipality;
 use DateTime;
@@ -590,6 +591,11 @@ trait DocumentTrait
                 }
                 $imageQr    =  "data:image/png;base64, ".$qrBase64;
 
+                $extraFactura = '';
+                if ($tipodoc === 'INVOICE') {
+                    $extraFactura = RepresentacionFactura::aplicar($request, $company, 'invoice', $temp_template_pdf, $withHoldingTaxTotal);
+                }
+
                 if($template_json){
                     if($tipodoc == 'POS')
                         $pdf = $this->initMPdf('pos', $temp_template_pdf);
@@ -612,6 +618,10 @@ trait DocumentTrait
 //                    $pdf->SetHTMLHeader(View::make("pdfs.invoice.header", compact("resolution", "date", "time", "user", "request", "company", "imgLogo")));
 //                    $pdf->SetHTMLFooter(View::make("pdfs.invoice.footer", compact("resolution", "request", "cufecude", "date", "time")));
 //                    $pdf->WriteHTML(View::make("pdfs.invoice.template".$template_pdf, compact("user", "company", "customer", "resolution", "date", "time", "paymentForm", "request", "cufecude", "imageQr", "imgLogo", "withHoldingTaxTotal", "notes", "healthfields")), HTMLParserMode::HTML_BODY);
+                }
+
+                if ($extraFactura !== '') {
+                    $pdf->WriteHTML($extraFactura, HTMLParserMode::HTML_BODY);
                 }
 
                 if($tipodoc == 'POS')

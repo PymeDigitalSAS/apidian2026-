@@ -35,6 +35,7 @@
     sort($tplIds);
 
     $tplCurrent = $company->{$tplCfg['column']} ?? $company->graphic_representation_template;
+    $grafica = $type === 'invoice' ? \App\Support\RepresentacionFactura::deEmpresa($company) : null;
     $tplSaveUrl = route('company.production.template.update', ['company' => $company->identification_number, 'type' => $type]);
 
     // Config de vista previa con datos por defecto. Usa los endpoints
@@ -190,6 +191,35 @@
             @endforeach
         </div>
 
+        @if($grafica)
+            <div class="graphic-fields border rounded p-3 mt-2 mb-3" style="background:#f8fafc;">
+                <h4 class="mb-1" style="font-size:16px;">Datos de la factura</h4>
+                <p class="text-muted mb-3" style="font-size:13px;">Marca lo que debe salir en el PDF. El valor de ejemplo se puede cambiar.</p>
+                <div class="d-flex flex-wrap align-items-center mb-2" style="gap:10px;">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" data-field="actividad" id="gf-actividad-{{ $type }}" {{ $grafica['actividad']['on'] ? 'checked' : '' }}>
+                        <label class="form-check-label" for="gf-actividad-{{ $type }}">Actividad económica</label>
+                    </div>
+                    <input type="text" class="form-control form-control-sm" style="max-width:140px;" data-value="actividad" value="{{ $grafica['actividad']['value'] }}" placeholder="9603" maxlength="40">
+                </div>
+                <div class="d-flex flex-wrap align-items-center mb-2" style="gap:10px;">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" data-field="ica" id="gf-ica-{{ $type }}" {{ $grafica['ica']['on'] ? 'checked' : '' }}>
+                        <label class="form-check-label" for="gf-ica-{{ $type }}">Tarifa ICA</label>
+                    </div>
+                    <input type="text" class="form-control form-control-sm" style="max-width:140px;" data-value="ica" value="{{ $grafica['ica']['value'] }}" placeholder="10x1000" maxlength="40">
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" data-field="ica_anual" id="gf-anual-{{ $type }}" {{ $grafica['ica_anual']['on'] ? 'checked' : '' }}>
+                    <label class="form-check-label" for="gf-anual-{{ $type }}">Presentación de ICA anual</label>
+                </div>
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" data-field="letras" id="gf-letras-{{ $type }}" {{ $grafica['letras']['on'] ? 'checked' : '' }}>
+                    <label class="form-check-label" for="gf-letras-{{ $type }}">Valor de la factura en letras, al final</label>
+                </div>
+            </div>
+        @endif
+
         <div class="d-flex align-items-center mt-2">
             <button type="button" class="btn btn-primary template-save-btn">
                 <i class="fas fa-save me-1"></i> Guardar plantilla
@@ -230,6 +260,24 @@
                 saveBtn.addEventListener('click', function() {
                     const selected = tab.querySelector('.template-radio:checked');
                     if (!selected) return;
+                    const payload = { template: parseInt(selected.value, 10) };
+                    const graphic = tab.querySelector('.graphic-fields');
+                    if (graphic) {
+                        const marcado = function (campo) {
+                            const caja = graphic.querySelector('[data-field="' + campo + '"]');
+                            return !!(caja && caja.checked);
+                        };
+                        const texto = function (campo) {
+                            const entrada = graphic.querySelector('[data-value="' + campo + '"]');
+                            return entrada ? entrada.value : '';
+                        };
+                        payload.graphic = {
+                            actividad: { on: marcado('actividad'), value: texto('actividad') },
+                            ica: { on: marcado('ica'), value: texto('ica') },
+                            ica_anual: { on: marcado('ica_anual') },
+                            letras: { on: marcado('letras') }
+                        };
+                    }
                     saveBtn.disabled = true;
                     status.innerHTML = '<span class="text-info"><i class="fa fa-spinner fa-spin"></i> Guardando...</span>';
                     fetch(tab.dataset.saveUrl, {
@@ -240,7 +288,7 @@
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
                         },
-                        body: JSON.stringify({ template: parseInt(selected.value, 10) })
+                        body: JSON.stringify(payload)
                     })
                     .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
                     .then(function(r) {
@@ -268,7 +316,28 @@
                 const LEYENDA_HEAD = 'EJEMPLO DE LEYENDA EN EL ENCABEZADO (head_note)';
                 const LEYENDA_FOOT = 'Ejemplo de leyenda al pie del documento (foot_note).';
 
+                function datosGrafica() {
+                    const graphic = tab.querySelector('.graphic-fields');
+                    const extra = {};
+                    if (!graphic) return extra;
+                    const marcado = function (campo) {
+                        const caja = graphic.querySelector('[data-field="' + campo + '"]');
+                        return !!(caja && caja.checked);
+                    };
+                    const texto = function (campo, ejemplo) {
+                        const entrada = graphic.querySelector('[data-value="' + campo + '"]');
+                        const valor = entrada ? entrada.value.trim() : '';
+                        return valor || ejemplo;
+                    };
+                    if (marcado('actividad')) extra.actividadeconomica = texto('actividad', '9603');
+                    if (marcado('ica')) extra.tarifaica = texto('ica', '10x1000');
+                    if (marcado('ica_anual')) extra.presentacion_ica_anual = true;
+                    if (marcado('letras')) extra.valor_en_letras = true;
+                    return extra;
+                }
+
                 function buildInvoicePayload(templateId) {
+                    const grafica = datosGrafica();
                     return {
                         number: cfg.number,
                         type_document_id: 1,
@@ -282,6 +351,10 @@
                         head_note: LEYENDA_HEAD,
                         foot_note: LEYENDA_FOOT,
                         notes: 'Documento de ejemplo generado para previsualizar la plantilla. No tiene validez fiscal.',
+                        actividadeconomica: grafica.actividadeconomica,
+                        tarifaica: grafica.tarifaica,
+                        presentacion_ica_anual: grafica.presentacion_ica_anual,
+                        valor_en_letras: grafica.valor_en_letras,
                         customer: {
                             identification_number: '222222222222',
                             name: 'CONSUMIDOR FINAL DE EJEMPLO',

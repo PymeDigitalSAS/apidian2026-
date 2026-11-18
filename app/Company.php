@@ -45,6 +45,7 @@ class Company extends Model
      */
     protected $casts = [
         'type_liability_ids' => 'array',
+        'invoice_graphic' => 'array',
     ];
 
     protected $fillable = [
@@ -87,6 +88,7 @@ class Company extends Model
         'absolut_plan_documents',
         'allow_seller_login',
         'graphic_representation_template',
+        'invoice_graphic',
         'eqdocs_template',
         'support_document_template',
         'payroll_template',

@@ -37,13 +37,16 @@
                 @endif
                 <p style="color: black; font-size: 11px; margin-bottom: 2px; padding: 0px 0px 0px 0px;">
                     @if(isset($request->tarifaica) && $request->tarifaica != '100')
-                        TARIFA ICA: {{$request->tarifaica}}‰
+                        TARIFA ICA: {{$request->tarifaica}}@if(is_numeric($request->tarifaica))‰@endif
                     @endif
                     @if(isset($request->tarifaica) && isset($request->actividadeconomica))
                         -
                     @endif
                     @if(isset($request->actividadeconomica))
                         ACTIVIDAD ECONOMICA: {{$request->actividadeconomica}}
+                    @endif
+                    @if(!empty($request->presentacion_ica_anual))
+                        PRESENTACION DE ICA ANUAL
                     @endif
                     @if(isset($request->seze))
                         <?php

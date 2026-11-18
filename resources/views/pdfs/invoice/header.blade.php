@@ -49,7 +49,7 @@
                     Tipo Documento ID: {{$request->nombretipodocid}}<br>
                 @endif
                 @if(isset($request->tarifaica) && $request->tarifaica != '100')
-                    TARIFA ICA: {{$request->tarifaica}}‰
+                    TARIFA ICA: {{$request->tarifaica}}@if(is_numeric($request->tarifaica))‰@endif
                 @endif
                 @if(isset($request->tarifaica) && isset($request->actividadeconomica))
                     -
@@ -58,6 +58,9 @@
                     ACTIVIDAD ECONOMICA: {{$request->actividadeconomica}}<br>
                 @else
                     <br>
+                @endif
+                @if(!empty($request->presentacion_ica_anual))
+                    PRESENTACION DE ICA ANUAL<br>
                 @endif
                 @if(isset($request->seze))
                     <?php
