@@ -1,7 +1,18 @@
 <header class="header">
+    <div class="header-lead">
+        <button type="button" class="header-menu toggle-sidebar-left" data-toggle-class="sidebar-left-opened" data-target="html" data-fire-event="sidebar-left-opened" aria-label="Abrir menú">
+            <i class="fas fa-bars" aria-hidden="true"></i>
+        </button>
+        @auth
+            <a href="{{ route('home') }}" class="header-wordmark">
+                <img src="{{ asset('logo/pymedigital-mark.png') }}" alt="" class="header-mark">
+                P.D InvoTech
+            </a>
+        @endauth
+    </div>
     {{-- <div class="logo-container">
         <a href="{{route('home')}}" class="logo">
-            APIDIAN
+            PYME-ELECTRONICO
         </a>
         <div class="d-md-none toggle-sidebar-left" data-toggle-class="sidebar-left-opened" data-target="html" data-fire-event="sidebar-left-opened">
             <i class="fas fa-bars" aria-label="Toggle sidebar"></i>
@@ -86,7 +97,7 @@
                 <div class="navbar-header">
                 <!-- Branding Image -->
                     <span class="navbar-brand guest-brand">
-                        {{ config('app.name', 'APIDIAN') }}
+                        {{ config('app.name', 'PYME-ELECTRONICO') }}
                     </span>
                 </div>
 

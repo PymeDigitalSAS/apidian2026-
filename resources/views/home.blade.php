@@ -396,18 +396,18 @@
                                     <div class="form-group">
                                         <label for="logo-upload">Logo de la Empresa</label>
                                         <div class="custom-file">
-                                            <input type="file" class="custom-file-input" id="logo-upload" accept="image/jpeg">
+                                            <input type="file" class="custom-file-input" id="logo-upload" accept="image/jpeg,image/png">
                                             <label class="custom-file-label" for="logo-upload">Seleccionar archivo...</label>
                                         </div>
                                         <div class="invalid-feedback"></div>
-                                        <small class="form-text text-muted">Formato permitido: JPG únicamente. Tamaño máximo: 2MB</small>
+                                        <small class="form-text text-muted">Formatos permitidos: JPG o PNG. El PNG conserva la transparencia para que el logo se adapte al color de la factura. Tamaño máximo: 2MB</small>
                                     </div>
                                 </div>
 
                                 <div class="col-12">
                                     <div id="logo-preview" class="text-center" style="display: none;">
                                         <h6>Vista previa:</h6>
-                                        <img id="logo-preview-img" src="" alt="Vista previa del logo" class="img-thumbnail" style="max-width: 300px; max-height: 200px;">
+                                        <img id="logo-preview-img" src="" alt="Vista previa del logo" class="img-thumbnail" style="max-width: 300px; max-height: 200px; background: repeating-conic-gradient(#e9ecef 0% 25%, #fff 0% 50%) 50% / 16px 16px;">
                                     </div>
                                 </div>
                             </div>
@@ -888,10 +888,10 @@ $(document).ready(function () {
 
         if (file) {
             // Validar tipo de archivo
-            const allowedTypes = ['image/jpg', 'image/jpeg'];
+            const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png'];
             if (!allowedTypes.includes(file.type)) {
                 new PNotify({
-                    text: 'Por favor selecciona un archivo JPG válido',
+                    text: 'Por favor selecciona un archivo JPG o PNG válido',
                     type: 'error',
                     addclass: 'notification-danger',
                     delay: 4000

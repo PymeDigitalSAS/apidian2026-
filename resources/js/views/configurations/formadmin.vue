@@ -347,7 +347,7 @@
                                     <div class="form-group" :class="{'has-danger': errors.password}">
                                         <label class="control-label">Contraseña del certificado</label>
                                         <el-input ref="certPassword" type="password" v-model="form.password" autocomplete="new-password" show-password></el-input>
-                                        <small class="text-muted">Es la clave con la que descargaste el archivo .pfx o .p12. No es la contraseña de ingreso a Apidian.</small>
+                                        <small class="text-muted">Es la clave con la que descargaste el archivo .pfx o .p12. No es la contraseña de ingreso a PYME-ELECTRONICO.</small>
                                         <small class="form-control-feedback" v-if="errors.password"
                                             v-text="errors.password"></small>
                                     </div>
@@ -1434,7 +1434,7 @@
                     this.form.password = passwordInput.value;
                 }
                 if (!this.form.password) {
-                    this.$message.error("Escribe la contraseña con la que se descargó el certificado. No es la clave de ingreso a Apidian.");
+                    this.$message.error("Escribe la contraseña con la que se descargó el certificado. No es la clave de ingreso a PYME-ELECTRONICO.");
                     return;
                 }
                 this.form.certificate = certificate;

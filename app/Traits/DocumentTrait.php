@@ -466,24 +466,18 @@ trait DocumentTrait
 
         $QRStr = '';
 //        try {
-            if(isset($request->establishment_logo)){
-                $filenameLogo   = StorageService::localPath("public/{$company->identification_number}/alternate_{$company->identification_number}{$company->dv}.jpg");
-                $this->storeLogo($request->establishment_logo);
-            }
-            else
-                $filenameLogo   = StorageService::localPath("public/{$company->identification_number}/{$company->identification_number}{$company->dv}.jpg");
+            $filenameLogo = $this->resolveInvoiceLogoPath($company, $request);
 
             $firma_facturacion = null;
             if(isset($request->firma_facturacion)){
                 $firma_facturacion = "data:image/jpg;base64, ".$request->firma_facturacion;
             }
 
-            $logo_empresa_emisora = null;
-            if(isset($request->logo_empresa_emisora)){
-                $logo_empresa_emisora = "data:image/jpg;base64, ".$request->logo_empresa_emisora;
-            }
+            $logo_empresa_emisora = isset($request->logo_empresa_emisora)
+                ? $this->buildImageDataUriFromBase64($request->logo_empresa_emisora)
+                : null;
 
-            $imgLogo = $this->buildImageDataUriFromFile($filenameLogo);
+            $imgLogo = $filenameLogo ? $this->buildImageDataUriFromFile($filenameLogo) : null;
 
             if($tipodoc == "ND")
                 $totalbase = $request->requested_monetary_totals['line_extension_amount'];
@@ -913,14 +907,8 @@ trait DocumentTrait
         $QRStr = '';
 //        try {
             define("DOMPDF_ENABLE_REMOTE", true);
-            if(isset($request->establishment_logo)){
-                $filenameLogo   = StorageService::localPath("public/{$company->identification_number}/alternate_{$company->identification_number}{$company->dv}.jpg");
-                $this->storeLogo($request->establishment_logo);
-            }
-            else
-                $filenameLogo   = StorageService::localPath("public/{$company->identification_number}/{$company->identification_number}{$company->dv}.jpg");
-
-            $imgLogo = $this->buildImageDataUriFromFile($filenameLogo);
+            $filenameLogo = $this->resolveInvoiceLogoPath($company, $request);
+            $imgLogo = $filenameLogo ? $this->buildImageDataUriFromFile($filenameLogo) : null;
             if($tipodoc = "PAYROLL"){
                 if ($company->payroll_type_environment_id == 2){
                     $qrBase64 = base64_encode(QrCode::format('png')
@@ -988,14 +976,8 @@ trait DocumentTrait
         $QRStr = '';
 //        try {
             define("DOMPDF_ENABLE_REMOTE", true);
-            if(isset($request->establishment_logo)){
-                $filenameLogo   = StorageService::localPath("public/{$company->identification_number}/alternate_{$company->identification_number}{$company->dv}.jpg");
-                $this->storeLogo($request->establishment_logo);
-            }
-            else
-                $filenameLogo   = StorageService::localPath("public/{$company->identification_number}/{$company->identification_number}{$company->dv}.jpg");
-
-            $imgLogo = $this->buildImageDataUriFromFile($filenameLogo);
+            $filenameLogo = $this->resolveInvoiceLogoPath($company, $request);
+            $imgLogo = $filenameLogo ? $this->buildImageDataUriFromFile($filenameLogo) : null;
             if ($company->payroll_type_environment_id == 2){
                 $qrBase64 = base64_encode(QrCode::format('png')
                                         ->errorCorrection('Q')
@@ -1934,39 +1916,135 @@ trait DocumentTrait
         return 'data:' . $mime . ';base64,' . base64_encode($binary);
     }
 
+    protected function buildImageDataUriFromBase64(?string $base64): ?string
+    {
+        if ($base64 === null || $base64 === '') {
+            return null;
+        }
+
+        $normalized = $this->normalizeLogoBase64($base64);
+        $binary = base64_decode($normalized, true);
+        if ($binary === false || $binary === '') {
+            return null;
+        }
+
+        $imageInfo = @getimagesizefromstring($binary);
+        if ($imageInfo === false || empty($imageInfo['mime'])) {
+            return 'data:image/jpeg;base64,' . $normalized;
+        }
+
+        if (!in_array($imageInfo['mime'], ['image/jpeg', 'image/png', 'image/gif'], true)) {
+            return null;
+        }
+
+        return 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($binary);
+    }
+
+    protected function normalizeLogoBase64(string $base64logo): string
+    {
+        $base64logo = trim($base64logo);
+        if (preg_match('/^data:image\/[a-zA-Z0-9.+-]+;base64,/i', $base64logo)) {
+            $base64logo = substr($base64logo, strpos($base64logo, ',') + 1);
+        }
+
+        return preg_replace('/\s+/', '', $base64logo);
+    }
+
+    /**
+     * @return array{0: string, 1: string} binary and extension (jpg|png)
+     */
+    protected function decodeLogoBinary(string $base64logo): array
+    {
+        $normalized = $this->normalizeLogoBase64($base64logo);
+        $binary = base64_decode($normalized, true);
+        if ($binary === false || $binary === '') {
+            throw new Exception('The base64 encoding is not valid.');
+        }
+
+        $imageInfo = @getimagesizefromstring($binary);
+        if ($imageInfo === false || empty($imageInfo['mime'])) {
+            throw new Exception('The logo is not a valid image.');
+        }
+
+        if ($imageInfo['mime'] === 'image/png') {
+            return [$binary, 'png'];
+        }
+
+        if ($imageInfo['mime'] === 'image/jpeg') {
+            return [$binary, 'jpg'];
+        }
+
+        throw new Exception('The logo must be a JPG or PNG image.');
+    }
+
+    protected function companyLogoRelativePath($company, bool $alternate, string $ext): string
+    {
+        $prefix = $alternate ? 'alternate_' : '';
+
+        return "public/{$company->identification_number}/{$prefix}{$company->identification_number}{$company->dv}.{$ext}";
+    }
+
+    protected function resolveCompanyLogoPath($company, bool $alternate): ?string
+    {
+        foreach (['png', 'jpg'] as $ext) {
+            $path = StorageService::localPath($this->companyLogoRelativePath($company, $alternate, $ext));
+            if (is_file($path) && is_readable($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    protected function resolveInvoiceLogoPath($company, $request): ?string
+    {
+        if (isset($request->establishment_logo)) {
+            $this->storeLogo($request->establishment_logo);
+
+            return $this->resolveCompanyLogoPath($company, true);
+        }
+
+        return $this->resolveCompanyLogoPath($company, false);
+    }
+
+    protected function persistCompanyLogo($company, string $base64logo, bool $alternate): string
+    {
+        [$binary, $ext] = $this->decodeLogoBinary($base64logo);
+        $relative = $this->companyLogoRelativePath($company, $alternate, $ext);
+        StorageService::putLocal($relative, $binary);
+
+        $otherExt = $ext === 'png' ? 'jpg' : 'png';
+        StorageService::deleteLocal($this->companyLogoRelativePath($company, $alternate, $otherExt));
+
+        return StorageService::localPath($relative);
+    }
+
     public function storeLogo($base64logo)
     {
         try {
-            if (!base64_decode($base64logo, true)) {
-                throw new Exception('The given data was invalid.');
-            }
-        } catch (Exception $e) {
-            return response([
-                'message' => $e->getMessage(),
-                'errors' => [
-                    'logo' => 'The base64 encoding is not valid.',
-                ],
-            ], 422);
-
-            return response([
-                'message' => $e->getMessage(),
-                'errors' => [
-                    'logo' => $error,
-                ],
-            ], 422);
-        }
-
-        try {
             $company = auth()->user()->company;
-            $name = "alternate_{$company->identification_number}{$company->dv}.jpg";
-            // Logos alternativos SIEMPRE se guardan localmente (necesarios para generar PDFs)
-            StorageService::putLocal("public/{$company->identification_number}/{$name}", base64_decode($base64logo));
+            $this->persistCompanyLogo($company, $base64logo, true);
 
             return [
                 'success' => true,
                 'message' => 'Logo almacenado con éxito',
             ];
         } catch (Exception $e) {
+            $invalid = in_array($e->getMessage(), [
+                'The base64 encoding is not valid.',
+                'The logo is not a valid image.',
+                'The logo must be a JPG or PNG image.',
+            ], true);
+
+            if ($invalid) {
+                return response([
+                    'message' => 'The given data was invalid.',
+                    'errors' => [
+                        'logo' => $e->getMessage(),
+                    ],
+                ], 422);
+            }
+
             return response([
                 'message' => 'Internal Server Error',
                 'payload' => $e->getMessage(),

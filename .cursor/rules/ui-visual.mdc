@@ -1,0 +1,40 @@
+---
+description: Criterios visuales de las pantallas del facturador
+globs: resources/views/**/*.blade.php,resources/js/**/*.vue,public/css/ui-shell.css
+alwaysApply: false
+---
+
+# Interfaz del facturador
+
+Las pantallas de la app heredan `public/css/ui-shell.css` desde `layouts/app`, `layouts/guest` y `layouts/backtemplate`. Extiende ese archivo. No crees paletas nuevas en cada vista.
+
+No cambies `resources/views/pdfs/**` ni las vistas XML: son el documento fiscal, no la interfaz.
+
+## Tokens
+
+- Texto `#092546`, secundario `#4d6280`, fondo `#e8f1f8`, superficie blanca.
+- Marca PymeDigital: índigo `#483ACC`, celeste `#49C9FA`, marino `#092546`.
+- Fuente Inter. Títulos con `letter-spacing: -0.03em`.
+- Radio 10px en controles y 16px en tarjetas. Sombra suave, sin bordes gruesos.
+- Botón principal índigo, texto blanco. El destructivo sigue rojo.
+- El nombre visible del producto es `P.D InvoTech`.
+
+## Lectura y uso
+
+- Contraste de texto sobre fondo claro. El texto secundario no es más claro que `#4d6280`.
+- Controles táctiles de al menos 40px. Labels en negrita, encima del campo.
+- El foco visible usa `box-shadow: 0 0 0 3px rgba(72, 58, 204, 0.28)`.
+- Tablas anchas dentro de `.table-responsive`. Encabezados en mayúsculas pequeñas.
+- En menos de 992px el menú es un cajón (clase `sidebar-left-opened`). No uses `transform` ni `min-width: 100vw` del tema Porto: dejan el menú borroso u opaco. El menú debe ir por encima del velo (`z-index` mayor) con colores sólidos, sin `rgba` encima del texto.
+- En menos de 860px el login pasa a una sola columna y oculta la lista del panel de marca.
+
+```html
+<!-- Bien: layout existente + clases del shell -->
+<header class="page-header">
+  <h2>Empresas</h2>
+</header>
+<div class="card"><div class="card-body">...</div></div>
+
+<!-- Mal: color y medida sueltos en la vista -->
+<div style="background:#0088cc;font-size:11px">...</div>
+```

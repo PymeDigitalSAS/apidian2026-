@@ -8,7 +8,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="app-base" content="{{ rtrim(url('/'), '/') }}">
 
-    <title>Facturación Electrónica</title>
+    <title>P.D InvoTech</title>
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="32x32">
+    <link rel="icon" type="image/png" href="{{ asset('favicon-32.png') }}" sizes="32x32">
 
     {{-- La app se abre en un subdirectorio (por ejemplo /apidian2026/public).
          Axios y jQuery piden /tax/records o /configuration/tables desde la raíz
@@ -77,6 +79,8 @@
         <link rel="stylesheet" href="{{ asset('theme/custom_styles.css') }}" />
     @endif
 
+    <link rel="stylesheet" href="{{ asset('css/ui-shell.css') }}?v={{ filemtime(public_path('css/ui-shell.css')) }}" />
+
 
     @stack('styles')
 
@@ -113,18 +117,6 @@
         }
         .center-el-checkbox .el-checkbox {
             margin-bottom: 0
-        }
-
-        a:hover {
-            color: #000000;
-        }
-
-        a:visited {
-            color: #585858;
-        }
-
-        a:link {
-            color: #2E64FE;
         }
 
         @guest
@@ -238,6 +230,28 @@
     <!-- <script src="//code.tidio.co/1vliqewz9v7tfosw5wxiktpkgblrws5w.js"></script> -->
 
     <script src="{{asset('porto-light/vendor/pnotify/pnotify.custom.js')}}"></script>
+    <script>
+        document.addEventListener('click', function (event) {
+            if (window.innerWidth > 991) {
+                return;
+            }
+            var root = document.documentElement;
+            if (!root.classList.contains('sidebar-left-opened')) {
+                return;
+            }
+            if (event.target.closest('#sidebar-left') || event.target.closest('.header-menu')) {
+                return;
+            }
+            root.classList.remove('sidebar-left-opened');
+        });
+        document.querySelectorAll('#sidebar-left a.nav-link').forEach(function (link) {
+            link.addEventListener('click', function () {
+                if (window.innerWidth <= 991) {
+                    document.documentElement.classList.remove('sidebar-left-opened');
+                }
+            });
+        });
+    </script>
     <script>
         $('#default-primary').click(function() {
             document.getElementById("copyToken").select();

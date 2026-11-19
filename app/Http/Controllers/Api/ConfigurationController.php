@@ -768,38 +768,28 @@ class ConfigurationController extends Controller
     public function storeLogo(ConfigurationLogoRequest $request)
     {
         try {
-            if (!base64_decode($request->logo, true)) {
-                throw new Exception('The given data was invalid.');
-            }
-        } catch (Exception $e) {
-            return response([
-                'message' => $e->getMessage(),
-                'errors' => [
-                    'logo' => 'The base64 encoding is not valid.',
-                ],
-            ], 422);
-
-            return response([
-                'message' => $e->getMessage(),
-                'errors' => [
-                    'logo' => $error,
-                ],
-            ], 422);
-        }
-
-        try {
-
             $company = auth()->user()->company;
-            $name = "{$company->identification_number}{$company->dv}.jpg";
-
-            // Logos SIEMPRE se guardan localmente (necesarios para generar PDFs)
-            StorageService::putLocal("public/{$company->identification_number}/{$name}", base64_decode($request->logo));
+            $this->persistCompanyLogo($company, $request->logo, false);
 
             return [
                 'success' => true,
                 'message' => 'Logo almacenado con éxito',
             ];
         } catch (Exception $e) {
+            $invalid = in_array($e->getMessage(), [
+                'The base64 encoding is not valid.',
+                'The logo is not a valid image.',
+                'The logo must be a JPG or PNG image.',
+            ], true);
+
+            if ($invalid) {
+                return response([
+                    'message' => 'The given data was invalid.',
+                    'errors' => [
+                        'logo' => $e->getMessage(),
+                    ],
+                ], 422);
+            }
 
             return response([
                 'message' => 'Internal Server Error',

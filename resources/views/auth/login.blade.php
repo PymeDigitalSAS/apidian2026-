@@ -1,74 +1,54 @@
 @extends('layouts.guest')
 @section('content')
-<div class="container">
-    <div class="row">
-        <div class="col-md-8 col-md-offset-2 auth-login">
-            <p class="card-title text-center mb-3">APIDIAN</p>
-            <div class="panel panel-default content-login">
-                <div class="panel-body w-100">
-                    <div>
-                        <p class="h4"><strong>Iniciar Sesión</strong></p>
-                        <p class="text-muted">Acceso solo para administradores de cuentas</p>
-                    </div>
-                    <form class="form-horizontal" method="POST" action="{{ route('login') }}">
-                        {{ csrf_field() }}
-
-                        <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
-                            <label for="email" class="col-md-4 control-label">Dirección de Correo</label>
-
-                            <div class="col-md-12">
-                                <input id="email" type="email" class="form-control" name="email" placeholder="correo@gmail.com" value="{{ old('email') }}" required autofocus>
-
-                                @if ($errors->has('email'))
-                                    <span class="help-block">
-                                        <strong>{{ $errors->first('email') }}</strong>
-                                    </span>
-                                @endif
-                            </div>
-                        </div>
-
-                        <div class="form-group{{ $errors->has('password') ? ' has-error' : '' }}" style="margin-bottom: 0;">
-                            <label for="password" class="col-md-4 control-label">Contraseña</label>
-
-                            <div class="col-md-12">
-                                <input id="password" type="password" class="form-control" name="password" placeholder="********" required>
-
-                                @if ($errors->has('password'))
-                                    <span class="help-block">
-                                        <strong>{{ $errors->first('password') }}</strong>
-                                    </span>
-                                @endif
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <div class="col-md-6">
-                                <div class="checkbox">
-                                    <label style="display: flex; align-items: center;">
-                                        <input type="checkbox" name="remember" {{ old('remember') ? 'checked' : '' }} style="margin-top: 0px">Recordarme
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        @if(env('ALLOW_PUBLIC_REGISTER', true))
-                            <div class="form-group">
-                                <div class="col-md-12">
-                                    <button type="submit" class="btn btn-primary btn-login">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-login-2" style="margin-right: 5px"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 8v-2a2 2 0 0 1 2 -2h7a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-2" /><path d="M3 12h13l-3 -3" /><path d="M13 15l3 -3" /></svg>
-                                        Iniciar Sesión
-                                    </button>
-
-                                    {{-- <a class="btn btn-link" href="{{ route('password.request') }}">
-                                        Olvido su Password?
-                                    </a> --}}
-                                </div>
-                            </div>
-                        @endif
-                        <p class="text-muted text-center" style="margin: 10px 0 0 0; font-size: 13px">{{ env('APP_FOOTER', '2026 - FacturaLatam') }}</p>
-                    </form>
+<div class="login-screen">
+        <aside class="login-aside">
+            <div class="login-brandline">
+                <img src="{{ asset('logo/pymedigital.png') }}" alt="PymeDigital" class="login-logo">
+                <div>
+                    <p class="login-product">P.D InvoTech</p>
+                    <p class="login-tag">Facturación electrónica</p>
                 </div>
             </div>
-        </div>
-    </div>
+            <h1>La operación de tus empresas, en un solo lugar.</h1>
+            <ul>
+                <li>Documentos, notas y eventos RADIAN</li>
+                <li>Nómina, POS y documento soporte</li>
+                <li>Resoluciones, ambiente y respaldos</li>
+            </ul>
+        </aside>
+        <section class="login-panel">
+            <p class="login-kicker">Administradores</p>
+            <h2>Iniciar sesión</h2>
+            <p class="login-lead">Usa el correo y la contraseña de tu cuenta.</p>
+            <form method="POST" action="{{ route('login') }}">
+                {{ csrf_field() }}
+
+                <div class="form-group{{ $errors->has('email') ? ' has-error' : '' }}">
+                    <label for="email">Correo</label>
+                    <input id="email" type="email" class="form-control" name="email" placeholder="correo@empresa.com" value="{{ old('email') }}" required autofocus autocomplete="username">
+                    @if ($errors->has('email'))
+                        <span class="help-block"><strong>{{ $errors->first('email') }}</strong></span>
+                    @endif
+                </div>
+
+                <div class="form-group{{ $errors->has('password') ? ' has-error' : '' }}">
+                    <label for="password">Contraseña</label>
+                    <input id="password" type="password" class="form-control" name="password" placeholder="Tu contraseña" required autocomplete="current-password">
+                    @if ($errors->has('password'))
+                        <span class="help-block"><strong>{{ $errors->first('password') }}</strong></span>
+                    @endif
+                </div>
+
+                <label class="login-remember" for="remember">
+                    <input id="remember" type="checkbox" name="remember" {{ old('remember') ? 'checked' : '' }}>
+                    Recordarme en este equipo
+                </label>
+
+                <button type="submit" class="btn btn-primary btn-login">
+                    Entrar
+                </button>
+                <p class="login-foot">{{ env('APP_FOOTER', '2026 - FacturaLatam') }}</p>
+            </form>
+        </section>
 </div>
 @endsection

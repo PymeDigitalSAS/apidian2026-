@@ -8,12 +8,15 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>APIDIAN</title>
+    <title>P.D InvoTech</title>
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="32x32">
+    <link rel="icon" type="image/png" href="{{ asset('favicon-32.png') }}" sizes="32x32">
 
     <!-- Styles -->
     <link href="{{ asset('low/app2.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/ui-shell.css') }}?v={{ filemtime(public_path('css/ui-shell.css')) }}" />
 </head>
-<body>
+<body class="portal-shell">
     <div id="app">
         <nav class="navbar navbar-default navbar-static-top">
             <div class="container">
@@ -21,7 +24,7 @@
 
                     <!-- Branding Image -->
                     <a class="navbar-brand" href="{{ url('/') }}">
-                        {{ config('app.name', 'Laravel') }}
+                        {{ config('app.name', 'PYME-ELECTRONICO') }}
                     </a>
                 </div>
 

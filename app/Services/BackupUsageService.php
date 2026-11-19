@@ -165,13 +165,13 @@ class BackupUsageService
 
     /**
      * ¿Es el archivo el logo (principal o alterno) de la empresa? El logo se
-     * guarda como {NIT}{dv}.jpg o alternate_{NIT}{dv}.jpg, donde dv es el dígito
-     * de verificación. Ningún nombre de documento coincide con ese patrón.
+     * guarda como {NIT}{dv}.jpg|.png o alternate_{NIT}{dv}.jpg|.png, donde dv es
+     * el dígito de verificación. Ningún nombre de documento coincide con ese patrón.
      */
     public function isLogoFile(string $nit, string $filename): bool
     {
         return (bool) preg_match(
-            '/^(alternate_)?' . preg_quote($nit, '/') . '\d+\.jpg$/i',
+            '/^(alternate_)?' . preg_quote($nit, '/') . '\d+\.(jpg|png)$/i',
             $filename
         );
     }
@@ -310,7 +310,7 @@ class BackupUsageService
                 }
                 // Nunca incluir los logos de la empresa (son configuración para
                 // generar PDFs, no documentos). Viven en public/{NIT}/ como
-                // {NIT}{dv}.jpg y alternate_{NIT}{dv}.jpg. Así no se respaldan ni
+                // {NIT}{dv}.jpg|.png y alternate_{NIT}{dv}.jpg|.png. Así no se respaldan ni
                 // se borran: el logo siempre se queda en disco.
                 if ($category === 'public' && $this->isLogoFile($nit, $file->getFilename())) {
                     continue;

@@ -8,22 +8,25 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>FACTURADOR DIAN PRO</title>
+    <title>P.D InvoTech</title>
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="32x32">
+    <link rel="icon" type="image/png" href="{{ asset('favicon-32.png') }}" sizes="32x32">
 
     <!-- Styles -->
     <link href="{{ asset('low/app2.css') }}" rel="stylesheet">
     {{-- theme black --}}
     <link rel="stylesheet" href="{{ asset('porto-light/css/skins/theme-black.css')}}" />
+    <link rel="stylesheet" href="{{ asset('css/ui-shell.css') }}?v={{ filemtime(public_path('css/ui-shell.css')) }}" />
 </head>
-<body>
+<body class="login-body">
     <div id="app">
-        <nav class="navbar navbar-default navbar-static-top" style="display: none">
+        <nav class="navbar navbar-default navbar-static-top" hidden>
             <div class="container">
                 <div class="navbar-header">
 
                     <!-- Branding Image -->
                     <a class="navbar-brand" href="{{ url('/') }}">
-                        {{ config('app.name', 'Laravel') }}
+                        {{ config('app.name', 'PYME-ELECTRONICO') }}
                     </a>
                 </div>
 
