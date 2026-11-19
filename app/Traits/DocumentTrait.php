@@ -446,7 +446,7 @@ trait DocumentTrait
 
         // Plantillas con configuracion mPdf propia (margenes/styles{N}.css):
         // en generacion normal deben ir por la rama numerada de initMPdf.
-        if (empty($request->invoice_template) && in_array($template_pdf, [3, 10, 11, 12, 13])) {
+        if (empty($request->invoice_template) && in_array($template_pdf, [3, 10, 11, 12, 13, 14])) {
             $template_json = true;
         }
         if (!empty($request->invoice_template)) {
@@ -1136,6 +1136,18 @@ trait DocumentTrait
             $margin_left = '10';
             $margin_right = '10';
             $margin_bottom = '14';
+
+         } elseif($template == 14) {
+
+            // Plantilla 14: factura con franja oscura a sangre. El encabezado
+            // y el pie ocupan todo el ancho, y el cuerpo se separa con padding.
+            $format_print = 'A4';
+            $margin_top = '40';
+            $margin_left = '0';
+            $margin_right = '0';
+            $margin_bottom = '24';
+            $margin_header = 0;
+            $margin_footer = 0;
 
          } elseif($template == 13)  {
 
