@@ -1,21 +1,23 @@
+@unless(!empty($omitPageHeader))
 <header class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
-        <br>
-        <span class="text-muted">Seleccione el tipo de documento</span>
-        @if(isset($company))
-            @if(isset($type))
-                @include('company.production._environment_badge', ['company' => $company, 'type' => $type])
-            @else
-                {{-- Listado mixto (todos los tipos): un badge por tipo, porque cada uno
-                     tiene su propia columna de ambiente y su propia URL de envio. --}}
-                @foreach(['invoice' => 'Facturas', 'pos' => 'POS', 'support' => 'Soporte'] as $envTabType => $envTabLabel)
-                    @include('company.production._environment_badge', ['company' => $company, 'type' => $envTabType, 'label' => $envTabLabel])
-                @endforeach
+        <div class="page-header-meta">
+            <span class="text-muted">Seleccione el tipo de documento</span>
+            @if(isset($company))
+                @if(isset($type))
+                    @include('company.production._environment_badge', ['company' => $company, 'type' => $type])
+                @else
+                    {{-- Listado mixto (todos los tipos): un badge por tipo, porque cada uno
+                         tiene su propia columna de ambiente y su propia URL de envio. --}}
+                    @foreach(['invoice' => 'Facturas', 'pos' => 'POS', 'support' => 'Soporte'] as $envTabType => $envTabLabel)
+                        @include('company.production._environment_badge', ['company' => $company, 'type' => $envTabType, 'label' => $envTabLabel])
+                    @endforeach
+                @endif
             @endif
-        @endif
+        </div>
     </div>
-    <div class="mt-auto pb-1">
+    <div class="page-header-actions d-flex flex-wrap align-items-center gap-2">
         <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">
             <i class="fas fa-arrow-left me-2"></i> Volver
         </a>
@@ -23,9 +25,10 @@
             <button class="btn btn-primary btn-sm text-white ml-2" data-toggle="modal" data-target="#excelModal">
                 <i class="fas fa-upload mr-2"></i>Subida Masiva
             </button>
-        @endif        
+        @endif
     </div>
 </header>
+@endunless
 
 
 

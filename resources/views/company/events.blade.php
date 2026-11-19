@@ -4,7 +4,9 @@
         <br>
         <span class="text-muted">Seleccione el tipo de documento</span>
         @if(isset($company))
-            @include('company.production._environment_badge', ['company' => $company, 'type' => 'event'])
+            <div class="page-header-meta">
+                @include('company.production._environment_badge', ['company' => $company, 'type' => 'event'])
+            </div>
         @endif
     </div>
     <div class="mt-auto pb-1">

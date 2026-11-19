@@ -70,6 +70,9 @@
     color: #2B323D;
     font-weight: 600;
     margin-bottom: 0;
+    float: none;
+    height: auto;
+    line-height: 1.25;
 }
 
 /* Estilos para el subtítulo */
@@ -452,14 +455,18 @@ document.addEventListener('DOMContentLoaded', function() {
             <header class="page-header d-flex justify-content-between align-items-center mb-3">
                 <div>
                     <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
-                    <br>
-                    <span class="text-muted">Factura Electrónica</span>
-                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['invoice'], 'type' => 'invoice'])
+                    <div class="page-header-meta">
+                        <span class="text-muted">Factura Electrónica</span>
+                        @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['invoice'], 'type' => 'invoice'])
+                    </div>
                 </div>
-                <div class="mt-auto pb-1">
+                <div class="page-header-actions d-flex flex-wrap align-items-center gap-2">
                     <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-arrow-left me-2"></i> Volver
                     </a>
+                    <button class="btn btn-primary btn-sm text-white" data-toggle="modal" data-target="#excelModal">
+                        <i class="fas fa-upload mr-2"></i>Subida Masiva
+                    </button>
                 </div>
             </header>
             <ul class="nav nav-tabs nav-justified mb-0 sub-tabs" id="invoiceSubTabs" role="tablist" style="background: #fff;">
@@ -504,7 +511,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         'company' => $company,
                         'company_idnumber' => $company->identification_number,
                         'token_company' => $company->user->api_token ?? null,
-                        'type' => 'invoice'
+                        'type' => 'invoice',
+                        'omitPageHeader' => true,
                     ])
                 </div>
                 <div class="tab-pane fade" id="invoice-production" role="tabpanel" aria-labelledby="invoice-production-tab">
@@ -537,11 +545,12 @@ document.addEventListener('DOMContentLoaded', function() {
             <header class="page-header d-flex justify-content-between align-items-center mb-3">
                 <div>
                     <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
-                    <br>
-                    <span class="text-muted">Nómina Electrónica</span>
-                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['payroll'], 'type' => 'payroll'])
+                    <div class="page-header-meta">
+                        <span class="text-muted">Nómina Electrónica</span>
+                        @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['payroll'], 'type' => 'payroll'])
+                    </div>
                 </div>
-                <div class="mt-auto pb-1">
+                <div class="page-header-actions d-flex flex-wrap align-items-center gap-2">
                     <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-arrow-left me-2"></i> Volver
                     </a>
@@ -620,11 +629,12 @@ document.addEventListener('DOMContentLoaded', function() {
             <header class="page-header d-flex justify-content-between align-items-center mb-3">
                 <div>
                     <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
-                    <br>
-                    <span class="text-muted">Documento Soporte</span>
-                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['support'], 'type' => 'support'])
+                    <div class="page-header-meta">
+                        <span class="text-muted">Documento Soporte</span>
+                        @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['support'], 'type' => 'support'])
+                    </div>
                 </div>
-                <div class="mt-auto pb-1">
+                <div class="page-header-actions d-flex flex-wrap align-items-center gap-2">
                     <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-arrow-left me-2"></i> Volver
                     </a>
@@ -672,7 +682,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         'company' => $company,
                         'company_idnumber' => $company->identification_number,
                         'token_company' => $company->token_company ?? null,
-                        'type' => 'support'
+                        'type' => 'support',
+                        'omitPageHeader' => true,
                     ])
                 </div>
                 <div class="tab-pane fade" id="support-production" role="tabpanel" aria-labelledby="support-production-tab">
@@ -705,11 +716,12 @@ document.addEventListener('DOMContentLoaded', function() {
             <header class="page-header d-flex justify-content-between align-items-center mb-3">
                 <div>
                     <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
-                    <br>
-                    <span class="text-muted">Eventos RADIAN</span>
-                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['event'], 'type' => 'event'])
+                    <div class="page-header-meta">
+                        <span class="text-muted">Eventos RADIAN</span>
+                        @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['event'], 'type' => 'event'])
+                    </div>
                 </div>
-                <div class="mt-auto pb-1">
+                <div class="page-header-actions d-flex flex-wrap align-items-center gap-2">
                     <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-arrow-left me-2"></i> Volver
                     </a>
@@ -770,11 +782,12 @@ document.addEventListener('DOMContentLoaded', function() {
             <header class="page-header d-flex justify-content-between align-items-center mb-3">
                 <div>
                     <h2>{{ $company->user->name }} - {{ $company->identification_number }}</h2>
-                    <br>
-                    <span class="text-muted">Documentos Equivalentes (POS)</span>
-                    @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['pos'], 'type' => 'pos'])
+                    <div class="page-header-meta">
+                        <span class="text-muted">Documentos Equivalentes (POS)</span>
+                        @include('company.production._environment_badge', ['environmentStatus' => $environmentStatuses['pos'], 'type' => 'pos'])
+                    </div>
                 </div>
-                <div class="mt-auto pb-1">
+                <div class="page-header-actions d-flex flex-wrap align-items-center gap-2">
                     <a href="{{ route('home') }}" class="btn btn-secondary btn-sm">
                         <i class="fas fa-arrow-left me-2"></i> Volver
                     </a>
@@ -822,7 +835,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         'company' => $company,
                         'company_idnumber' => $company->identification_number,
                         'token_company' => $company->token_company ?? null,
-                        'type' => 'pos'
+                        'type' => 'pos',
+                        'omitPageHeader' => true,
                     ])
                 </div>
                 <div class="tab-pane fade" id="pos-production" role="tabpanel" aria-labelledby="pos-production-tab">

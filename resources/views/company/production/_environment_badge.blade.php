@@ -46,11 +46,11 @@
     }
 @endphp
 {{-- bg-* (Bootstrap 5) + badge-* (Bootstrap 4) para cubrir ambas vistas del proyecto --}}
-<span class="badge {{ $envBadgeIsProd ? 'bg-success badge-success' : 'bg-warning badge-warning' }} ms-2 ml-2" style="font-size:.7rem; vertical-align:middle;">
+<span class="badge {{ $envBadgeIsProd ? 'bg-success badge-success' : 'bg-warning badge-warning' }}" style="font-size:.75rem; line-height:1.4; padding:.35rem .55rem;">
     {{ isset($label) ? $label.': ' : 'Ambiente: ' }}{{ $envBadgeIsProd ? 'Producción' : 'Habilitación' }}
 </span>
 @if($envBadgeMismatch)
-    <span class="badge bg-danger badge-danger ms-1 ml-1" style="font-size:.7rem; vertical-align:middle;"
+    <span class="badge bg-danger badge-danger" style="font-size:.75rem; line-height:1.4; padding:.35rem .55rem;"
           title="La empresa está marcada en {{ $envBadgeIsProd ? 'Producción' : 'Habilitación' }} pero el software apunta a {{ $envBadgeUrlIsProd ? 'Producción' : 'Habilitación' }} ({{ $envBadgeUrl }}). Los documentos se envían a donde apunta el software.">
         <i class="fas fa-exclamation-triangle"></i> Envía a {{ $envBadgeUrlIsProd ? 'Producción' : 'Habilitación' }}
     </span>
